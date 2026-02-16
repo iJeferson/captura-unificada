@@ -44,10 +44,7 @@ document.querySelectorAll(".btn-reload").forEach(btn => {
 });
 
 document.querySelectorAll(".btn-cache").forEach(btn => {
-    btn.onclick = async () => {
-        await window.api.clearCache();
-        alert("Sistema limpo!");
-    };
+    btn.onclick = async () => await window.api.clearCache();
 });
 
 // --- Gestão de Tema ---
@@ -75,3 +72,12 @@ window.api.onLoadFinished(() => loadingOn(false));
         if (el) el.innerText = val;
     }
 })();
+
+// Escuta atualizações de IP vindas do processo principal
+window.api.onUpdateIP((novoIp) => {
+    const ipEl = document.getElementById("ip");
+    if (ipEl && ipEl.innerText !== novoIp) {
+        ipEl.innerText = novoIp;
+        console.log("IP atualizado automaticamente:", novoIp);
+    }
+});

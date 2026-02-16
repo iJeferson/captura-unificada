@@ -6,42 +6,43 @@
   "main": "main.js",
   "author": "Jeferson Oliveira",
   "copyright": "©Jeferson Oliveira - 2026",
-
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder"
+    "build": "electron-builder --win --x64"
   },
-
   "devDependencies": {
     "electron": "^30.0.0",
     "electron-builder": "^24.13.3"
   },
-
   "build": {
     "appId": "com.consorcio.capturaunificada",
     "productName": "Captura Unificada",
-
     "directories": {
       "output": "dist"
     },
-
     "files": [
-      "**/*"
+      "**/*",
+      "!dist/*",
+      "!.vscode/*",
+      "!node_modules/*{test,tests,example,examples,*.md,*.html,*.js.map,*.ts}*"
     ],
-
     "win": {
-      "target": "nsis",
+      "target": [
+        "nsis"
+      ],
       "icon": "icon.png",
       "artifactName": "Captura-Unificada-Setup.exe"
     },
-
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Captura Unificada",
-      "runAfterFinish": true
+      "runAfterFinish": true,
+      "uninstallDisplayName": "Desinstalar Captura Unificada",
+      "deleteAppDataOnUninstall": false
     }
   }
 }
