@@ -1,65 +1,85 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="style.css">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="style.css" />
     <title>Captura Unificada - Consórcio Bahia Digital</title>
-</head>
-<body>
+  </head>
+  <body class="dark-theme">
     <div class="app">
-        <aside class="sidebar">
-            <div class="logo">
-                <h2>Captura Unificada</h2>
-                <span>Sistemas Integrados</span>
+      <aside class="sidebar">
+        <div class="logo">
+          <h2>Captura Unificada</h2>
+          <span>Sistemas Integrados</span>
+        </div>
+
+        <div class="theme-switch" id="theme-toggle">
+          <i class="fas fa-moon" id="theme-icon"></i>
+          <span id="theme-text">Modo Escuro</span>
+        </div>
+
+        <nav class="menu">
+          <div class="system-item">
+            <button class="menu-btn" id="captura">
+              <span><i class="fas fa-globe"></i> CapturaWeb</span>
+              <span class="active-tag">ATIVO</span>
+              <span class="dots" data-menu="menu1">⋮</span>
+            </button>
+            <div class="dropdown" id="menu1">
+              <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
+              <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
             </div>
-            <nav class="menu">
-                <div class="system-item">
-                    <button class="menu-btn" id="captura">
-                        <span>🌐 CapturaWeb</span>
-                        <span class="active-tag">ATIVO</span>
-                        <span class="dots" data-menu="menu1">⋮</span>
-                    </button>
-                    <div class="dropdown" id="menu1">
-                        <button id="reload">🔄 Reiniciar página</button>
-                        <button id="cache">🧹 Limpar cache</button>
-                    </div>
-                </div>
-                <div class="system-item">
-                    <button class="menu-btn" id="smart">
-                        <span>🧾 SMART (CIN)</span>
-                        <span class="active-tag">ATIVO</span>
-                        <span class="dots" data-menu="menu2">⋮</span>
-                    </button>
-                    <div class="dropdown" id="menu2">
-                        <button id="reload2">🔄 Reiniciar página</button>
-                        <button id="cache2">🧹 Limpar cache</button>
-                    </div>
-                </div>
-            </nav>
-            <div class="status-box">
-                <span>Leitor biométrico</span>
-                <div id="bioStatus" class="status offline">OFFLINE</div>
-                <div class="pc-info">
-                    <div><strong>Host:</strong> <span id="hostname"></span></div>
-                    <div><strong>IP:</strong> <span id="ip"></span></div>
-                </div>
+          </div>
+
+          <div class="system-item">
+            <button class="menu-btn" id="smart">
+              <span><i class="fas fa-file-invoice"></i> SMART (CIN)</span>
+              <span class="active-tag">ATIVO</span>
+              <span class="dots" data-menu="menu2">⋮</span>
+            </button>
+            <div class="dropdown" id="menu2">
+              <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
+              <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
             </div>
-        </aside>
-        <main class="content">
-            <header class="topbar">
-                <h3 id="tituloSistema">Aguardando seleção</h3>
-            </header>
-            <div id="placeholder" class="placeholder">
-                <h2>Aguardando seleção do usuário</h2>
-                <p>Escolha um sistema na barra lateral para iniciar.</p>
+          </div>
+        </nav>
+
+        <div class="status-box">
+          <div class="support-card">
+            <div class="support-header">
+              <i class="fas fa-headset"></i>
+              <span class="support-title">Suporte Técnico</span>
             </div>
-            <div id="loading" class="hidden">
-                <div class="spinner"></div>
-                <p>Trocando sistema...</p>
+            <div class="support-content">
+              <p>Informe os dados abaixo para nossa equipe.</p>
             </div>
-        </main>
+          </div>
+
+          <div class="pc-info">
+            <div class="info-item"><i class="fas fa-desktop"></i><div class="text"><strong>Host</strong><span id="hostname">---</span></div></div>
+            <div class="info-item"><i class="fas fa-network-wired"></i><div class="text"><strong>IP</strong><span id="ip">---</span></div></div>
+            <div class="info-item"><i class="fas fa-id-card-clip"></i><div class="text"><strong>AnyDesk</strong><span id="anydesk" class="anydesk-id">---</span></div></div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="content">
+        <div id="placeholder" class="placeholder">
+          <div class="placeholder-container">
+            <i class="fas fa-display"></i>
+            <h2>Aguardando seleção</h2>
+            <p>Escolha um sistema na barra lateral.</p>
+          </div>
+        </div>
+
+        <div id="loading" class="hidden">
+          <div class="spinner"></div>
+          <p>Trocando sistema...</p>
+        </div>
+      </main>
     </div>
     <script src="app.js"></script>
-</body>
+  </body>
 </html>

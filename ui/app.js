@@ -1,76 +1,77 @@
-const btnCaptura = document.getElementById("captura");
-const btnSmart = document.getElementById("smart");
-const loading = document.getElementById("loading");
-const titulo = document.getElementById("tituloSistema");
-const bioStatus = document.getElementById("bioStatus");
-const placeholder = document.getElementById("placeholder");
+// Funções de Utilidade
+const loadingOn = (v) => document.getElementById("loading")?.classList.toggle("hidden", !v);
 
-function loadingOn(v) {
-  loading.classList.toggle("hidden", !v);
-}
-
-function setActive(btn) {
-  document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
-  btn.classList.add("active");
-}
-
-function iniciarSistema() {
-  placeholder.classList.add("hidden");
-}
-
-/* EVENTO CARREGAMENTO */
-window.api.onLoadFinished(() => {
-  loadingOn(false);
-});
-
-/* BOTÕES PRINCIPAIS */
-btnCaptura.onclick = async () => {
-  iniciarSistema();
-  setActive(btnCaptura); // UX: Fica azul e mostra tag ATIVO
-  titulo.innerText = "CapturaWeb";
-  loadingOn(true);
-  await window.api.abrirCaptura();
+const setActive = (btn) => {
+    document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("placeholder")?.classList.add("hidden");
 };
 
-btnSmart.onclick = async () => {
-  iniciarSistema();
-  setActive(btnSmart); // UX: Fica azul e mostra tag ATIVO
-  titulo.innerText = "SMART (CIN)";
-  loadingOn(true);
-  await window.api.abrirSmart();
+// --- Cliques nos Sistemas ---
+document.getElementById("captura").onclick = async (e) => {
+    setActive(e.currentTarget);
+    loadingOn(true);
+    await window.api.abrirCaptura();
 };
 
-/* DROPDOWN */
+document.getElementById("smart").onclick = async (e) => {
+    setActive(e.currentTarget);
+    loadingOn(true);
+    await window.api.abrirSmart();
+};
+
+// --- Dropdowns (Três Pontinhos) ---
 document.querySelectorAll(".dots").forEach(dot => {
-  dot.onclick = (e) => {
-    e.stopPropagation();
-    const id = dot.dataset.menu;
-    document.querySelectorAll(".dropdown").forEach(d => {
-        if(d.id !== id) d.classList.remove("show");
-    });
-    document.getElementById(id).classList.toggle("show");
-  };
+    dot.onclick = (e) => {
+        e.stopPropagation();
+        const menuId = dot.dataset.menu;
+        document.querySelectorAll(".dropdown").forEach(d => {
+            if (d.id !== menuId) d.classList.remove("show");
+        });
+        document.getElementById(menuId).classList.toggle("show");
+    };
 });
 
+// Fecha dropdown ao clicar fora
 document.addEventListener("click", () => {
-  document.querySelectorAll(".dropdown").forEach(d => d.classList.remove("show"));
+    document.querySelectorAll(".dropdown").forEach(d => d.classList.remove("show"));
 });
 
-/* AÇÕES */
-document.getElementById("reload").onclick =
-document.getElementById("reload2").onclick = () => window.api.reloadPage();
-
-document.getElementById("cache").onclick =
-document.getElementById("cache2").onclick = () => window.api.clearCache();
-
-/* STATUS E INFO */
-window.api.onBioStatus((online) => {
-  bioStatus.className = "status " + (online ? "online" : "offline");
-  bioStatus.innerText = online ? "ONLINE" : "OFFLINE";
+// --- Ações Globais (Reload e Cache) ---
+// Configura todos os botões que tenham as classes enviadas no index.html
+document.querySelectorAll(".btn-reload").forEach(btn => {
+    btn.onclick = () => window.api.reloadPage();
 });
+
+document.querySelectorAll(".btn-cache").forEach(btn => {
+    btn.onclick = async () => {
+        await window.api.clearCache();
+        alert("Sistema limpo!");
+    };
+});
+
+// --- Gestão de Tema ---
+document.getElementById("theme-toggle").onclick = () => {
+    const body = document.body;
+    const icon = document.getElementById("theme-icon");
+    const text = document.getElementById("theme-text");
+    const isDark = body.classList.contains("dark-theme");
+
+    body.classList.toggle("dark-theme", !isDark);
+    body.classList.toggle("light-theme", isDark);
+    icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
+    text.innerText = isDark ? "Modo Claro" : "Modo Escuro";
+};
+
+// --- Inicialização e Info ---
+window.api.onLoadFinished(() => loadingOn(false));
 
 (async () => {
-  const info = await window.api.getSystemInfo();
-  document.getElementById("hostname").innerText = info.hostname;
-  document.getElementById("ip").innerText = info.ip;
+    const info = await window.api.getSystemInfo();
+    const map = { hostname: info.hostname, ip: info.ip, anydesk: info.anydesk };
+    
+    for (const [id, val] of Object.entries(map)) {
+        const el = document.getElementById(id);
+        if (el) el.innerText = val;
+    }
 })();

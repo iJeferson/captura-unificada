@@ -1,239 +1,166 @@
-/* RESET */
-*{
-  margin:0;
-  padding:0;
-  box-sizing:border-box;
-  font-family:"Segoe UI",sans-serif;
+/* =========================================
+   VARIÁVEIS E TEMA
+   ========================================= */
+:root {
+    --bg-app: #0b1220; --bg-sidebar: #0f172a; --bg-btn: #1e293b;
+    --bg-hover: #334155; --text-main: #ffffff; --text-dim: #94a3b8;
+    --border: #1e293b; --accent: #2563eb; --accent-glow: rgba(37, 99, 235, 0.4);
+    --anydesk: #ef4444;
 }
 
-body{
-  background:#0b1220;
-  color:white;
-  height:100vh;
-  overflow:hidden;
+.light-theme {
+    --bg-app: #f1f5f9; --bg-sidebar: #ffffff; --bg-btn: #e2e8f0;
+    --bg-hover: #cbd5e1; --text-main: #0f172a; --text-dim: #64748b;
+    --border: #e2e8f0; --accent-glow: rgba(37, 99, 235, 0.2); --anydesk: #c53030;
 }
 
-.app{
-  display:flex;
-  height:100vh;
+/* =========================================
+   RESET E ESTRUTURA
+   ========================================= */
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+
+body { 
+    background: var(--bg-app); color: var(--text-main); 
+    height: 100vh; overflow: hidden; transition: 0.3s; 
 }
 
-/* =========================
+.app { display: flex; height: 100vh; }
+
+/* =========================================
    SIDEBAR
-========================= */
-.sidebar{
-  width:260px;
-  min-width:260px;
-  background:#0f172a;
-  border-right:1px solid #1e293b;
-  display:flex;
-  flex-direction:column;
-  padding:16px;
+   ========================================= */
+.sidebar {
+    width: 260px; min-width: 260px; background: var(--bg-sidebar);
+    border-right: 1px solid var(--border); display: flex;
+    flex-direction: column; padding: 20px; z-index: 10;
 }
 
-.logo {
-  margin-bottom: 20px;
+.logo h2 { font-size: 19px; letter-spacing: -0.5px; }
+.logo span { font-size: 11px; color: var(--text-dim); }
+
+.theme-switch, .menu-btn {
+    cursor: pointer; transition: 0.2s; border-radius: 8px;
+    background: var(--bg-btn); color: var(--text-main); border: none;
 }
 
-.logo h2 {
-  font-size: 20px; 
-  font-weight: 700;
-  white-space: nowrap; /* MESMA LINHA */
-  display: inline-block;
+.theme-switch {
+    margin: 15px 0; padding: 10px; display: flex; align-items: center; gap: 10px; font-size: 13px;
 }
 
-.logo span {
-  display: block;
-  font-size: 11px;
-  opacity: .6;
-  margin-top: 2px;
+.theme-switch:hover, .menu-btn:hover { background: var(--bg-hover); }
+
+/* =========================================
+   MENU E DROPDOWN
+   ========================================= */
+.menu { display: flex; flex-direction: column; gap: 12px; }
+
+.menu-btn {
+    width: 100%; padding: 12px; display: flex; align-items: center; 
+    justify-content: space-between; font-size: 14px;
 }
 
-.menu{
-  margin-top:10px;
-  display:flex;
-  flex-direction:column;
-  gap:12px;
+.menu-btn i { color: var(--accent); margin-right: 8px; }
+
+.menu-btn.active { 
+    background: var(--accent); color: #fff; 
+    box-shadow: 0 4px 12px var(--accent-glow); 
 }
 
-/* =========================
-   SISTEMAS (UX ATIVO)
-========================= */
-.system-item{
-  position:relative;
+.menu-btn.active i { color: #fff; }
+
+.active-tag {
+    display: none; font-size: 9px; background: rgba(255,255,255,0.2);
+    padding: 2px 8px; border-radius: 20px; animation: pulseText 1.8s infinite;
 }
 
-.menu-btn{
-  width:100%;
-  border:none;
-  background:#1e293b;
-  color:white;
-  padding:12px;
-  border-radius:10px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:8px;
-  cursor:pointer;
-  transition:.2s;
-  font-size:14px;
+.menu-btn.active .active-tag { display: inline-block; }
+
+.dropdown { 
+    display: none; flex-direction: column; margin-top: 6px; 
+    background: rgba(0, 0, 0, 0.1); border-radius: 8px; overflow: hidden; 
 }
 
-.menu-btn:hover{
-  background:#334155;
+.dropdown.show { display: flex; }
+
+.dropdown button {
+    border: none; background: none; color: var(--text-dim);
+    padding: 10px 12px; font-size: 13px; cursor: pointer; transition: 0.2s;
 }
 
-/* ESTADO ATIVO */
-.menu-btn.active{
-  background:#2563eb;
-  box-shadow:0 0 0 1px rgba(255,255,255,.12);
+.dropdown button:hover { background: var(--bg-hover); color: var(--text-main); }
+
+/* =========================================
+   STATUS E PC INFO
+   ========================================= */
+.status-box { margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border); }
+
+.support-card {
+    background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 12px; padding: 12px; margin-bottom: 20px;
+    overflow: hidden; transition: 0.4s; max-height: 42px; cursor: help;
 }
 
-.menu-btn.active::before{
-  content:"";
-  position:absolute;
-  left:0;
-  top:6px;
-  bottom:6px;
-  width:3px;
-  border-radius:2px;
-  background:#22d3ee;
+.support-card:hover { 
+    max-height: 160px; background: rgba(59, 130, 246, 0.12); 
+    border-color: rgba(59, 130, 246, 0.4); 
 }
 
-/* TAG ATIVO COM ANIMAÇÃO */
-.active-tag{
-  display:none;
-  font-size:10px;
-  background:#0ea5e9;
-  padding:3px 7px;
-  border-radius:20px;
-  font-weight:600;
-  letter-spacing:.3px;
-  animation:pulse 1.8s infinite;
+.support-header { display: flex; align-items: center; gap: 10px; color: var(--accent); font-weight: 600; font-size: 0.85rem; }
+
+.support-content { margin-top: 10px; font-size: 0.75rem; color: var(--text-dim); opacity: 0; transition: 0.3s; }
+
+.support-card:hover .support-content { opacity: 1; }
+
+.pc-info { display: flex; flex-direction: column; gap: 8px; }
+
+.info-item { 
+    display: flex; align-items: center; gap: 12px; padding: 10px; 
+    background: rgba(255, 255, 255, 0.03); border-radius: 8px; transition: 0.2s; 
 }
 
-.menu-btn.active .active-tag{
-  display:inline-block;
+.info-item:hover { transform: translateX(5px); }
+
+.info-item i { color: var(--accent); width: 20px; text-align: center; }
+
+.info-item .fa-id-card-clip, .anydesk-id { color: var(--anydesk) !important; }
+
+.info-item .text { display: flex; flex-direction: column; }
+
+.info-item strong { font-size: 9px; text-transform: uppercase; color: var(--text-dim); }
+
+.info-item span { font-size: 12px; font-weight: 600; }
+
+/* =========================================
+   CONTEÚDO E CENTRALIZAÇÃO
+   ========================================= */
+.content { flex: 1; position: relative; background: var(--bg-app); }
+
+.placeholder, #loading {
+    position: absolute; inset: 0; display: flex; 
+    flex-direction: column; align-items: center; justify-content: center;
 }
 
-.dots{
-  opacity:.65;
-  cursor:pointer;
-  padding:0 6px;
-  font-size:14px;
+.placeholder { text-align: center; z-index: 1; }
+
+.placeholder i { font-size: 5rem; color: var(--accent); opacity: 0.15; margin-bottom: 20px; }
+
+.placeholder h2 { font-size: 2.2rem; font-weight: 700; }
+
+#loading { background: var(--bg-app); opacity: 0.95; z-index: 99; }
+
+.spinner {
+    width: 35px; height: 35px; border: 3px solid var(--border);
+    border-top: 3px solid var(--accent); border-radius: 50%;
+    animation: spin .8s linear infinite; margin-bottom: 15px;
 }
 
-/* =========================
-   DROPDOWN
-========================= */
-.dropdown{
-  display:none;
-  flex-direction:column;
-  margin-top:6px;
-  background:#111827;
-  border-radius:8px;
-  overflow:hidden;
-  border:1px solid rgba(255,255,255,.04);
-}
+.hidden { display: none !important; }
 
-.dropdown.show{
-  display:flex;
-}
+/* =========================================
+   ANIMAÇÕES
+   ========================================= */
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulseText { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+@keyframes pulseIcon { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.15); opacity: 1; } }
 
-.dropdown button{
-  border:none;
-  background:none;
-  color:#cbd5e1;
-  text-align:left;
-  padding:9px 10px;
-  font-size:13px;
-  cursor:pointer;
-  transition:.2s;
-}
-
-.dropdown button:hover{
-  background:#1e293b;
-  color:white;
-}
-
-/* =========================
-   STATUS
-========================= */
-.status-box{
-  margin-top:auto;
-  font-size:13px;
-}
-
-.status{
-  margin-top:8px;
-  padding:6px 10px;
-  border-radius:8px;
-  display:inline-block;
-  font-weight:600;
-  font-size:12px;
-}
-
-.online{ background:#065f46; color:#6ee7b7; }
-.offline{ background:#7f1d1d; color:#fecaca; }
-
-.pc-info{
-  margin-top:12px;
-  font-size:12px;
-  line-height:1.5;
-  opacity:.9;
-}
-
-/* =========================
-   CONTENT
-========================= */
-.content{
-  flex:1;
-  position:relative;
-  background:#0b1220;
-}
-
-.topbar{
-  height:70px;
-  display:flex;
-  align-items:center;
-  padding:0 20px;
-  border-bottom:1px solid #1e293b;
-  background:#0f172a;
-}
-
-.placeholder{
-  position:absolute;
-  inset:0;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  color:#94a3b8;
-}
-
-/* LOADING */
-#loading{
-  position:absolute;
-  inset:0;
-  background:rgba(11,18,32,.75);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  z-index:20;
-}
-
-.hidden{ display:none !important; }
-
-.spinner{
-  width:40px;
-  height:40px;
-  border:4px solid rgba(255,255,255,.2);
-  border-top:4px solid white;
-  border-radius:50%;
-  animation:spin .8s linear infinite;
-}
-
-@keyframes spin{ to{transform:rotate(360deg);} }
-@keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.5;} }
+.support-header i { animation: pulseIcon 2s infinite ease-in-out; }
