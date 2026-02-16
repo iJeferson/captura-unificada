@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="style.css">
+    <title>Captura Unificada - Consórcio Bahia Digital</title>
+</head>
+<body>
+    <div class="app">
+        <aside class="sidebar">
+            <div class="logo">
+                <h2>Captura Unificada</h2>
+                <span>Sistemas Integrados</span>
+            </div>
+            <nav class="menu">
+                <div class="system-item">
+                    <button class="menu-btn" id="captura">
+                        <span>🌐 CapturaWeb</span>
+                        <span class="active-tag">ATIVO</span>
+                        <span class="dots" data-menu="menu1">⋮</span>
+                    </button>
+                    <div class="dropdown" id="menu1">
+                        <button id="reload">🔄 Reiniciar página</button>
+                        <button id="cache">🧹 Limpar cache</button>
+                    </div>
+                </div>
+                <div class="system-item">
+                    <button class="menu-btn" id="smart">
+                        <span>🧾 SMART (CIN)</span>
+                        <span class="active-tag">ATIVO</span>
+                        <span class="dots" data-menu="menu2">⋮</span>
+                    </button>
+                    <div class="dropdown" id="menu2">
+                        <button id="reload2">🔄 Reiniciar página</button>
+                        <button id="cache2">🧹 Limpar cache</button>
+                    </div>
+                </div>
+            </nav>
+            <div class="status-box">
+                <span>Leitor biométrico</span>
+                <div id="bioStatus" class="status offline">OFFLINE</div>
+                <div class="pc-info">
+                    <div><strong>Host:</strong> <span id="hostname"></span></div>
+                    <div><strong>IP:</strong> <span id="ip"></span></div>
+                </div>
+            </div>
+        </aside>
+        <main class="content">
+            <header class="topbar">
+                <h3 id="tituloSistema">Aguardando seleção</h3>
+            </header>
+            <div id="placeholder" class="placeholder">
+                <h2>Aguardando seleção do usuário</h2>
+                <p>Escolha um sistema na barra lateral para iniciar.</p>
+            </div>
+            <div id="loading" class="hidden">
+                <div class="spinner"></div>
+                <p>Trocando sistema...</p>
+            </div>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

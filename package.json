@@ -1,0 +1,47 @@
+{
+  "name": "captura-unificada",
+  "productName": "Captura Unificada",
+  "version": "1.0.0",
+  "description": "Launcher de sistemas integrados",
+  "main": "main.js",
+  "author": "Jeferson Oliveira",
+  "copyright": "©Jeferson Oliveira - 2026",
+
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3"
+  },
+
+  "build": {
+    "appId": "com.consorcio.capturaunificada",
+    "productName": "Captura Unificada",
+
+    "directories": {
+      "output": "dist"
+    },
+
+    "files": [
+      "**/*"
+    ],
+
+    "win": {
+      "target": "nsis",
+      "icon": "icon.png",
+      "artifactName": "Captura-Unificada-Setup.exe"
+    },
+
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Captura Unificada",
+      "runAfterFinish": true
+    }
+  }
+}
