@@ -1,5 +1,8 @@
-// Funções de Utilidade
-const loadingOn = (v) => document.getElementById("loading")?.classList.toggle("hidden", !v);
+const loadingOn = (v) => {
+    const loader = document.getElementById("loading");
+    loader?.classList.toggle("hidden", !v);
+    document.body.style.pointerEvents = v ? "none" : "auto";
+};
 
 const setActive = (btn) => {
     document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
@@ -7,38 +10,60 @@ const setActive = (btn) => {
     document.getElementById("placeholder")?.classList.add("hidden");
 };
 
-// --- Cliques nos Sistemas ---
 document.getElementById("captura").onclick = async (e) => {
+    if (e.currentTarget.classList.contains("active")) return;
     setActive(e.currentTarget);
     loadingOn(true);
     await window.api.abrirCaptura();
 };
 
 document.getElementById("smart").onclick = async (e) => {
+    if (e.currentTarget.classList.contains("active")) return;
     setActive(e.currentTarget);
     loadingOn(true);
     await window.api.abrirSmart();
 };
 
-// --- Dropdowns (Três Pontinhos) ---
+const sidebar = document.getElementById("sidebar");
+const toggleBtn = document.getElementById("toggle-sidebar");
+const toggleIcon = document.getElementById("toggle-icon");
+
+if (toggleBtn) {
+    toggleBtn.onclick = () => {
+        const isCollapsed = sidebar.classList.toggle("collapsed");
+        toggleIcon.className = isCollapsed ? "fas fa-chevron-right" : "fas fa-chevron-left";
+        window.api.resizeSidebar(isCollapsed ? 80 : 260);
+    };
+}
+
+window.api.onLoadFinished(() => {
+    loadingOn(false);
+});
+
+(async () => {
+    const info = await window.api.getSystemInfo();
+    if (document.getElementById("hostname")) document.getElementById("hostname").innerText = info.hostname;
+    if (document.getElementById("ip")) document.getElementById("ip").innerText = info.ip;
+    if (document.getElementById("anydesk")) document.getElementById("anydesk").innerText = info.anydesk;
+})();
+
+window.api.onUpdateIP((novoIp) => {
+    const ipEl = document.getElementById("ip");
+    if (ipEl) ipEl.innerText = novoIp;
+});
+
 document.querySelectorAll(".dots").forEach(dot => {
     dot.onclick = (e) => {
         e.stopPropagation();
         const menuId = dot.dataset.menu;
-        document.querySelectorAll(".dropdown").forEach(d => {
-            if (d.id !== menuId) d.classList.remove("show");
-        });
         document.getElementById(menuId).classList.toggle("show");
     };
 });
 
-// Fecha dropdown ao clicar fora
 document.addEventListener("click", () => {
     document.querySelectorAll(".dropdown").forEach(d => d.classList.remove("show"));
 });
 
-// --- Ações Globais (Reload e Cache) ---
-// Configura todos os botões que tenham as classes enviadas no index.html
 document.querySelectorAll(".btn-reload").forEach(btn => {
     btn.onclick = () => window.api.reloadPage();
 });
@@ -47,37 +72,10 @@ document.querySelectorAll(".btn-cache").forEach(btn => {
     btn.onclick = async () => await window.api.clearCache();
 });
 
-// --- Gestão de Tema ---
 document.getElementById("theme-toggle").onclick = () => {
     const body = document.body;
-    const icon = document.getElementById("theme-icon");
-    const text = document.getElementById("theme-text");
-    const isDark = body.classList.contains("dark-theme");
-
-    body.classList.toggle("dark-theme", !isDark);
-    body.classList.toggle("light-theme", isDark);
-    icon.className = isDark ? "fas fa-sun" : "fas fa-moon";
-    text.innerText = isDark ? "Modo Claro" : "Modo Escuro";
+    const isDark = body.classList.toggle("dark-theme");
+    body.classList.toggle("light-theme", !isDark);
+    document.getElementById("theme-icon").className = isDark ? "fas fa-moon" : "fas fa-sun";
+    document.getElementById("theme-text").innerText = isDark ? "Modo Escuro" : "Modo Claro";
 };
-
-// --- Inicialização e Info ---
-window.api.onLoadFinished(() => loadingOn(false));
-
-(async () => {
-    const info = await window.api.getSystemInfo();
-    const map = { hostname: info.hostname, ip: info.ip, anydesk: info.anydesk };
-    
-    for (const [id, val] of Object.entries(map)) {
-        const el = document.getElementById(id);
-        if (el) el.innerText = val;
-    }
-})();
-
-// Escuta atualizações de IP vindas do processo principal
-window.api.onUpdateIP((novoIp) => {
-    const ipEl = document.getElementById("ip");
-    if (ipEl && ipEl.innerText !== novoIp) {
-        ipEl.innerText = novoIp;
-        console.log("IP atualizado automaticamente:", novoIp);
-    }
-});
