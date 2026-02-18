@@ -1,7 +1,7 @@
 {
   "name": "captura-unificada",
   "productName": "Captura Unificada",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "Launcher de sistemas integrados",
   "main": "main.js",
   "author": "Jeferson Oliveira",
@@ -14,12 +14,22 @@
     "electron": "^30.0.0",
     "electron-builder": "^24.13.3"
   },
+  "dependencies": {
+    "electron-updater": "^6.1.7"
+  },
   "build": {
     "appId": "com.consorcio.capturaunificada",
     "productName": "Captura Unificada",
     "directories": {
       "output": "dist"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "iJeferson",
+        "repo": "captura-unificada"
+      }
+    ],
     "files": [
       "**/*",
       "!dist/*",
@@ -41,8 +51,9 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Captura Unificada",
       "runAfterFinish": true,
-      "uninstallDisplayName": "Desinstalar Captura Unificada",
-      "deleteAppDataOnUninstall": false
+      "uninstallDisplayName": "Captura Unificada",
+      "deleteAppDataOnUninstall": false,
+      "differentialPackage": true
     }
   }
 }
