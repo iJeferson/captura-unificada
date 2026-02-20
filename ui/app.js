@@ -4,11 +4,27 @@ const loadingOn = (v, nomeSistema = "") => {
     estaCarregando = v;
     const loader = document.getElementById("loading");
     const loaderText = loader?.querySelector("p");
+    const contentArea = document.querySelector(".content"); // Seleciona a área do sistema
 
     if (loader) {
-        loader.classList.toggle("hidden", !v);
-        if (v && loaderText && nomeSistema) {
-            loaderText.innerText = `Iniciando ${nomeSistema}`;
+        if (v) {
+            // Ao iniciar o loading
+            loader.classList.remove("hidden");
+            if (loaderText && nomeSistema) {
+                loaderText.innerText = `Iniciando ${nomeSistema}`;
+            }
+            // Remove a classe de animação da área de conteúdo para o próximo carregamento
+            contentArea?.classList.remove("fade-in-view");
+        } else {
+            // Ao finalizar o loading
+            loader.classList.add("hidden");
+            
+            // DISPARA O EFEITO FADE-IN NA PÁGINA
+            if (contentArea) {
+                contentArea.classList.remove("fade-in-view");
+                void contentArea.offsetWidth; // Truque para resetar animação CSS
+                contentArea.classList.add("fade-in-view");
+            }
         }
     }
     
@@ -22,6 +38,7 @@ const setActive = (btn) => {
     document.getElementById("placeholder")?.classList.add("hidden");
 };
 
+// --- BOTÕES PRINCIPAIS ---
 document.getElementById("captura").onclick = async (e) => {
     if (estaCarregando || e.currentTarget.classList.contains("active")) return;
     setActive(e.currentTarget);
@@ -36,6 +53,7 @@ document.getElementById("smart").onclick = async (e) => {
     await window.api.abrirSmart();
 };
 
+// --- SIDEBAR ---
 const sidebar = document.getElementById("sidebar");
 const toggleBtn = document.getElementById("toggle-sidebar");
 const toggleIcon = document.getElementById("toggle-icon");
@@ -51,10 +69,12 @@ if (toggleBtn) {
     };
 }
 
+// --- EVENTO DE CARREGAMENTO CONCLUÍDO ---
 window.api.onLoadFinished(() => {
     loadingOn(false);
 });
 
+// --- INFO DO SISTEMA ---
 (async () => {
     const info = await window.api.getSystemInfo();
     if (document.getElementById("hostname")) document.getElementById("hostname").innerText = info.hostname;
@@ -67,6 +87,7 @@ window.api.onUpdateIP((novoIp) => {
     if (ipEl) ipEl.innerText = novoIp;
 });
 
+// --- DROPDOWNS ---
 document.querySelectorAll(".dots").forEach(dot => {
     dot.onclick = (e) => {
         if (estaCarregando) return;
@@ -83,6 +104,7 @@ document.addEventListener("click", () => {
     document.querySelectorAll(".dropdown").forEach(d => d.classList.remove("show"));
 });
 
+// --- RECARREGAR E CACHE ---
 document.querySelectorAll(".btn-reload").forEach(btn => {
     btn.onclick = () => {
         if (estaCarregando) return;
@@ -100,6 +122,7 @@ document.querySelectorAll(".btn-cache").forEach(btn => {
     };
 });
 
+// --- TEMA ---
 document.getElementById("theme-toggle").onclick = () => {
     if (estaCarregando) return;
     const body = document.body;

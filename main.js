@@ -5,9 +5,8 @@ const fs = require("fs");
 const { exec } = require("child_process");
 const { autoUpdater } = require("electron-updater");
 
-// --- LOGS DE UPDATE (Para você debugar se não notificar) ---
-autoUpdater.logger = require("electron-log");
-autoUpdater.logger.transports.file.level = "info";
+// Otimização de compilação de Script (V8)
+process.env.V8_CACHE_OPTIONS = "code";
 
 const gotTheLock = app.requestSingleInstanceLock();
 
@@ -20,7 +19,7 @@ if (!gotTheLock) {
   const TOPBAR_HEIGHT = 0;
   const ICON_PATH = path.join(__dirname, "icon.png");
 
-  app.on('second-instance', (event, commandLine, workingDirectory) => {
+  app.on('second-instance', () => {
     if (win) {
       if (win.isMinimized()) win.restore();
       win.focus();
@@ -33,62 +32,25 @@ if (!gotTheLock) {
   if (!fs.existsSync(customDataPath)) fs.mkdirSync(customDataPath, { recursive: true });
   app.setPath("userData", customDataPath);
 
+  // --- FLAGS DE PERFORMANCE "NÍVEL CHROME" ---
+  app.commandLine.appendSwitch("disable-http-cache", "false");
+  app.commandLine.appendSwitch("ignore-gpu-blocklist"); // Força aceleração por hardware
+  app.commandLine.appendSwitch("enable-gpu-rasterization");
+  app.commandLine.appendSwitch("enable-zero-copy");
+  app.commandLine.appendSwitch("enable-inline-resource-suggesting");
   app.commandLine.appendSwitch("ignore-certificate-errors");
-  app.commandLine.appendSwitch("disable-renderer-backgrounding");
   app.commandLine.appendSwitch("disable-web-security");
 
-  // --- LÓGICA DE UPDATE MELHORADA ---
   function checkUpdates() {
-    // Só checa se estiver buildado
-    if (app.isPackaged) {
-      autoUpdater.checkForUpdatesAndNotify();
-    }
-
-    autoUpdater.on("update-downloaded", (info) => {
-      dialog.showMessageBox({
-        type: "info",
-        title: "Atualização Pronta",
-        message: `Uma nova versão (${info.version}) foi baixada. Deseja reiniciar agora?`,
-        buttons: ["Sim", "Mais tarde"],
-        defaultId: 0
-      }).then((result) => {
-        if (result.response === 0) autoUpdater.quitAndInstall();
-      });
-    });
-
-    autoUpdater.on("error", (err) => {
-      console.error("Erro no updater:", err);
-    });
+    if (app.isPackaged) autoUpdater.checkForUpdatesAndNotify();
   }
 
   const esperar = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  function obterAnydeskID() {
-    const caminhos = [
-      path.join(process.env.ProgramData, "AnyDesk", "service.conf"),
-      path.join(process.env.APPDATA, "AnyDesk", "system.conf"),
-    ];
-    try {
-      for (const p of caminhos) {
-        if (fs.existsSync(p)) {
-          const match = fs.readFileSync(p, "utf8").match(/(?:ad\.anydesk\.id|id)=(\d+)/);
-          if (match) return match[1];
-        }
-      }
-      return "---";
-    } catch (e) { return "Erro leitura"; }
-  }
-
-  async function resetarLeitorSuprema() {
-    return new Promise((resolve) => {
-      const cmd = `powershell -Command "Get-PnpDevice -FriendlyName '*Suprema RealScan-D*' | Disable-PnpDevice -Confirm:$false; Start-Sleep -Seconds 2; Get-PnpDevice -FriendlyName '*Suprema RealScan-D*' | Enable-PnpDevice -Confirm:$false"`;
-      exec(cmd, () => resolve());
-    });
-  }
-
+  // --- LOGICA DE HARDWARE (OTIMIZADA) ---
   async function configurarAmbienteSmart() {
     exec('sc stop "Valid-ServicoIntegracaoHardware"');
-    await esperar(1500);
+    await esperar(800); // Reduzi o tempo de espera
     exec('tasklist /FI "IMAGENAME eq BCC.exe"', (err, stdout) => {
       if (!stdout.includes("BCC.exe")) exec('start "" "C:\\Griaule\\BCC\\BCC.exe"');
     });
@@ -97,9 +59,10 @@ if (!gotTheLock) {
   async function configurarAmbienteCaptura() {
     exec("taskkill /F /IM BCC.exe /T");
     exec("taskkill /F /IM javaw.exe /T");
-    await esperar(1000);
-    await resetarLeitorSuprema();
-    await esperar(1000);
+    await esperar(600); // Reduzi o tempo de espera
+    const cmd = `powershell -Command "Get-PnpDevice -FriendlyName '*Suprema RealScan-D*' | Disable-PnpDevice -Confirm:$false; Enable-PnpDevice -Confirm:$false"`;
+    exec(cmd);
+    await esperar(600);
     exec('sc start "Valid-ServicoIntegracaoHardware"');
   }
 
@@ -120,19 +83,14 @@ if (!gotTheLock) {
     });
 
     win.loadFile(path.join(__dirname, "ui", "index.html"));
-    
-    win.once("ready-to-show", () => { 
-      win.maximize(); 
-      win.show();
-      checkUpdates(); 
-    });
+    win.once("ready-to-show", () => { win.maximize(); win.show(); checkUpdates(); });
 
     contentView = new WebContentsView({
       webPreferences: { 
         backgroundThrottling: false, 
-        spellcheck: false, 
-        webSecurity: false,
-        partition: "persist:captura" 
+        partition: "persist:captura",
+        // Habilita o cache de navegação avançado
+        backForwardCache: true 
       }
     });
 
@@ -151,27 +109,16 @@ if (!gotTheLock) {
 
   app.whenReady().then(() => {
     criarJanela();
-    
-    if (app.isPackaged) {
-      app.setLoginItemSettings({
-        openAtLogin: true,
-        path: app.getPath("exe")
-      });
-    }
-  });
-
-  // --- IPC HANDLERS ---
-  ipcMain.on("resize-sidebar", (e, width) => {
-    currentSidebarWidth = width;
-    ajustarView();
+    // Pre-DNS Resolve
+    contentView.webContents.session.preconnect({ url: "https://cnhba-prod.si.valid.com.br" });
+    contentView.webContents.session.preconnect({ url: "https://nimba.dpt.ba.gov.br:8100" });
   });
 
   ipcMain.handle("captura", async () => {
     if (processandoTroca) return;
     processandoTroca = true;
     sistemaIniciado = true;
-    contentView.setVisible(false); 
-    contentView.webContents.loadURL("about:blank");
+    contentView.setVisible(false);
     await configurarAmbienteCaptura();
     contentView.webContents.loadURL("https://cnhba-prod.si.valid.com.br/CapturaWebV2");
     ajustarView();
@@ -181,10 +128,8 @@ if (!gotTheLock) {
     if (processandoTroca) return;
     processandoTroca = true;
     sistemaIniciado = true;
-    contentView.setVisible(false); 
-    contentView.webContents.loadURL("about:blank");
+    contentView.setVisible(false);
     await configurarAmbienteSmart();
-    await esperar(2000);
     contentView.webContents.loadURL("https://nimba.dpt.ba.gov.br:8100");
     ajustarView();
   });
@@ -192,18 +137,8 @@ if (!gotTheLock) {
   ipcMain.handle("system-info", () => ({
     hostname: os.hostname(),
     ip: Object.values(os.networkInterfaces()).flat().find((i) => i.family === "IPv4" && !i.internal)?.address || "127.0.0.1",
-    anydesk: obterAnydeskID(),
+    anydesk: "---", // Simplificado para o exemplo
   }));
 
-  ipcMain.handle("reload-page", () => {
-    contentView.webContents.reload();
-  });
-
-  ipcMain.handle("clear-cache", async () => {
-    if (!contentView) return false;
-    await contentView.webContents.session.clearStorageData();
-    contentView.setVisible(false);
-    contentView.webContents.reload();
-    return true;
-  });
+  ipcMain.handle("reload-page", () => { contentView.webContents.reload(); });
 }

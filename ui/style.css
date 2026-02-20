@@ -1,6 +1,6 @@
 /* =========================================
-   VARIÁVEIS E TEMA
-   ========================================= */
+    VARIÁVEIS E TEMA
+    ========================================= */
 :root {
     --bg-app: #0b1220; 
     --bg-sidebar: #0f172a; 
@@ -27,8 +27,8 @@
 }
 
 /* =========================================
-   RESET E ESTRUTURA
-   ========================================= */
+    RESET E ESTRUTURA
+    ========================================= */
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
 
 body { 
@@ -42,8 +42,8 @@ body {
 .app { display: flex; height: 100vh; }
 
 /* =========================================
-   SIDEBAR
-   ========================================= */
+    SIDEBAR
+    ========================================= */
 .sidebar {
     width: 260px; 
     min-width: 260px; 
@@ -74,8 +74,8 @@ body {
 .theme-switch:hover, .menu-btn:hover { background: var(--bg-hover); }
 
 /* =========================================
-   MENU E DROPDOWN
-   ========================================= */
+    MENU E DROPDOWN
+    ========================================= */
 .menu { display: flex; flex-direction: column; gap: 12px; }
 
 .menu-btn {
@@ -114,8 +114,8 @@ body {
 .dropdown button:hover { background: var(--bg-hover); color: var(--text-main); }
 
 /* =========================================
-   STATUS E PC INFO
-   ========================================= */
+    STATUS E PC INFO
+    ========================================= */
 .status-box { margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border); }
 
 .support-card {
@@ -155,8 +155,8 @@ body {
 .info-item span { font-size: 12px; font-weight: 600; }
 
 /* =========================================
-   CONTEÚDO E LOADING (AJUSTE DE DESIGN)
-   ========================================= */
+    CONTEÚDO E LOADING (REFINADO)
+    ========================================= */
 .content { 
     flex: 1; 
     position: relative; 
@@ -167,6 +167,11 @@ body {
     justify-content: center;
 }
 
+/* Estilo para a transição suave de entrada das páginas */
+.fade-in-view {
+    animation: viewFadeIn 0.5s ease-out forwards;
+}
+
 .placeholder, #loading {
     position: absolute; 
     inset: 0; 
@@ -174,47 +179,44 @@ body {
     flex-direction: column; 
     align-items: center; 
     justify-content: center;
-    background: var(--bg-app); /* Garante que cubram o fundo */
+    background: var(--bg-app); 
 }
 
 .placeholder { z-index: 1; text-align: center; }
-
 .placeholder i { font-size: 5rem; color: var(--accent); opacity: 0.15; margin-bottom: 20px; }
-
 .placeholder h2 { font-size: 2.2rem; font-weight: 700; }
 
 #loading { 
     z-index: 999; 
-    backdrop-filter: blur(12px); 
+    backdrop-filter: blur(8px); 
 }
 
-/* Spinner Moderno com Rastro de Luz */
+/* Spinner Moderno com Rastro de Luz Intenso */
 .spinner {
-    width: 60px;
-    height: 60px;
+    width: 70px;
+    height: 70px;
     border-radius: 50%;
     position: relative;
-    background: conic-gradient(from 0deg, transparent 30%, var(--accent));
-    animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-    margin-bottom: 20px;
-    box-shadow: 0 0 30px var(--accent-glow);
+    background: conic-gradient(from 0deg, transparent 40%, var(--accent));
+    animation: spin 0.8s linear infinite; 
+    margin-bottom: 25px;
+    box-shadow: 0 0 35px var(--accent-glow);
 }
 
-/* Centro do Spinner (Anel) - Agora dinâmico com o tema */
 .spinner::after {
     content: "";
     position: absolute;
-    inset: 6px;
+    inset: 5px; 
     background: var(--bg-app);
     border-radius: 50%;
 }
 
 #loading p {
     color: var(--text-main);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 2px;
+    letter-spacing: 2.5px;
     margin: 0;
     display: inline-flex;
     align-items: center;
@@ -222,7 +224,6 @@ body {
     text-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
 }
 
-/* Reticências Animadas */
 #loading p::after {
     content: '';
     display: inline-block;
@@ -235,16 +236,16 @@ body {
 .hidden { display: none !important; }
 
 /* =========================================
-   ANIMAÇÕES
-   ========================================= */
+    ANIMAÇÕES REFINADAS
+    ========================================= */
 @keyframes spin { 
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); } 
 }
 
 @keyframes pulseText { 
-    0%, 100% { opacity: 0.6; transform: scale(0.98); } 
-    50% { opacity: 1; transform: scale(1.02); } 
+    0%, 100% { opacity: 0.5; filter: blur(0px); transform: scale(0.98); } 
+    50% { opacity: 1; filter: drop-shadow(0 0 5px var(--accent-glow)); transform: scale(1); } 
 }
 
 @keyframes pulseIcon { 
@@ -257,6 +258,12 @@ body {
     40% { content: '.'; }
     60% { content: '..'; }
     80%, 100% { content: '...'; }
+}
+
+/* Animação de entrada da visão principal */
+@keyframes viewFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .support-header i { animation: pulseIcon 2s infinite ease-in-out; }
