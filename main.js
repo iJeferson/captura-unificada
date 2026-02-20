@@ -1,4 +1,11 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, dialog, session } = require("electron"); // Adicionado session aqui
+const {
+  app,
+  BrowserWindow,
+  WebContentsView,
+  ipcMain,
+  dialog,
+  session,
+} = require("electron");
 const path = require("path");
 const os = require("os");
 const fs = require("fs");
@@ -13,13 +20,15 @@ const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
 } else {
-  let win, contentView, sistemaIniciado = false;
-  let processandoTroca = false; 
+  let win,
+    contentView,
+    sistemaIniciado = false;
+  let processandoTroca = false;
   let currentSidebarWidth = 260;
   const TOPBAR_HEIGHT = 0;
   const ICON_PATH = path.join(__dirname, "icon.png");
 
-  app.on('second-instance', () => {
+  app.on("second-instance", () => {
     if (win) {
       if (win.isMinimized()) win.restore();
       win.focus();
@@ -28,11 +37,15 @@ if (!gotTheLock) {
 
   app.setAppUserModelId("com.consorcio.capturaunificada");
 
-  const customDataPath = path.join(app.getPath("appData"), "captura-unificada-data");
-  if (!fs.existsSync(customDataPath)) fs.mkdirSync(customDataPath, { recursive: true });
+  const customDataPath = path.join(
+    app.getPath("appData"),
+    "captura-unificada-data",
+  );
+  if (!fs.existsSync(customDataPath))
+    fs.mkdirSync(customDataPath, { recursive: true });
   app.setPath("userData", customDataPath);
 
-  // --- FLAGS DE PERFORMANCE ---
+  // --- FLAGS DE PERFORMANCE (NÍVEL CHROME) ---
   app.commandLine.appendSwitch("disable-http-cache", "false");
   app.commandLine.appendSwitch("ignore-gpu-blocklist");
   app.commandLine.appendSwitch("enable-gpu-rasterization");
@@ -42,17 +55,64 @@ if (!gotTheLock) {
   app.commandLine.appendSwitch("disable-web-security");
 
   function checkUpdates() {
-    if (app.isPackaged) autoUpdater.checkForUpdatesAndNotify();
+    if (app.isPackaged) {
+      autoUpdater.setFeedURL({
+        provider: "github",
+        owner: "iJeferson",
+        repo: "captura-unificada",
+      });
+
+      autoUpdater.checkForUpdatesAndNotify();
+
+      autoUpdater.on("update-downloaded", (info) => {
+        dialog
+          .showMessageBox({
+            type: "info",
+            title: "Atualização Pronta",
+            message: `Uma nova versão (${info.version}) foi baixada. Deseja reiniciar agora?`,
+            buttons: ["Sim", "Mais tarde"],
+            defaultId: 0,
+          })
+          .then((result) => {
+            if (result.response === 0) autoUpdater.quitAndInstall();
+          });
+      });
+
+      autoUpdater.on("error", (err) => {
+        console.error("Erro no updater:", err);
+      });
+    }
   }
 
   const esperar = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  function obterAnydeskID() {
+    const caminhos = [
+      path.join(process.env.ProgramData || "C:\\ProgramData", "AnyDesk", "service.conf"),
+      path.join(process.env.APPDATA || "", "AnyDesk", "system.conf"),
+      "C:\\ProgramData\\AnyDesk\\service.conf",
+    ];
+    try {
+      for (const p of caminhos) {
+        if (fs.existsSync(p)) {
+          const conteudo = fs.readFileSync(p, "utf8");
+          const match = conteudo.match(/(?:ad\.anydesk\.id|id)=(\d+)/);
+          if (match) return match[1];
+        }
+      }
+      return "---";
+    } catch (e) {
+      return "Erro";
+    }
+  }
 
   // --- HARDWARE ---
   async function configurarAmbienteSmart() {
     exec('sc stop "Valid-ServicoIntegracaoHardware"');
     await esperar(800);
     exec('tasklist /FI "IMAGENAME eq BCC.exe"', (err, stdout) => {
-      if (!stdout.includes("BCC.exe")) exec('start "" "C:\\Griaule\\BCC\\BCC.exe"');
+      if (!stdout.includes("BCC.exe"))
+        exec('start "" "C:\\Griaule\\BCC\\BCC.exe"');
     });
   }
 
@@ -70,32 +130,47 @@ if (!gotTheLock) {
     if (!win || !contentView || !sistemaIniciado) return;
     const { width, height } = win.getContentBounds();
     contentView.setBounds({
-      x: currentSidebarWidth, y: TOPBAR_HEIGHT,
-      width: width - currentSidebarWidth, height: height - TOPBAR_HEIGHT,
+      x: currentSidebarWidth,
+      y: TOPBAR_HEIGHT,
+      width: width - currentSidebarWidth,
+      height: height - TOPBAR_HEIGHT,
     });
   }
 
   function criarJanela() {
     win = new BrowserWindow({
-      width: 1300, height: 800, minWidth: 900, minHeight: 600,
-      show: false, backgroundColor: "#0b1220", autoHideMenuBar: true, icon: ICON_PATH,
-      webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true }
+      width: 1300,
+      height: 800,
+      minWidth: 900,
+      minHeight: 600,
+      show: false,
+      backgroundColor: "#0b1220",
+      autoHideMenuBar: true,
+      icon: ICON_PATH,
+      webPreferences: {
+        preload: path.join(__dirname, "preload.js"),
+        contextIsolation: true,
+      },
     });
 
     win.loadFile(path.join(__dirname, "ui", "index.html"));
-    win.once("ready-to-show", () => { win.maximize(); win.show(); checkUpdates(); });
+    win.once("ready-to-show", () => {
+      win.maximize();
+      win.show();
+      checkUpdates();
+    });
 
     contentView = new WebContentsView({
-      webPreferences: { 
-        backgroundThrottling: false, 
+      webPreferences: {
+        backgroundThrottling: false,
         partition: "persist:captura",
-        backForwardCache: true 
-      }
+        backForwardCache: true,
+      },
     });
 
     contentView.webContents.on("did-finish-load", () => {
       if (contentView.webContents.getURL() !== "about:blank") {
-        contentView.setVisible(true); 
+        contentView.setVisible(true);
         processandoTroca = false;
         win.webContents.send("load-finished");
       }
@@ -108,8 +183,12 @@ if (!gotTheLock) {
 
   app.whenReady().then(() => {
     criarJanela();
-    contentView.webContents.session.preconnect({ url: "https://cnhba-prod.si.valid.com.br" });
-    contentView.webContents.session.preconnect({ url: "https://nimba.dpt.ba.gov.br:8100" });
+    contentView.webContents.session.preconnect({
+      url: "https://cnhba-prod.si.valid.com.br",
+    });
+    contentView.webContents.session.preconnect({
+      url: "https://nimba.dpt.ba.gov.br:8100",
+    });
   });
 
   // --- IPC HANDLERS ---
@@ -119,7 +198,9 @@ if (!gotTheLock) {
     sistemaIniciado = true;
     contentView.setVisible(false);
     await configurarAmbienteCaptura();
-    contentView.webContents.loadURL("https://cnhba-prod.si.valid.com.br/CapturaWebV2");
+    contentView.webContents.loadURL(
+      "https://cnhba-prod.si.valid.com.br/CapturaWebV2",
+    );
     ajustarView();
   });
 
@@ -135,26 +216,29 @@ if (!gotTheLock) {
 
   ipcMain.handle("system-info", () => ({
     hostname: os.hostname(),
-    ip: Object.values(os.networkInterfaces()).flat().find((i) => i.family === "IPv4" && !i.internal)?.address || "127.0.0.1",
-    anydesk: "---", 
+    ip:
+      Object.values(os.networkInterfaces())
+        .flat()
+        .find((i) => i.family === "IPv4" && !i.internal)?.address ||
+      "127.0.0.1",
+    anydesk: obterAnydeskID(),
+    version: app.getVersion() // ADICIONADO: Envia a versão do package.json para o HTML
   }));
 
-  ipcMain.handle("reload-page", () => { contentView.webContents.reload(); });
+  ipcMain.handle("reload-page", () => {
+    contentView.webContents.reload();
+  });
 
-  // --- RESTAURADO: LIMPAR CACHE ---
   ipcMain.handle("clear-cache", async () => {
     try {
-      // Pega a sessão específica da nossa partição persistente
       const ses = session.fromPartition("persist:captura");
-      await ses.clearStorageData(); // Limpa cookies, cache, storage, tudo.
-      
+      await ses.clearStorageData();
       if (contentView) {
         contentView.setVisible(false);
         contentView.webContents.reload();
       }
       return true;
     } catch (e) {
-      console.error("Erro ao limpar cache:", e);
       return false;
     }
   });

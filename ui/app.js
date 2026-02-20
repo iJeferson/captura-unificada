@@ -4,25 +4,20 @@ const loadingOn = (v, nomeSistema = "") => {
     estaCarregando = v;
     const loader = document.getElementById("loading");
     const loaderText = loader?.querySelector("p");
-    const contentArea = document.querySelector(".content"); // Seleciona a área do sistema
+    const contentArea = document.querySelector(".content");
 
     if (loader) {
         if (v) {
-            // Ao iniciar o loading
             loader.classList.remove("hidden");
             if (loaderText && nomeSistema) {
                 loaderText.innerText = `Iniciando ${nomeSistema}`;
             }
-            // Remove a classe de animação da área de conteúdo para o próximo carregamento
             contentArea?.classList.remove("fade-in-view");
         } else {
-            // Ao finalizar o loading
             loader.classList.add("hidden");
-            
-            // DISPARA O EFEITO FADE-IN NA PÁGINA
             if (contentArea) {
                 contentArea.classList.remove("fade-in-view");
-                void contentArea.offsetWidth; // Truque para resetar animação CSS
+                void contentArea.offsetWidth; // Force reflow
                 contentArea.classList.add("fade-in-view");
             }
         }
@@ -74,9 +69,14 @@ window.api.onLoadFinished(() => {
     loadingOn(false);
 });
 
-// --- INFO DO SISTEMA ---
+// --- INFO DO SISTEMA (ADICIONADO VERSÃO) ---
 (async () => {
     const info = await window.api.getSystemInfo();
+    
+    // Preenche a versão no título (novo)
+    const versionEl = document.getElementById("app-version");
+    if (versionEl) versionEl.innerText = `v${info.version}`;
+
     if (document.getElementById("hostname")) document.getElementById("hostname").innerText = info.hostname;
     if (document.getElementById("ip")) document.getElementById("ip").innerText = info.ip;
     if (document.getElementById("anydesk")) document.getElementById("anydesk").innerText = info.anydesk;
