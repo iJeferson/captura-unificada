@@ -20,6 +20,38 @@
         vertical-align: middle;
         letter-spacing: 0.5px;
       }
+
+      /* Estilo do Badge de Atualização Silenciosa */
+      .update-badge {
+        display: none; /* Escondido por padrão */
+        align-items: center;
+        gap: 10px;
+        background: rgba(37, 99, 235, 0.1);
+        border: 1px solid rgba(37, 99, 235, 0.3);
+        color: #60a5fa;
+        padding: 10px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 700;
+        margin-bottom: 15px;
+        cursor: pointer;
+        transition: 0.2s;
+        animation: pulseUpdate 2s infinite ease-in-out;
+      }
+
+      .update-badge:hover {
+        background: rgba(37, 99, 235, 0.2);
+        border-color: #2563eb;
+        color: #fff;
+      }
+
+      .update-badge i { font-size: 14px; }
+
+      @keyframes pulseUpdate {
+        0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+        70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+      }
     </style>
   </head>
   <body class="dark-theme">
@@ -62,6 +94,11 @@
         </nav>
 
         <div class="status-box">
+          <div id="update-indicator" class="update-badge" title="Clique para reiniciar e aplicar agora">
+            <i class="fas fa-arrow-up-from-bracket"></i>
+            <span>ATUALIZAÇÃO PRONTA</span>
+          </div>
+
           <div class="support-card">
             <div class="support-header">
               <i class="fas fa-headset"></i>

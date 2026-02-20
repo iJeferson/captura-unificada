@@ -5,6 +5,7 @@ const {
   ipcMain,
   dialog,
   session,
+  Notification
 } = require("electron");
 const path = require("path");
 const os = require("os");
@@ -54,6 +55,7 @@ if (!gotTheLock) {
   app.commandLine.appendSwitch("ignore-certificate-errors");
   app.commandLine.appendSwitch("disable-web-security");
 
+  // --- LOGICA DE ATUALIZAÇÃO SILENCIOSA ---
   function checkUpdates() {
     if (app.isPackaged) {
       autoUpdater.setFeedURL({
@@ -62,20 +64,39 @@ if (!gotTheLock) {
         repo: "captura-unificada",
       });
 
+      // Configurações para modo silencioso
+      autoUpdater.autoDownload = true;
+      autoUpdater.autoInstallOnAppQuit = true; 
+
       autoUpdater.checkForUpdatesAndNotify();
 
       autoUpdater.on("update-downloaded", (info) => {
-        dialog
-          .showMessageBox({
-            type: "info",
-            title: "Atualização Pronta",
-            message: `Uma nova versão (${info.version}) foi baixada. Deseja reiniciar agora?`,
-            buttons: ["Sim", "Mais tarde"],
+        // 1. Notificação Nativa do Windows
+        const notification = new Notification({
+          title: "Captura Unificada",
+          body: `Nova versão (${info.version}) baixada. Será aplicada no próximo reinício.`,
+          icon: ICON_PATH
+        });
+
+        notification.show();
+
+        // 2. Avisa a UI para mostrar o Badge/Indicador na sidebar
+        if (win) {
+          win.webContents.send("update-ready");
+        }
+
+        // Se clicar na notificação, oferece reinício imediato
+        notification.on('click', () => {
+          dialog.showMessageBox(win, {
+            type: 'question',
+            buttons: ['Reiniciar Agora', 'Depois'],
             defaultId: 0,
-          })
-          .then((result) => {
+            title: 'Atualização Pronta',
+            message: 'Deseja reiniciar o aplicativo para aplicar a atualização agora?'
+          }).then(result => {
             if (result.response === 0) autoUpdater.quitAndInstall();
           });
+        });
       });
 
       autoUpdater.on("error", (err) => {
@@ -222,11 +243,15 @@ if (!gotTheLock) {
         .find((i) => i.family === "IPv4" && !i.internal)?.address ||
       "127.0.0.1",
     anydesk: obterAnydeskID(),
-    version: app.getVersion() // ADICIONADO: Envia a versão do package.json para o HTML
+    version: app.getVersion() 
   }));
 
   ipcMain.handle("reload-page", () => {
     contentView.webContents.reload();
+  });
+
+  ipcMain.handle("apply-update-now", () => {
+    autoUpdater.quitAndInstall();
   });
 
   ipcMain.handle("clear-cache", async () => {

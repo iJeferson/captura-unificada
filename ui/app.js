@@ -33,6 +33,26 @@ const setActive = (btn) => {
     document.getElementById("placeholder")?.classList.add("hidden");
 };
 
+// --- LOGICA DE ATUALIZAÇÃO SILENCIOSA (NOVO) ---
+// Quando o download termina, o main envia 'update-ready'
+window.api.onUpdateReady(() => {
+    const indicator = document.getElementById("update-indicator");
+    if (indicator) {
+        indicator.style.display = "flex"; // Mostra o badge na sidebar
+    }
+});
+
+// Ao clicar no badge, reinicia o app para aplicar a nova versão
+const updateBtn = document.getElementById("update-indicator");
+if (updateBtn) {
+    updateBtn.onclick = async () => {
+        if (estaCarregando) return;
+        // Opcional: mostrar um loading de "Reiniciando..."
+        loadingOn(true, "Atualização");
+        await window.api.applyUpdateNow();
+    };
+}
+
 // --- BOTÕES PRINCIPAIS ---
 document.getElementById("captura").onclick = async (e) => {
     if (estaCarregando || e.currentTarget.classList.contains("active")) return;
@@ -69,11 +89,11 @@ window.api.onLoadFinished(() => {
     loadingOn(false);
 });
 
-// --- INFO DO SISTEMA (ADICIONADO VERSÃO) ---
+// --- INFO DO SISTEMA ---
 (async () => {
     const info = await window.api.getSystemInfo();
     
-    // Preenche a versão no título (novo)
+    // Preenche a versão no título
     const versionEl = document.getElementById("app-version");
     if (versionEl) versionEl.innerText = `v${info.version}`;
 
