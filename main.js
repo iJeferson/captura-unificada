@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, WebContentsView, ipcMain, dialog, session } = require("electron"); // Adicionado session aqui
 const path = require("path");
 const os = require("os");
 const fs = require("fs");
@@ -32,9 +32,9 @@ if (!gotTheLock) {
   if (!fs.existsSync(customDataPath)) fs.mkdirSync(customDataPath, { recursive: true });
   app.setPath("userData", customDataPath);
 
-  // --- FLAGS DE PERFORMANCE "NÍVEL CHROME" ---
+  // --- FLAGS DE PERFORMANCE ---
   app.commandLine.appendSwitch("disable-http-cache", "false");
-  app.commandLine.appendSwitch("ignore-gpu-blocklist"); // Força aceleração por hardware
+  app.commandLine.appendSwitch("ignore-gpu-blocklist");
   app.commandLine.appendSwitch("enable-gpu-rasterization");
   app.commandLine.appendSwitch("enable-zero-copy");
   app.commandLine.appendSwitch("enable-inline-resource-suggesting");
@@ -47,10 +47,10 @@ if (!gotTheLock) {
 
   const esperar = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  // --- LOGICA DE HARDWARE (OTIMIZADA) ---
+  // --- HARDWARE ---
   async function configurarAmbienteSmart() {
     exec('sc stop "Valid-ServicoIntegracaoHardware"');
-    await esperar(800); // Reduzi o tempo de espera
+    await esperar(800);
     exec('tasklist /FI "IMAGENAME eq BCC.exe"', (err, stdout) => {
       if (!stdout.includes("BCC.exe")) exec('start "" "C:\\Griaule\\BCC\\BCC.exe"');
     });
@@ -59,7 +59,7 @@ if (!gotTheLock) {
   async function configurarAmbienteCaptura() {
     exec("taskkill /F /IM BCC.exe /T");
     exec("taskkill /F /IM javaw.exe /T");
-    await esperar(600); // Reduzi o tempo de espera
+    await esperar(600);
     const cmd = `powershell -Command "Get-PnpDevice -FriendlyName '*Suprema RealScan-D*' | Disable-PnpDevice -Confirm:$false; Enable-PnpDevice -Confirm:$false"`;
     exec(cmd);
     await esperar(600);
@@ -89,7 +89,6 @@ if (!gotTheLock) {
       webPreferences: { 
         backgroundThrottling: false, 
         partition: "persist:captura",
-        // Habilita o cache de navegação avançado
         backForwardCache: true 
       }
     });
@@ -109,11 +108,11 @@ if (!gotTheLock) {
 
   app.whenReady().then(() => {
     criarJanela();
-    // Pre-DNS Resolve
     contentView.webContents.session.preconnect({ url: "https://cnhba-prod.si.valid.com.br" });
     contentView.webContents.session.preconnect({ url: "https://nimba.dpt.ba.gov.br:8100" });
   });
 
+  // --- IPC HANDLERS ---
   ipcMain.handle("captura", async () => {
     if (processandoTroca) return;
     processandoTroca = true;
@@ -137,8 +136,26 @@ if (!gotTheLock) {
   ipcMain.handle("system-info", () => ({
     hostname: os.hostname(),
     ip: Object.values(os.networkInterfaces()).flat().find((i) => i.family === "IPv4" && !i.internal)?.address || "127.0.0.1",
-    anydesk: "---", // Simplificado para o exemplo
+    anydesk: "---", 
   }));
 
   ipcMain.handle("reload-page", () => { contentView.webContents.reload(); });
+
+  // --- RESTAURADO: LIMPAR CACHE ---
+  ipcMain.handle("clear-cache", async () => {
+    try {
+      // Pega a sessão específica da nossa partição persistente
+      const ses = session.fromPartition("persist:captura");
+      await ses.clearStorageData(); // Limpa cookies, cache, storage, tudo.
+      
+      if (contentView) {
+        contentView.setVisible(false);
+        contentView.webContents.reload();
+      }
+      return true;
+    } catch (e) {
+      console.error("Erro ao limpar cache:", e);
+      return false;
+    }
+  });
 }
