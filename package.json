@@ -1,7 +1,7 @@
 {
   "name": "captura-unificada",
   "productName": "Captura Unificada",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Launcher de sistemas integrados",
   "main": "main.js",
   "author": "Jeferson Oliveira",
