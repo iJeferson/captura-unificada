@@ -2,16 +2,28 @@
    VARIÁVEIS E TEMA
    ========================================= */
 :root {
-    --bg-app: #0b1220; --bg-sidebar: #0f172a; --bg-btn: #1e293b;
-    --bg-hover: #334155; --text-main: #ffffff; --text-dim: #94a3b8;
-    --border: #1e293b; --accent: #2563eb; --accent-glow: rgba(37, 99, 235, 0.4);
+    --bg-app: #0b1220; 
+    --bg-sidebar: #0f172a; 
+    --bg-btn: #1e293b;
+    --bg-hover: #334155; 
+    --text-main: #ffffff; 
+    --text-dim: #94a3b8;
+    --border: #1e293b; 
+    --accent: #2563eb; 
+    --accent-glow: rgba(37, 99, 235, 0.4);
     --anydesk: #ef4444;
 }
 
 .light-theme {
-    --bg-app: #f1f5f9; --bg-sidebar: #ffffff; --bg-btn: #e2e8f0;
-    --bg-hover: #cbd5e1; --text-main: #0f172a; --text-dim: #64748b;
-    --border: #e2e8f0; --accent-glow: rgba(37, 99, 235, 0.2); --anydesk: #c53030;
+    --bg-app: #f1f5f9; 
+    --bg-sidebar: #ffffff; 
+    --bg-btn: #e2e8f0;
+    --bg-hover: #cbd5e1; 
+    --text-main: #0f172a; 
+    --text-dim: #64748b;
+    --border: #e2e8f0; 
+    --accent-glow: rgba(37, 99, 235, 0.2); 
+    --anydesk: #c53030;
 }
 
 /* =========================================
@@ -20,8 +32,11 @@
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
 
 body { 
-    background: var(--bg-app); color: var(--text-main); 
-    height: 100vh; overflow: hidden; transition: 0.3s; 
+    background: var(--bg-app); 
+    color: var(--text-main); 
+    height: 100vh; 
+    overflow: hidden; 
+    transition: background 0.3s, color 0.3s; 
 }
 
 .app { display: flex; height: 100vh; }
@@ -30,17 +45,26 @@ body {
    SIDEBAR
    ========================================= */
 .sidebar {
-    width: 260px; min-width: 260px; background: var(--bg-sidebar);
-    border-right: 1px solid var(--border); display: flex;
-    flex-direction: column; padding: 20px; z-index: 10;
+    width: 260px; 
+    min-width: 260px; 
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border); 
+    display: flex;
+    flex-direction: column; 
+    padding: 20px; 
+    z-index: 10;
 }
 
 .logo h2 { font-size: 19px; letter-spacing: -0.5px; }
 .logo span { font-size: 11px; color: var(--text-dim); }
 
 .theme-switch, .menu-btn {
-    cursor: pointer; transition: 0.2s; border-radius: 8px;
-    background: var(--bg-btn); color: var(--text-main); border: none;
+    cursor: pointer; 
+    transition: 0.2s; 
+    border-radius: 8px;
+    background: var(--bg-btn); 
+    color: var(--text-main); 
+    border: none;
 }
 
 .theme-switch {
@@ -131,27 +155,81 @@ body {
 .info-item span { font-size: 12px; font-weight: 600; }
 
 /* =========================================
-   CONTEÚDO E CENTRALIZAÇÃO
+   CONTEÚDO E LOADING (AJUSTE DE DESIGN)
    ========================================= */
-.content { flex: 1; position: relative; background: var(--bg-app); }
-
-.placeholder, #loading {
-    position: absolute; inset: 0; display: flex; 
-    flex-direction: column; align-items: center; justify-content: center;
+.content { 
+    flex: 1; 
+    position: relative; 
+    background: var(--bg-app); 
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.placeholder { text-align: center; z-index: 1; }
+.placeholder, #loading {
+    position: absolute; 
+    inset: 0; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center;
+    background: var(--bg-app); /* Garante que cubram o fundo */
+}
+
+.placeholder { z-index: 1; text-align: center; }
 
 .placeholder i { font-size: 5rem; color: var(--accent); opacity: 0.15; margin-bottom: 20px; }
 
 .placeholder h2 { font-size: 2.2rem; font-weight: 700; }
 
-#loading { background: var(--bg-app); opacity: 0.95; z-index: 99; }
+#loading { 
+    z-index: 999; 
+    backdrop-filter: blur(12px); 
+}
 
+/* Spinner Moderno com Rastro de Luz */
 .spinner {
-    width: 35px; height: 35px; border: 3px solid var(--border);
-    border-top: 3px solid var(--accent); border-radius: 50%;
-    animation: spin .8s linear infinite; margin-bottom: 15px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    position: relative;
+    background: conic-gradient(from 0deg, transparent 30%, var(--accent));
+    animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    margin-bottom: 20px;
+    box-shadow: 0 0 30px var(--accent-glow);
+}
+
+/* Centro do Spinner (Anel) - Agora dinâmico com o tema */
+.spinner::after {
+    content: "";
+    position: absolute;
+    inset: 6px;
+    background: var(--bg-app);
+    border-radius: 50%;
+}
+
+#loading p {
+    color: var(--text-main);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    animation: pulseText 1.5s ease-in-out infinite;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Reticências Animadas */
+#loading p::after {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    text-align: left;
+    margin-left: 2px;
+    animation: dots 1.5s steps(4, end) infinite;
 }
 
 .hidden { display: none !important; }
@@ -159,8 +237,26 @@ body {
 /* =========================================
    ANIMAÇÕES
    ========================================= */
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes pulseText { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-@keyframes pulseIcon { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.15); opacity: 1; } }
+@keyframes spin { 
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); } 
+}
+
+@keyframes pulseText { 
+    0%, 100% { opacity: 0.6; transform: scale(0.98); } 
+    50% { opacity: 1; transform: scale(1.02); } 
+}
+
+@keyframes pulseIcon { 
+    0%, 100% { transform: scale(1); opacity: 0.8; } 
+    50% { transform: scale(1.15); opacity: 1; } 
+}
+
+@keyframes dots {
+    0%, 20% { content: ''; }
+    40% { content: '.'; }
+    60% { content: '..'; }
+    80%, 100% { content: '...'; }
+}
 
 .support-header i { animation: pulseIcon 2s infinite ease-in-out; }

@@ -1,7 +1,19 @@
-const loadingOn = (v) => {
+let estaCarregando = false;
+
+const loadingOn = (v, nomeSistema = "") => {
+    estaCarregando = v;
     const loader = document.getElementById("loading");
-    loader?.classList.toggle("hidden", !v);
+    const loaderText = loader?.querySelector("p");
+
+    if (loader) {
+        loader.classList.toggle("hidden", !v);
+        if (v && loaderText && nomeSistema) {
+            loaderText.innerText = `Iniciando ${nomeSistema}`;
+        }
+    }
+    
     document.body.style.pointerEvents = v ? "none" : "auto";
+    document.body.style.cursor = v ? "wait" : "default";
 };
 
 const setActive = (btn) => {
@@ -11,16 +23,16 @@ const setActive = (btn) => {
 };
 
 document.getElementById("captura").onclick = async (e) => {
-    if (e.currentTarget.classList.contains("active")) return;
+    if (estaCarregando || e.currentTarget.classList.contains("active")) return;
     setActive(e.currentTarget);
-    loadingOn(true);
+    loadingOn(true, "CapturaWeb"); 
     await window.api.abrirCaptura();
 };
 
 document.getElementById("smart").onclick = async (e) => {
-    if (e.currentTarget.classList.contains("active")) return;
+    if (estaCarregando || e.currentTarget.classList.contains("active")) return;
     setActive(e.currentTarget);
-    loadingOn(true);
+    loadingOn(true, "SMART (CIN)"); 
     await window.api.abrirSmart();
 };
 
@@ -30,8 +42,11 @@ const toggleIcon = document.getElementById("toggle-icon");
 
 if (toggleBtn) {
     toggleBtn.onclick = () => {
+        if (estaCarregando) return;
         const isCollapsed = sidebar.classList.toggle("collapsed");
-        toggleIcon.className = isCollapsed ? "fas fa-chevron-right" : "fas fa-chevron-left";
+        if (toggleIcon) {
+            toggleIcon.className = isCollapsed ? "fas fa-chevron-right" : "fas fa-chevron-left";
+        }
         window.api.resizeSidebar(isCollapsed ? 80 : 260);
     };
 }
@@ -54,8 +69,12 @@ window.api.onUpdateIP((novoIp) => {
 
 document.querySelectorAll(".dots").forEach(dot => {
     dot.onclick = (e) => {
+        if (estaCarregando) return;
         e.stopPropagation();
         const menuId = dot.dataset.menu;
+        document.querySelectorAll(".dropdown").forEach(d => {
+            if (d.id !== menuId) d.classList.remove("show");
+        });
         document.getElementById(menuId).classList.toggle("show");
     };
 });
@@ -65,17 +84,29 @@ document.addEventListener("click", () => {
 });
 
 document.querySelectorAll(".btn-reload").forEach(btn => {
-    btn.onclick = () => window.api.reloadPage();
+    btn.onclick = () => {
+        if (estaCarregando) return;
+        const activeBtn = document.querySelector(".menu-btn.active span")?.innerText.trim() || "Sistema";
+        loadingOn(true, activeBtn);
+        window.api.reloadPage();
+    }
 });
 
 document.querySelectorAll(".btn-cache").forEach(btn => {
-    btn.onclick = async () => await window.api.clearCache();
+    btn.onclick = async () => {
+        if (estaCarregando) return;
+        loadingOn(true, "Limpeza de Cache");
+        await window.api.clearCache();
+    };
 });
 
 document.getElementById("theme-toggle").onclick = () => {
+    if (estaCarregando) return;
     const body = document.body;
     const isDark = body.classList.toggle("dark-theme");
     body.classList.toggle("light-theme", !isDark);
-    document.getElementById("theme-icon").className = isDark ? "fas fa-moon" : "fas fa-sun";
-    document.getElementById("theme-text").innerText = isDark ? "Modo Escuro" : "Modo Claro";
+    const icon = document.getElementById("theme-icon");
+    const text = document.getElementById("theme-text");
+    if (icon) icon.className = isDark ? "fas fa-moon" : "fas fa-sun";
+    if (text) text.innerText = isDark ? "Modo Escuro" : "Modo Claro";
 };
