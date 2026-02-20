@@ -1,100 +1,140 @@
 <!doctype html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
-    <link rel="stylesheet" href="style.css" />
-    <title>Consórcio Bahia Digital</title>
-    <style>
-      body { background-color: #0b1220; margin: 0; padding: 0; }
-      .app { display: flex; opacity: 0; animation: fadeIn 0.3s forwards; }
-      @keyframes fadeIn { to { opacity: 1; } }
 
-      /* Estilo da versão no título */
-      .version-tag {
-        font-size: 10px;
-        opacity: 0.5;
-        font-weight: 400;
-        margin-left: 5px;
-        vertical-align: middle;
-        letter-spacing: 0.5px;
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <link rel="stylesheet" href="style.css" />
+  <title>Consórcio Bahia Digital</title>
+  <style>
+    body {
+      background-color: #0b1220;
+      margin: 0;
+      padding: 0;
+    }
+
+    .app {
+      display: flex;
+      opacity: 0;
+      animation: fadeIn 0.3s forwards;
+    }
+
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
       }
-    </style>
-  </head>
-  <body class="dark-theme">
-    <div class="app">
-      <aside class="sidebar" id="sidebar">
-        <div class="logo">
-          <h2>Captura Unificada<span id="app-version" class="version-tag"></span></h2>
-          <span>Sistemas Integrados</span>
-        </div>
+    }
 
-        <div class="theme-switch" id="theme-toggle">
-          <i class="fas fa-moon" id="theme-icon"></i>
-          <span id="theme-text">Modo Escuro</span>
-        </div>
+    /* Estilo da versão no título */
+    .version-tag {
+      font-size: 10px;
+      opacity: 0.5;
+      font-weight: 400;
+      margin-left: 5px;
+      vertical-align: middle;
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
 
-        <nav class="menu">
-          <div class="system-item">
-            <button class="menu-btn" id="captura">
-              <span><i class="fas fa-globe"></i> CapturaWeb</span>
-              <span class="active-tag">ATIVO</span>
-              <span class="dots" data-menu="menu1">⋮</span>
-            </button>
-            <div class="dropdown" id="menu1">
-              <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
-              <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
-            </div>
-          </div>
+<body class="dark-theme">
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="logo">
+        <h2>Captura Unificada<span id="app-version" class="version-tag"></span></h2>
+        <span>Sistemas Integrados</span>
+      </div>
 
-          <div class="system-item">
-            <button class="menu-btn" id="smart">
-              <span><i class="fas fa-file-invoice"></i> SMART (CIN)</span>
-              <span class="active-tag">ATIVO</span>
-              <span class="dots" data-menu="menu2">⋮</span>
-            </button>
-            <div class="dropdown" id="menu2">
-              <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
-              <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
-            </div>
-          </div>
-        </nav>
+      <div class="theme-switch" id="theme-toggle">
+        <i class="fas fa-moon" id="theme-icon"></i>
+        <span id="theme-text">Modo Escuro</span>
+      </div>
 
-        <div class="status-box">
-          <div class="support-card">
-            <div class="support-header">
-              <i class="fas fa-headset"></i>
-              <span class="support-title">Suporte Técnico</span>
-            </div>
-            <div class="support-content">
-              <p>Informe os dados abaixo para nossa equipe.</p>
-            </div>
-          </div>
-
-          <div class="pc-info">
-            <div class="info-item"><i class="fas fa-desktop"></i><div class="text"><strong>Host</strong><span id="hostname">---</span></div></div>
-            <div class="info-item"><i class="fas fa-network-wired"></i><div class="text"><strong>IP</strong><span id="ip">---</span></div></div>
-            <div class="info-item"><i class="fas fa-id-card-clip"></i><div class="text"><strong>AnyDesk</strong><span id="anydesk" class="anydesk-id">---</span></div></div>
-          </div>
-        </div>
-      </aside>
-
-      <main class="content">
-        <div id="placeholder" class="placeholder">
-          <div class="placeholder-container">
-            <i class="fas fa-display"></i>
-            <h2>Aguardando seleção</h2>
-            <p>Escolha um sistema na barra lateral.</p>
+      <nav class="menu">
+        <div class="system-item">
+          <button class="menu-btn" id="captura">
+            <span><i class="fas fa-globe"></i> CapturaWeb</span>
+            <span class="active-tag">ATIVO</span>
+            <span class="dots" data-menu="menu1">⋮</span>
+          </button>
+          <div class="dropdown" id="menu1">
+            <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
+            <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
           </div>
         </div>
 
-        <div id="loading" class="hidden">
-          <div class="spinner"></div>
-          <p>Trocando sistema...</p>
+        <div class="system-item">
+          <button class="menu-btn" id="smart">
+            <span><i class="fas fa-file-invoice"></i> SMART (CIN)</span>
+            <span class="active-tag">ATIVO</span>
+            <span class="dots" data-menu="menu2">⋮</span>
+          </button>
+          <div class="dropdown" id="menu2">
+            <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
+            <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
+          </div>
         </div>
-      </main>
+      </nav>
+
+      <div class="status-box">
+        <div class="support-card">
+          <div class="support-header">
+            <i class="fas fa-headset"></i>
+            <span class="support-title">Suporte Técnico</span>
+          </div>
+          <div class="support-content">
+            <p>Informe os dados abaixo para nossa equipe.</p>
+          </div>
+        </div>
+
+        <div class="pc-info">
+          <div class="info-item"><i class="fas fa-desktop"></i>
+            <div class="text"><strong>Host</strong><span id="hostname">---</span></div>
+          </div>
+          <div class="info-item"><i class="fas fa-network-wired"></i>
+            <div class="text"><strong>IP</strong><span id="ip">---</span></div>
+          </div>
+          <div class="info-item"><i class="fas fa-id-card-clip"></i>
+            <div class="text"><strong>AnyDesk</strong><span id="anydesk" class="anydesk-id">---</span></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div id="update-modal">
+      <div class="update-content">
+        <i class="fa-solid fa-cloud-arrow-down update-icon"></i>
+        <h2 id="up-title">Nova Atualização!</h2>
+        <p id="up-msg">Uma nova versão do Captura Unificada está disponível. Deseja baixar agora?</p>
+
+        <div class="progress-wrapper" id="up-progress-container">
+          <div id="progress-fill"></div>
+        </div>
+
+        <div class="update-btns">
+          <button id="btn-download" class="btn-update-action">Baixar e Instalar</button>
+          <button id="btn-later" class="btn-update-action">Depois</button>
+        </div>
+      </div>
     </div>
-    <script src="app.js"></script>
-  </body>
+
+    <main class="content">
+      <div id="placeholder" class="placeholder">
+        <div class="placeholder-container">
+          <i class="fas fa-display"></i>
+          <h2>Aguardando seleção</h2>
+          <p>Escolha um sistema na barra lateral.</p>
+        </div>
+      </div>
+
+      <div id="loading" class="hidden">
+        <div class="spinner"></div>
+        <p>Trocando sistema...</p>
+      </div>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+
 </html>

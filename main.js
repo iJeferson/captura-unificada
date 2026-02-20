@@ -55,40 +55,52 @@ if (!gotTheLock) {
   app.commandLine.appendSwitch("disable-web-security");
 
   function checkUpdates() {
-    if (app.isPackaged) {
-      autoUpdater.setFeedURL({
-        provider: "github",
-        owner: "iJeferson",
-        repo: "captura-unificada",
-      });
+    if (!app.isPackaged) return;
 
-      autoUpdater.checkForUpdatesAndNotify();
+    autoUpdater.autoDownload = false; // Importante para você controlar o clique
 
-      autoUpdater.on("update-downloaded", (info) => {
-        dialog
-          .showMessageBox({
-            type: "info",
-            title: "Atualização Pronta",
-            message: `Uma nova versão (${info.version}) foi baixada. Deseja reiniciar agora?`,
-            buttons: ["Sim", "Mais tarde"],
-            defaultId: 0,
-          })
-          .then((result) => {
-            if (result.response === 0) autoUpdater.quitAndInstall();
-          });
-      });
+    autoUpdater.setFeedURL({
+      provider: "github",
+      owner: "iJeferson",
+      repo: "captura-unificada",
+    });
 
-      autoUpdater.on("error", (err) => {
-        console.error("Erro no updater:", err);
-      });
-    }
+    autoUpdater.checkForUpdates();
+
+    // Quando descobre que tem update, avisa a UI
+    autoUpdater.on("update-available", (info) => {
+      win.webContents.send("update-available", info.version);
+    });
+
+    // Envia o progresso do download (0 a 100)
+    autoUpdater.on("download-progress", (prog) => {
+      win.webContents.send("update-progress", prog.percent);
+    });
+
+    // Quando termina de baixar
+    autoUpdater.on("update-downloaded", () => {
+      win.webContents.send("update-finished");
+    });
   }
+
+  // Handlers para os botões do Modal
+  ipcMain.handle("start-update-download", () => {
+    autoUpdater.downloadUpdate();
+  });
+
+  ipcMain.handle("apply-update-now", () => {
+    autoUpdater.quitAndInstall();
+  });
 
   const esperar = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   function obterAnydeskID() {
     const caminhos = [
-      path.join(process.env.ProgramData || "C:\\ProgramData", "AnyDesk", "service.conf"),
+      path.join(
+        process.env.ProgramData || "C:\\ProgramData",
+        "AnyDesk",
+        "service.conf",
+      ),
       path.join(process.env.APPDATA || "", "AnyDesk", "system.conf"),
       "C:\\ProgramData\\AnyDesk\\service.conf",
     ];
@@ -222,7 +234,7 @@ if (!gotTheLock) {
         .find((i) => i.family === "IPv4" && !i.internal)?.address ||
       "127.0.0.1",
     anydesk: obterAnydeskID(),
-    version: app.getVersion() // ADICIONADO: Envia a versão do package.json para o HTML
+    version: app.getVersion(), // ADICIONADO: Envia a versão do package.json para o HTML
   }));
 
   ipcMain.handle("reload-page", () => {
