@@ -49,14 +49,27 @@ if (!gotTheLock) {
   }
   app.setPath("userData", customDataPath);
 
-  /* ========== FLAGS DE PERFORMANCE (CHROME) ========== */
+  /* ========== PERFORMANCE E MEMÓRIA ========== */
   app.commandLine.appendSwitch("disable-http-cache", "false");
   app.commandLine.appendSwitch("ignore-gpu-blocklist");
   app.commandLine.appendSwitch("enable-gpu-rasterization");
   app.commandLine.appendSwitch("enable-zero-copy");
   app.commandLine.appendSwitch("enable-inline-resource-suggesting");
-  app.commandLine.appendSwitch("ignore-certificate-errors");
-  app.commandLine.appendSwitch("disable-web-security");
+  app.commandLine.appendSwitch("disk-cache-size", "52428800"); /* 50MB – limita cache em disco para reduzir uso de memória */
+  /* Opcional: --max-old-space-size=512 limita heap V8 (MB); descomente se quiser limitar picos de memória */
+  /* app.commandLine.appendSwitch("js-flags", "--max-old-space-size=512"); */
+
+  /* ========== SEGURANÇA – CERTIFICADOS E CORS ==========
+   * ignore-certificate-errors e disable-web-security REDUZEM a segurança:
+   * - ignore-certificate-errors: aceita certificados SSL inválidos/autoassinados (risco de MITM).
+   * - disable-web-security: desativa políticas de mesma origem/CORS (permite requisições cross-origin).
+   * Devem ser REVISADOS em produção. Em redes internas com HTTPS autoassinado pode ser necessário
+   * mantê-los; em ambientes controlados, defina config.ALLOW_INSECURE_CONNECTIONS = false em app.config.js.
+   */
+  if (config.ALLOW_INSECURE_CONNECTIONS) {
+    app.commandLine.appendSwitch("ignore-certificate-errors");
+    app.commandLine.appendSwitch("disable-web-security");
+  }
 
   /* ========== INICIALIZAÇÃO ========== */
   app.whenReady().then(() => {

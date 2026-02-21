@@ -25,6 +25,7 @@ export const ELEMENT_IDS = {
   TOGGLE_SIDEBAR: "toggle-sidebar",
   TOGGLE_ICON: "toggle-icon",
   LOADING: "loading",
+  CONTENT_LOADING_BAR: "content-loading-bar",
   PLACEHOLDER: "placeholder",
   UPDATE_INDICATOR: "update-indicator",
   APP_VERSION: "app-version",

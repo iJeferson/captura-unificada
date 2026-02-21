@@ -18,6 +18,15 @@ module.exports = {
   /** Nome do diretório de dados do usuário (dentro de AppData) */
   USER_DATA_DIR: "captura-unificada-data",
 
+  /**
+   * SEGURANÇA – conexões e certificados
+   * ignore-certificate-errors e disable-web-security REDUZEM a segurança (certificados SSL
+   * e CORS são relaxados). Use true apenas quando necessário (ex.: redes internas com
+   * certificados autoassinados). Em produção, em redes confiáveis, defina como false
+   * para restaurar validação de certificados e políticas de origem.
+   */
+  ALLOW_INSECURE_CONNECTIONS: true,
+
   /** Largura da sidebar expandida (px) */
   SIDEBAR_WIDTH_EXPANDED: 220,
 
@@ -85,5 +94,17 @@ module.exports = {
   DELAYS: {
     hardwareSwitch: 800,
     capturaEnv: 600,
+    /** Pausa entre desligar e ligar o Suprema RealScan-D (para o dispositivo efetivamente reiniciar) */
+    supremaPowerCycle: 1200,
   },
+
+  /**
+   * CapturaWeb externo (Validação) - outro app, não é este sistema.
+   * Antes de abrir a URL de Validação, o processo CapturaWeb.exe deve estar rodando.
+   * Se não estiver, este executável é aberto.
+   */
+  CAPTURAWEB_VALIDACAO_EXE: "C:\\Program Files\\Valid\\CapturaWeb\\Online\\CapturaWeb.exe",
+
+  /** BCC (Griaule) - usado pelo SMART (CIN). */
+  BCC_EXE: "C:\\Griaule\\BCC\\BCC.exe",
 };

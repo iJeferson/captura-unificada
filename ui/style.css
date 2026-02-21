@@ -30,6 +30,17 @@
     --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.12);
     --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.18);
+    /* Escala de fontes padronizada (rem = acessível e consistente) */
+    --text-2xs: 0.5625rem;   /* 9px – labels mínimos, tags */
+    --text-xs: 0.625rem;    /* 10px */
+    --text-sm: 0.6875rem;   /* 11px */
+    --text-base: 0.8125rem; /* 13px – padrão do app */
+    --text-md: 0.875rem;    /* 14px */
+    --text-lg: 1rem;        /* 16px */
+    --text-xl: 1.125rem;    /* 18px */
+    --text-2xl: 1.25rem;    /* 20px */
+    --text-3xl: 1.5rem;    /* 24px */
+    --text-tag: 0.375rem;  /* 6px – tags ATIVO/ABERTO */
 }
 
 .light-theme {
@@ -178,9 +189,9 @@ body {
 }
 
 .logo { min-width: 0; }
-.logo h2 { font-size: clamp(0.9rem, 1.2vw, 1rem); letter-spacing: -0.02em; line-height: 1.3; word-break: break-word; transition: color 0.25s; }
-.logo .version-tag { font-size: 0.65rem; }
-.logo span.logo-sub { font-size: 10px; color: var(--text-dim); transition: color 0.25s; }
+.logo h2 { font-size: clamp(var(--text-lg), 1.2vw, var(--text-xl)); letter-spacing: -0.02em; line-height: 1.3; word-break: break-word; transition: color 0.25s; }
+.logo .version-tag { font-size: var(--text-xs); }
+.logo span.logo-sub { font-size: var(--text-xs); color: var(--text-dim); transition: color 0.25s; }
 
 /* Aparência: tema escuro/claro com identificação clara */
 .theme-section {
@@ -193,7 +204,7 @@ body {
 }
 
 .theme-label {
-    font-size: 0.8rem;
+    font-size: var(--text-md);
     color: var(--text-dim);
     display: inline-flex;
     align-items: center;
@@ -201,7 +212,7 @@ body {
 }
 
 .theme-label i {
-    font-size: 0.9rem;
+    font-size: var(--text-lg);
     color: var(--accent);
     opacity: 0.9;
 }
@@ -249,7 +260,7 @@ body {
 }
 
 .theme-switch-slider .theme-icon {
-    font-size: 0.7rem;
+    font-size: var(--text-sm);
     z-index: 1;
     transition: opacity 0.2s;
 }
@@ -321,7 +332,7 @@ body {
 }
 
 .menu-group-title {
-    font-size: 10px;
+    font-size: var(--text-xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -340,7 +351,7 @@ body {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    font-size: 13px;
+    font-size: var(--text-base);
     border-radius: var(--radius-sm);
 }
 
@@ -352,7 +363,7 @@ body {
   min-width: 0;
 }
 
-#doc-avulsos .btn-label { font-size: 0.8em; }
+#doc-avulsos .btn-label { font-size: 0.8125em; }
 .menu-btn > span:first-child {
   display: flex;
   align-items: center;
@@ -376,14 +387,56 @@ body {
 
 .menu-btn.active i { color: #fff; }
 
+/* Ícone de mais opções (três pontos verticais) – mesmo comportamento em todos os botões */
+.menu-btn .dots {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+.menu-btn .dots:hover {
+    color: var(--accent);
+    background: var(--bg-hover);
+    box-shadow: 0 0 14px var(--accent-glow);
+}
+.menu-btn .dots i {
+    font-size: var(--text-xs);
+}
+/* Hover dos três pontinhos igual em ativo, Atende aberto, Ponto Valid e Ponto Renova */
+.menu-btn.active .dots {
+    color: rgba(255,255,255,0.9);
+}
+.menu-btn.active .dots:hover,
+.menu-btn.atende-window-open .dots:hover,
+#ponto-valid .dots:hover,
+#ponto-renova .dots:hover {
+    color: #fff;
+    background: rgba(255,255,255,0.2);
+    box-shadow: 0 0 14px var(--accent-glow);
+}
+#ponto-valid .dots,
+#ponto-renova .dots {
+    color: rgba(255,255,255,0.85);
+}
+.menu-btn.atende-window-open .dots {
+    color: rgba(255,255,255,0.9);
+}
+
+/* Tag "ATIVO" – tamanho reduzido para não quebrar o texto do botão */
 .active-tag {
     display: none;
-    font-size: 7px;
+    font-size: var(--text-tag);
     font-weight: 600;
-    letter-spacing: 0.02em;
-    background: rgba(255,255,255,0.2);
-    padding: 1px 5px;
-    border-radius: 10px;
+    letter-spacing: 0.03em;
+    background: rgba(255,255,255,0.25);
+    padding: 1px 4px;
+    border-radius: 6px;
     animation: pulseText 1.8s infinite;
     white-space: nowrap;
     flex-shrink: 0;
@@ -391,16 +444,16 @@ body {
 
 .menu-btn.active .active-tag { display: inline-block; }
 
-/* Atende: estado quando a janela separada está aberta (cor diferente + ícone) */
+/* Atende: tag "ABERTO" quando a janela separada está aberta – tamanho reduzido */
 .atende-window-tag {
   display: none;
-  font-size: 7px;
+  font-size: var(--text-tag);
   font-weight: 600;
-  letter-spacing: 0.02em;
-  background: rgba(16, 185, 129, 0.3);
+  letter-spacing: 0.03em;
+  background: rgba(16, 185, 129, 0.35);
   color: #6ee7b7;
-  padding: 1px 5px;
-  border-radius: 10px;
+  padding: 1px 4px;
+  border-radius: 6px;
   animation: pulseText 1.8s infinite;
   white-space: nowrap;
   flex-shrink: 0;
@@ -456,12 +509,43 @@ body {
 
 .dropdown button {
     border: none; background: none; color: var(--text-dim);
-    padding: 10px 12px; font-size: 13px; cursor: pointer;
+    padding: 10px 12px; font-size: var(--text-base); cursor: pointer;
     transition: background 0.2s var(--ease-out), color 0.2s;
+    text-align: left;
+    width: 100%;
 }
 
 .dropdown button:hover { background: var(--bg-hover); color: var(--text-main); }
 .dropdown button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Botões de ação em destaque (Reiniciar Serviço, BCC, Validação) – primeiro no menu, harmonia com o resto */
+.dropdown .btn-action-featured {
+    border: none;
+    border-left: 2px solid var(--border);
+    background: none;
+    color: var(--text-dim);
+    padding: 10px 12px;
+    padding-left: 10px;
+}
+.dropdown .btn-action-featured i {
+    margin-right: 8px;
+    width: 16px;
+    text-align: center;
+    color: var(--accent);
+}
+.dropdown .btn-action-featured:hover {
+    background: var(--bg-hover);
+    color: var(--text-main);
+    border-left-color: var(--accent);
+}
+.dropdown .btn-action-featured:hover i {
+    color: var(--accent);
+}
+.dropdown .btn-action-featured + button {
+    border-top: 1px solid var(--border);
+    margin-top: 2px;
+    padding-top: 10px;
+}
 
 /* =========================================
     STATUS E PC INFO
@@ -480,9 +564,9 @@ body {
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08);
 }
 
-.support-header { display: flex; align-items: center; gap: 10px; color: var(--accent); font-weight: 600; font-size: 0.85rem; }
+.support-header { display: flex; align-items: center; gap: 10px; color: var(--accent); font-weight: 600; font-size: var(--text-md); }
 
-.support-content { margin-top: 10px; font-size: 0.75rem; color: var(--text-dim); opacity: 0; transition: 0.3s; }
+.support-content { margin-top: 10px; font-size: var(--text-md); color: var(--text-dim); opacity: 0; transition: 0.3s; }
 
 .support-card:hover .support-content { opacity: 1; }
 
@@ -502,9 +586,9 @@ body {
 
 .info-item .text { display: flex; flex-direction: column; min-width: 0; }
 
-.info-item strong { font-size: 9px; text-transform: uppercase; color: var(--text-dim); }
+.info-item strong { font-size: var(--text-2xs); text-transform: uppercase; color: var(--text-dim); }
 
-.info-item span { font-size: clamp(11px, 1.5vw, 12px); font-weight: 600; word-break: break-all; }
+.info-item span { font-size: var(--text-sm); font-weight: 600; word-break: break-all; }
 
 .sidebar-footer {
   margin-top: auto;
@@ -514,7 +598,7 @@ body {
 
 .copyright,
 .copyright-entity {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--text-dim);
   line-height: 1.4;
 }
@@ -560,14 +644,14 @@ body {
   transition: opacity 0.3s var(--ease-out);
 }
 .placeholder h2 {
-  font-size: clamp(1.25rem, 4vw, 2.2rem);
+  font-size: clamp(var(--text-2xl), 4vw, var(--text-3xl));
   font-weight: 700;
   line-height: 1.3;
   margin-bottom: 0.5em;
   letter-spacing: -0.02em;
 }
 .placeholder p {
-  font-size: clamp(0.875rem, 2vw, 1.1rem);
+  font-size: var(--text-md);
   color: var(--text-dim);
   max-width: 360px;
   margin: 0 auto;
@@ -581,6 +665,56 @@ body {
     background: rgba(11, 18, 32, 0.6);
 }
 body.light-theme #loading { background: rgba(241, 245, 249, 0.75); }
+
+/* Indicador de carregamento da página (URL) – espaço fixo para não alterar o layout */
+.content-loading-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 24px;
+    height: 24px;
+    padding: 0 10px;
+    margin: 0 12px 8px;
+    background: rgba(37, 99, 235, 0.08);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 0.03em;
+    transition: visibility 0.2s, opacity 0.2s;
+}
+.content-loading-bar.hidden {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Três pontos animados (loading) */
+.content-loading-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: contentLoadingBounce 0.6s ease-in-out infinite both;
+}
+.content-loading-dot:nth-child(1) { animation-delay: 0s; }
+.content-loading-dot:nth-child(2) { animation-delay: 0.1s; }
+.content-loading-dot:nth-child(3) { animation-delay: 0.2s; }
+@keyframes contentLoadingBounce {
+    0%, 80%, 100% { transform: scale(0.75); opacity: 0.6; }
+    40% { transform: scale(1); opacity: 1; }
+}
+.content-loading-label {
+    margin-left: 2px;
+    color: var(--accent);
+    animation: contentLoadingPulse 1.2s ease-in-out infinite;
+}
+@keyframes contentLoadingPulse {
+    0%, 100% { opacity: 0.85; }
+    50% { opacity: 1; }
+}
 
 /* Spinner Moderno com Rastro de Luz Intenso */
 .spinner {
@@ -604,7 +738,7 @@ body.light-theme #loading { background: rgba(241, 245, 249, 0.75); }
 
 #loading p {
     color: var(--text-main);
-    font-size: 13px;
+    font-size: var(--text-base);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 2.5px;
@@ -614,7 +748,6 @@ body.light-theme #loading { background: rgba(241, 245, 249, 0.75); }
     animation: pulseText 1.5s ease-in-out infinite;
     text-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
 }
-
 #loading p::after {
     content: '';
     display: inline-block;
@@ -694,13 +827,13 @@ body.light-theme #loading { background: rgba(241, 245, 249, 0.75); }
 }
 
 .update-content h2 {
-    font-size: 1.5rem;
+    font-size: var(--text-3xl);
     margin-bottom: 10px;
 }
 
 .update-content p {
     color: var(--text-dim);
-    font-size: 0.95rem;
+    font-size: var(--text-md);
     margin-bottom: 25px;
     line-height: 1.5;
 }
@@ -786,7 +919,7 @@ body.light-theme #loading { background: rgba(241, 245, 249, 0.75); }
 }
 
 .modal-atende h3 {
-  font-size: 1.2rem;
+  font-size: var(--text-xl);
   margin-bottom: 12px;
   display: flex;
   align-items: center;
@@ -794,10 +927,10 @@ body.light-theme #loading { background: rgba(241, 245, 249, 0.75); }
   color: var(--accent);
 }
 
-.modal-atende h3 i { font-size: 1.1rem; }
+.modal-atende h3 i { font-size: var(--text-lg); }
 
 .modal-desc {
-  font-size: 0.85rem;
+  font-size: var(--text-md);
   color: var(--text-dim);
   margin-bottom: 16px;
   line-height: 1.5;
@@ -810,7 +943,7 @@ body.light-theme #loading { background: rgba(241, 245, 249, 0.75); }
   border-radius: 8px;
   background: var(--bg-btn);
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--text-md);
   margin-bottom: 20px;
   box-sizing: border-box;
 }
@@ -835,7 +968,7 @@ body.light-theme #loading { background: rgba(241, 245, 249, 0.75); }
   padding: 10px 18px;
   border-radius: 8px;
   border: none;
-  font-size: 13px;
+  font-size: var(--text-base);
   font-weight: 600;
   cursor: pointer;
   transition: 0.2s;
@@ -863,7 +996,7 @@ body.light-theme #loading { background: rgba(241, 245, 249, 0.75); }
   background: none;
   color: var(--accent);
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: var(--text-base);
   cursor: pointer;
   transition: 0.2s;
   width: 100%;
@@ -880,8 +1013,8 @@ body.light-theme #loading { background: rgba(241, 245, 249, 0.75); }
 @media (max-width: 640px) {
     .sidebar-wrapper { max-width: 100%; }
     .sidebar-wrapper:not(.collapsed) { width: min(220px, 100vw - 60px); }
-    .logo h2 { font-size: 0.9rem; }
-    .menu-btn { padding: 8px 10px; font-size: 12px; }
+    .logo h2 { font-size: var(--text-lg); }
+    .menu-btn { padding: 8px 10px; font-size: var(--text-base); }
     .status-box { padding-top: 12px; }
     .support-card, .pc-info .info-item { padding: 8px 10px; }
 }

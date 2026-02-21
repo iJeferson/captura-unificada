@@ -58,6 +58,9 @@ const Controller = {
     document.querySelectorAll(`.${CSS_CLASSES.BTN_CACHE}`).forEach((btn) => {
       btn.addEventListener("click", () => this.onCacheClick());
     });
+    document.querySelectorAll(".btn-action[data-action]").forEach((btn) => {
+      btn.addEventListener("click", (e) => this.onActionClick(e));
+    });
 
     document.getElementById(ELEMENT_IDS.THEME_TOGGLE)?.addEventListener("change", (e) => this.onThemeToggle(e));
   },
@@ -80,6 +83,10 @@ const Controller = {
         Model.setSistemaAtivo(sistema);
         View.setMenuAtivoPorId(sistema);
       }
+    });
+
+    window.api.onContentLoadingState((loading) => {
+      View.mostrarCarregamentoPagina(loading);
     });
 
     window.api.onAtendeWindowOpened(() => {
@@ -281,7 +288,7 @@ const Controller = {
   },
 
   /**
-   * Handler: clique nos três pontos (⋮) para abrir dropdown.
+   * Handler: clique no ícone de mais opções para abrir dropdown.
    */
   onDotClick(e) {
     if (this.bloquearSeCarregando()) return;
@@ -329,6 +336,25 @@ const Controller = {
     await window.api.clearCache();
     Model.setCarregando(false);
     View.mostrarLoading(false);
+  },
+
+  /**
+   * Handler: clique em botões de ação do menu (Reiniciar Validação, Reiniciar Serviço de Hardware, Reiniciar BCC).
+   */
+  async onActionClick(e) {
+    if (this.bloquearSeCarregando()) return;
+
+    const btn = e.target?.closest?.(".btn-action[data-action]");
+    const action = btn?.dataset?.action;
+    if (!action) return;
+
+    const actions = {
+      "reiniciar-validacao": () => window.api.reiniciarValidacao(),
+      "reiniciar-servico-hardware": () => window.api.reiniciarServicoHardware(),
+      "reiniciar-bcc": () => window.api.reiniciarBCC(),
+    };
+    const fn = actions[action];
+    if (fn) await fn();
   },
 
   /**

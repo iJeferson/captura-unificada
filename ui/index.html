@@ -81,6 +81,14 @@
             </label>
           </div>
 
+          <!-- Indicador de carregamento da página (URL) – compacto e animado -->
+          <div id="content-loading-bar" class="content-loading-bar hidden" aria-hidden="true" title="Página carregando">
+            <span class="content-loading-dot"></span>
+            <span class="content-loading-dot"></span>
+            <span class="content-loading-dot"></span>
+            <span class="content-loading-label">Carregando</span>
+          </div>
+
           <nav class="menu">
             <section class="menu-group">
               <h3 class="menu-group-title">Sistemas Integrados</h3>
@@ -88,9 +96,10 @@
                 <button class="menu-btn" id="captura">
                   <span><i class="fas fa-globe"></i><span class="btn-label">CapturaWeb</span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu1">⋮</span>
+                  <span class="dots" data-menu="menu1" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu1">
+                  <button class="btn-action btn-action-featured" data-action="reiniciar-servico-hardware"><i class="fas fa-microchip"></i>Reiniciar Serviço</button>
                   <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
                   <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
                 </div>
@@ -99,9 +108,10 @@
                 <button class="menu-btn" id="smart">
                   <span><i class="fas fa-file-invoice"></i><span class="btn-label">SMART (CIN)</span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu2">⋮</span>
+                  <span class="dots" data-menu="menu2" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu2">
+                  <button class="btn-action btn-action-featured" data-action="reiniciar-bcc"><i class="fas fa-plug-circle-bolt"></i>Reiniciar BCC</button>
                   <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
                   <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
                 </div>
@@ -109,8 +119,8 @@
               <div class="system-item">
                 <button class="menu-btn" id="atende" title="Abre em janela separada. Clique de novo para trazer a janela à frente.">
                   <span><i class="fas fa-ticket atende-icon"></i><span class="btn-label">Atende</span></span>
-                  <span class="atende-window-tag">JANELA ABERTA</span>
-                  <span class="dots" data-menu="menu7">⋮</span>
+                  <span class="atende-window-tag">ABERTO</span>
+                  <span class="dots" data-menu="menu7" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu7">
                   <button class="btn-atende-config" id="atende-config-btn"><i class="fas fa-cog"></i> Configurar endereço</button>
@@ -124,9 +134,10 @@
                 <button class="menu-btn" id="validacao">
                   <span><i class="fas fa-fingerprint"></i><span class="btn-label">Validação</span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu4">⋮</span>
+                  <span class="dots" data-menu="menu4" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu4">
+                  <button class="btn-action btn-action-featured" data-action="reiniciar-validacao"><i class="fas fa-arrows-rotate"></i>Reiniciar Validação</button>
                   <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
                   <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
                 </div>
@@ -135,7 +146,7 @@
                 <button class="menu-btn" id="doc-avulsos">
                   <span><i class="fas fa-archive"></i><span class="btn-label">Doc Avulso (Antigo)</span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu3">⋮</span>
+                  <span class="dots" data-menu="menu3" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu3">
                   <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
@@ -146,7 +157,7 @@
                 <button class="menu-btn" id="ponto-valid">
                   <span><i class="fas fa-user-clock"></i><span class="btn-label">Ponto Valid</span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu5">⋮</span>
+                  <span class="dots" data-menu="menu5" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu5">
                   <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
@@ -157,7 +168,7 @@
                 <button class="menu-btn" id="ponto-renova">
                   <span><i class="fas fa-clock-rotate-left"></i><span class="btn-label">Ponto Renova</span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu6">⋮</span>
+                  <span class="dots" data-menu="menu6" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu6">
                   <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
@@ -190,7 +201,7 @@
           </div>
 
           <div class="sidebar-footer">
-            <div class="copyright-entity">@Consórcio Bahia Digital - 2026</div>
+            <div class="copyright-entity">@ Consórcio Bahia Digital - 2026</div>
           </div>
         </div>
       </aside>
@@ -212,7 +223,7 @@
         </div>
       </div>
 
-      <!-- ÁREA DE CONTEÚDO: Placeholder inicial, loading ou view do sistema ativo -->
+      <!-- ÁREA DE CONTEÚDO: Placeholder, loading do launcher, barra de carregamento da URL e view do sistema -->
       <main class="content">
         <div id="placeholder" class="placeholder">
           <div class="placeholder-container">

@@ -86,6 +86,12 @@ contextBridge.exposeInMainWorld("api", {
   reloadAtendeWindow: () => ipcRenderer.invoke("reload-atende-window"),
 
   /**
+   * Registra callback quando o carregamento da página (URL) dentro do launcher inicia ou termina.
+   * @param {Function} callback - Recebe (loading: boolean) true = carregando, false = terminou
+   */
+  onContentLoadingState: (callback) => ipcRenderer.on("content-loading-state", (_, loading) => callback(loading)),
+
+  /**
    * Registra callback quando a janela do Atende é aberta.
    */
   onAtendeWindowOpened: (callback) => ipcRenderer.on("atende-window-opened", () => callback()),
@@ -106,6 +112,22 @@ contextBridge.exposeInMainWorld("api", {
    * @returns {Promise<boolean>} true se sucesso
    */
   clearCache: () => ipcRenderer.invoke("clear-cache"),
+
+  /**
+   * Reiniciar Validação: mata CapturaWeb.exe (externo) e abre novamente.
+   * Se a view ativa for Validação, a página é recarregada.
+   */
+  reiniciarValidacao: () => ipcRenderer.invoke("reiniciar-validacao"),
+
+  /**
+   * Reinicia o serviço de hardware Valid (CapturaWeb).
+   */
+  reiniciarServicoHardware: () => ipcRenderer.invoke("reiniciar-servico-hardware"),
+
+  /**
+   * Reinicia o BCC: mata BCC.exe e inicia novamente (SMART CIN).
+   */
+  reiniciarBCC: () => ipcRenderer.invoke("reiniciar-bcc"),
 
   /**
    * Obtém informações do sistema (hostname, IP, AnyDesk, versão).

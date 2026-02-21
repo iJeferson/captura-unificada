@@ -15,6 +15,7 @@ import { ELEMENT_IDS, CSS_CLASSES } from "../config/constants.js";
 const elementos = {
   loading: () => document.getElementById(ELEMENT_IDS.LOADING),
   loaderText: () => document.querySelector(`#${ELEMENT_IDS.LOADING} p`),
+  contentLoadingBar: () => document.getElementById(ELEMENT_IDS.CONTENT_LOADING_BAR),
   contentArea: () => document.querySelector(".content"),
   placeholder: () => document.getElementById(ELEMENT_IDS.PLACEHOLDER),
   menuBtns: () => document.querySelectorAll(`.${CSS_CLASSES.MENU_BTN}`),
@@ -36,8 +37,7 @@ const View = {
   elementos,
 
   /**
-   * Exibe ou oculta o overlay de loading.
-   * Bloqueia interação do usuário quando ativo.
+   * Exibe ou oculta o overlay de loading do launcher (troca de sistema).
    * @param {boolean} mostrar
    * @param {string} [nomeSistema=""] - Nome exibido no texto (ex: "CapturaWeb")
    */
@@ -65,6 +65,22 @@ const View = {
 
     document.body.style.pointerEvents = mostrar ? "none" : "auto";
     document.body.style.cursor = mostrar ? "wait" : "default";
+  },
+
+  /**
+   * Exibe ou oculta a barra de carregamento da página (URL) dentro do launcher.
+   * @param {boolean} mostrar
+   */
+  mostrarCarregamentoPagina(mostrar) {
+    const bar = this.elementos.contentLoadingBar();
+    if (!bar) return;
+    if (mostrar) {
+      bar.classList.remove(CSS_CLASSES.HIDDEN);
+      bar.setAttribute("aria-hidden", "false");
+    } else {
+      bar.classList.add(CSS_CLASSES.HIDDEN);
+      bar.setAttribute("aria-hidden", "true");
+    }
   },
 
   /**

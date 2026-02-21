@@ -72,9 +72,10 @@ function updateMainWindowTitle() {
 }
 
 function notificarAtendeWindowEstado(aberta) {
-  if (mainWindow?.webContents) {
-    mainWindow.webContents.send(aberta ? "atende-window-opened" : "atende-window-closed");
-  }
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const wc = mainWindow.webContents;
+  if (!wc || wc.isDestroyed()) return;
+  wc.send(aberta ? "atende-window-opened" : "atende-window-closed");
 }
 
 /**
@@ -104,7 +105,13 @@ function openOrFocusAtendeWindow(url) {
       backgroundThrottling: false,
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
     },
+  });
+
+  atendeWindow.webContents.setWindowOpenHandler(({ url }) => {
+    atendeWindow.loadURL(url);
+    return { action: "deny" };
   });
 
   atendeWindow.loadURL(url);
@@ -138,6 +145,8 @@ function criarJanela(iconPathParam) {
     webPreferences: {
       preload: path.join(__dirname, "..", "..", "preload.js"),
       contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
     },
   });
 
@@ -157,14 +166,44 @@ function criarJanela(iconPathParam) {
       backgroundThrottling: false,
       partition: config.SESSION_PARTITION,
       backForwardCache: true,
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
     },
   });
 
+  contentView.webContents.on("did-start-loading", () => {
+    if (mainWindow?.webContents && !mainWindow.webContents.isDestroyed()) {
+      mainWindow.webContents.send("content-loading-state", true);
+    }
+  });
+
   contentView.webContents.on("did-finish-load", () => {
+    if (mainWindow?.webContents && !mainWindow.webContents.isDestroyed()) {
+      mainWindow.webContents.send("content-loading-state", false);
+    }
     if (contentView.webContents.getURL() !== "about:blank") {
       contentView.setVisible(true);
       enviarLoadFinished(currentSistema);
     }
+  });
+
+  contentView.webContents.on("before-input-event", (event, input) => {
+    if (input.key === "F5") {
+      event.preventDefault();
+      contentView.webContents.reload();
+    } else if (input.key === "F12") {
+      event.preventDefault();
+      contentView.webContents.toggleDevTools();
+    }
+  });
+
+  mainWindow.webContents.on("before-input-event", (event, input) => {
+    if (input.key !== "F5" && input.key !== "F12") return;
+    if (!contentView?.webContents || contentView.webContents.getURL() === "about:blank") return;
+    event.preventDefault();
+    if (input.key === "F5") contentView.webContents.reload();
+    else contentView.webContents.toggleDevTools();
   });
 
   mainWindow.contentView.addChildView(contentView);

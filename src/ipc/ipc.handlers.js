@@ -7,9 +7,17 @@
  */
 
 const { ipcMain, session } = require("electron");
+const { exec, spawn } = require("child_process");
+const { promisify } = require("util");
 const { autoUpdater } = require("electron-updater");
 const config = require("../config/app.config");
-const { configurarAmbienteCaptura, configurarAmbienteSmart } = require("../services/hardware.service");
+const execAsync = promisify(exec);
+const {
+  configurarAmbienteCaptura,
+  configurarAmbienteSmart,
+  reiniciarServicoHardware,
+  reiniciarBCC,
+} = require("../services/hardware.service");
 const { getSystemInfo } = require("../services/system.service");
 const { getAtendeConfig, setAtendeConfig, buildAtendeUrl } = require("../services/atende.service");
 const windowManager = require("../window/window.manager");
@@ -33,7 +41,7 @@ function registerIpcHandlers() {
 
   /**
    * Handler: captura
-   * Inicia o sistema CapturaWeb: configura hardware e carrega a URL.
+   * Inicia o sistema CapturaWeb: para BCC/Java, reinicia serviço e cicla o Suprema RealScan-D, depois carrega a URL.
    */
   ipcMain.handle("captura", async () => {
     if (windowManager.getProcessandoTroca()) return;
@@ -83,8 +91,29 @@ function registerIpcHandlers() {
   });
 
   /**
+   * Verifica se o processo CapturaWeb (externo, Valid) está em execução.
+   * Se não estiver, abre o executável configurado (CAPTURAWEB_VALIDACAO_EXE).
+   */
+  async function garantirCapturaWebValidacaoRodando() {
+    try {
+      const { stdout } = await execAsync('tasklist /FI "IMAGENAME eq CapturaWeb.exe"');
+      const estaRodando = stdout.trim().toLowerCase().includes("capturaweb.exe");
+      if (estaRodando) return;
+
+      const exePath = config.CAPTURAWEB_VALIDACAO_EXE;
+      spawn(exePath, [], { detached: true, stdio: "ignore" }).unref();
+      await new Promise((r) => setTimeout(r, 1500));
+    } catch (_) {
+      const exePath = config.CAPTURAWEB_VALIDACAO_EXE;
+      spawn(exePath, [], { detached: true, stdio: "ignore" }).unref();
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+  }
+
+  /**
    * Handler: validacao
    * Validação - usa ambiente Captura (Suprema).
+   * Antes de abrir a URL, verifica se o CapturaWeb externo (Valid) está aberto; se não, abre-o.
    */
   ipcMain.handle("validacao", async () => {
     if (windowManager.getProcessandoTroca()) return;
@@ -94,6 +123,7 @@ function registerIpcHandlers() {
     windowManager.setCurrentSistema("validacao");
     windowManager.setContentViewVisible(false);
 
+    await garantirCapturaWebValidacaoRodando();
     await configurarAmbienteCaptura();
     windowManager.loadContentViewUrl(config.URLS.validacao);
     windowManager.ajustarView();
@@ -203,6 +233,40 @@ function registerIpcHandlers() {
    */
   ipcMain.handle("apply-update-now", () => {
     autoUpdater.quitAndInstall();
+  });
+
+  /**
+   * Handler: reiniciar-validacao
+   * Mata o processo CapturaWeb (externo Valid) e abre novamente.
+   * Se a view ativa for Validação, recarrega a página após abrir o exe.
+   */
+  ipcMain.handle("reiniciar-validacao", async () => {
+    try {
+      await execAsync('taskkill /F /IM CapturaWeb.exe /T');
+    } catch (_) {}
+    await new Promise((r) => setTimeout(r, 800));
+    const exePath = config.CAPTURAWEB_VALIDACAO_EXE;
+    spawn(exePath, [], { detached: true, stdio: "ignore" }).unref();
+    await new Promise((r) => setTimeout(r, 1500));
+    if (windowManager.getCurrentSistema() === "validacao") {
+      windowManager.reloadContentView();
+    }
+  });
+
+  /**
+   * Handler: reiniciar-servico-hardware
+   * Reinicia o serviço Valid-ServicoIntegracaoHardware (CapturaWeb).
+   */
+  ipcMain.handle("reiniciar-servico-hardware", async () => {
+    await reiniciarServicoHardware();
+  });
+
+  /**
+   * Handler: reiniciar-bcc
+   * Mata o processo BCC e inicia novamente (SMART CIN).
+   */
+  ipcMain.handle("reiniciar-bcc", async () => {
+    await reiniciarBCC();
   });
 
   /**
