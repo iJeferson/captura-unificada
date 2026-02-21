@@ -1,12 +1,10 @@
+"use strict";
+
 /**
- * @fileoverview Ponto de entrada da aplicação (Renderer Process)
+ * @fileoverview Ponto de entrada do Renderer. Inicializa o Controller no DOMContentLoaded.
  * @module app
- *
- * Responsabilidade: Inicializar o Controller quando o DOM estiver pronto.
- * Padrão MVC: Controller coordena Model e View.
  */
+
 import Controller from "./js/core/controller.js";
 
-document.addEventListener("DOMContentLoaded", () => {
-  Controller.init();
-});
+document.addEventListener("DOMContentLoaded", () => Controller.init());

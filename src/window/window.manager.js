@@ -1,15 +1,19 @@
+"use strict";
+
 /**
  * @fileoverview Gerenciador da janela principal e da janela do Atende
  * @module window/window.manager
  *
  * Responsabilidade: Criar janela principal com contentView; criar/focar
- * janela separada do Atende (BrowserWindow). Atende mantém cache próprio (persist:atende).
+ * janela separada do Atende (BrowserWindow). Conectividade delegada ao connectivity.service.
  */
 
 const { app, BrowserWindow, WebContentsView } = require("electron");
 const path = require("path");
 const config = require("../config/app.config");
+const logger = require("../utils/logger");
 const { initUpdater } = require("../services/updater.service");
+const connectivityService = require("../services/connectivity.service");
 
 /** Rótulos dos sistemas para o título da janela (id → nome exibido) */
 const SISTEMA_LABELS = {
@@ -76,6 +80,10 @@ function notificarAtendeWindowEstado(aberta) {
   const wc = mainWindow.webContents;
   if (!wc || wc.isDestroyed()) return;
   wc.send(aberta ? "atende-window-opened" : "atende-window-closed");
+}
+
+function getMainWindowRef() {
+  return mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
 }
 
 /**
@@ -155,13 +163,16 @@ function criarJanela(iconPathParam) {
   mainWindow.on("closed", () => {
     mainWindow = null;
     contentView = null;
+    connectivityService.reset();
   });
 
   mainWindow.once("ready-to-show", () => {
     updateMainWindowTitle();
     mainWindow.maximize();
     mainWindow.show();
-    initUpdater({ mainWindow, iconPath, getMainWindow: () => (mainWindow && !mainWindow.isDestroyed() ? mainWindow : null) });
+    initUpdater({ mainWindow, iconPath, getMainWindow: getMainWindowRef });
+    connectivityService.start(getMainWindowRef);
+    connectivityService.requestCheck();
   });
 
   const bounds = () => getContentBounds() || { x: 220, y: 0, width: 1000, height: 800 };
@@ -177,13 +188,17 @@ function criarJanela(iconPathParam) {
     },
   });
 
+  let contentLoadFailureHandled = false;
+
   contentView.webContents.on("did-start-loading", () => {
+    contentLoadFailureHandled = false;
     if (mainWindow?.webContents && !mainWindow.webContents.isDestroyed()) {
       mainWindow.webContents.send("content-loading-state", true);
     }
   });
 
   contentView.webContents.on("did-finish-load", () => {
+    contentLoadFailureHandled = true; /* sucesso: não tratar falhas tardias */
     if (mainWindow?.webContents && !mainWindow.webContents.isDestroyed()) {
       mainWindow.webContents.send("content-loading-state", false);
     }
@@ -192,6 +207,46 @@ function criarJanela(iconPathParam) {
       enviarLoadFinished(currentSistema);
     }
   });
+
+  /* Falha de carregamento: volta ao placeholder (Aguardando seleção + mensagem offline).
+   * Aceita qualquer frame. Garante contentView oculto e sem área (0x0) para não cobrir o placeholder. */
+  function onContentLoadFailed(_event, errorCode, errorDescription, validatedURL, _isMainFrame) {
+    if (contentLoadFailureHandled) return;
+    if (validatedURL === "about:blank" || (typeof validatedURL === "string" && !validatedURL.trim())) return;
+    contentLoadFailureHandled = true;
+
+    const loadErr = new Error(errorDescription || `Load failed (code ${errorCode})`);
+    loadErr.code = String(errorCode);
+    logger.logError(loadErr);
+
+    try {
+      if (contentView) {
+        contentView.setVisible(false);
+        const b = getContentBounds();
+        if (b) contentView.setBounds({ x: b.x, y: b.y, width: 0, height: 0 });
+      }
+      connectivityService.notifyOffline(); /* envia offline + content-load-failed após minOfflineDurationMs */
+      processandoTroca = false;
+      enviarLoadFinished(null);
+
+      const wc = mainWindow?.webContents;
+      if (wc && !wc.isDestroyed()) {
+        wc.executeJavaScript(`
+          (function() {
+            var pl = document.getElementById('placeholder');
+            var ld = document.getElementById('loading');
+            if (pl) { pl.classList.remove('hidden'); pl.style.display = 'flex'; pl.style.visibility = 'visible'; }
+            if (ld) { ld.classList.add('hidden'); ld.style.display = 'none'; }
+            document.querySelectorAll('.menu-btn').forEach(function(b){ b.classList.remove('active'); });
+          })();
+        `).catch((err) => logger.logError(err));
+      }
+    } catch (err) {
+      logger.logError(err);
+    }
+  }
+  contentView.webContents.on("did-fail-provisional-load", onContentLoadFailed);
+  contentView.webContents.on("did-fail-load", onContentLoadFailed);
 
   contentView.webContents.on("before-input-event", (event, input) => {
     if (input.key === "F5") {
@@ -243,7 +298,8 @@ module.exports = {
   ajustarView,
   preconnectUrls,
   openOrFocusAtendeWindow,
-  getMainWindow: () => (mainWindow && !mainWindow.isDestroyed() ? mainWindow : null),
+  requestConnectivityCheck: () => connectivityService.requestCheck(),
+  getMainWindow: getMainWindowRef,
   getContentView: () => contentView,
   getAtendeWindow: () => atendeWindow,
   isAtendeWindowOpen: () => atendeWindow != null && !atendeWindow.isDestroyed(),

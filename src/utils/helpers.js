@@ -1,8 +1,8 @@
+"use strict";
+
 /**
- * @fileoverview Funções utilitárias do Main Process
+ * @fileoverview Utilitários do Main Process (delay, AnyDesk ID, etc.).
  * @module utils/helpers
- *
- * Responsabilidade: Helpers reutilizáveis (delay, leitura de arquivos, etc.)
  */
 
 const fs = require("fs");

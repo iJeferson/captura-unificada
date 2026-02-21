@@ -41,6 +41,7 @@
     --text-2xl: 1.25rem;    /* 20px */
     --text-3xl: 1.5rem;    /* 24px */
     --text-tag: 0.375rem;  /* 6px – tags ATIVO/ABERTO */
+    --icon-text-gap: 8px;  /* espaço padrão entre ícone e texto em botões */
 }
 
 .light-theme {
@@ -81,7 +82,7 @@ body {
     align-items: stretch;
     width: 220px;
     min-width: 0;
-    max-width: min(320px, calc(100vw - 180px));
+    max-width: min(320px, calc(100vw - 80px));
     flex-shrink: 0;
     background: var(--bg-sidebar);
     border-right: 1px solid var(--border);
@@ -346,31 +347,35 @@ body {
 .menu-btn {
     width: 100%;
     min-width: 0;
-    padding: 10px 12px;
+    padding: clamp(6px, 1.2vw, 10px) clamp(8px, 1.5vw, 12px);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    font-size: var(--text-base);
+    gap: var(--icon-text-gap);
+    font-size: clamp(var(--text-sm), 2.2vw, var(--text-base));
     border-radius: var(--radius-sm);
 }
 
 .menu-btn .btn-label {
-  word-break: break-word;
-  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   line-height: 1.35;
   flex: 1;
   min-width: 0;
 }
 
-#doc-avulsos .btn-label { font-size: 0.8125em; }
+#doc-avulsos .btn-label { font-size: 0.9em; }
+/* Quando Doc Avulso está ativo, oculta " (Antigo)" para não quebrar o design */
+.menu-btn.active .label-suffix { display: none; }
+
 .menu-btn > span:first-child {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--icon-text-gap);
   min-width: 0;
   flex: 1;
-  flex-wrap: wrap;
+  overflow: hidden;
 }
 .menu-btn > span:first-child i {
   flex-shrink: 0;
@@ -509,10 +514,19 @@ body {
 
 .dropdown button {
     border: none; background: none; color: var(--text-dim);
-    padding: 10px 12px; font-size: var(--text-base); cursor: pointer;
+    padding: clamp(6px, 1.2vw, 10px) clamp(8px, 1.5vw, 12px);
+    font-size: clamp(var(--text-sm), 2vw, var(--text-base));
+    cursor: pointer;
     transition: background 0.2s var(--ease-out), color 0.2s;
     text-align: left;
     width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: var(--icon-text-gap);
 }
 
 .dropdown button:hover { background: var(--bg-hover); color: var(--text-main); }
@@ -524,14 +538,14 @@ body {
     border-left: 2px solid var(--border);
     background: none;
     color: var(--text-dim);
-    padding: 10px 12px;
-    padding-left: 10px;
+    padding: clamp(6px, 1.2vw, 10px) clamp(8px, 1.5vw, 12px);
+    padding-left: clamp(6px, 1.2vw, 10px);
 }
 .dropdown .btn-action-featured i {
-    margin-right: 8px;
-    width: 16px;
+    width: 14px;
     text-align: center;
     color: var(--accent);
+    flex-shrink: 0;
 }
 .dropdown .btn-action-featured:hover {
     background: var(--bg-hover);
@@ -544,7 +558,7 @@ body {
 .dropdown .btn-action-featured + button {
     border-top: 1px solid var(--border);
     margin-top: 2px;
-    padding-top: 10px;
+    padding-top: clamp(6px, 1.2vw, 10px);
 }
 
 /* =========================================
@@ -657,6 +671,59 @@ body {
   margin: 0 auto;
   line-height: 1.5;
 }
+
+/* Quando offline: esconde "Aguardando seleção" e mostra só a mensagem de conectividade + Suporte Técnico */
+.placeholder-when-offline {
+  display: none;
+  max-width: 360px;
+  margin: 0 auto;
+  text-align: center;
+}
+.placeholder-when-offline h2 {
+  font-size: clamp(var(--text-2xl), 4vw, var(--text-3xl));
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 0.5em;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+}
+.placeholder-when-offline p {
+  font-size: var(--text-md);
+  color: var(--accent);
+  font-weight: 600;
+  line-height: 1.5;
+}
+.placeholder-container.is-offline .placeholder-when-online { display: none; }
+.placeholder-container.is-offline .placeholder-when-offline { display: block; }
+.placeholder-when-offline.hidden { display: none !important; }
+
+/* Aviso de offline – barra no topo da área de conteúdo (mesma paleta do app) */
+.offline-banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--icon-text-gap);
+  padding: 10px 16px;
+  background: var(--bg-btn);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-main);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  transition: background 0.2s var(--ease-out), border-color 0.2s, color 0.2s;
+}
+.offline-banner i { color: var(--accent); }
+.offline-banner.hidden { display: none; }
+body.light-theme .offline-banner {
+  background: var(--bg-btn);
+  border-bottom-color: var(--border);
+  color: var(--text-main);
+}
+body.light-theme .offline-banner i { color: var(--accent); }
 
 #loading { 
     z-index: 999; 
@@ -1005,25 +1072,45 @@ body.light-theme #loading { background: rgba(241, 245, 249, 0.75); }
 
 .dropdown .btn-atende-config:hover { background: var(--bg-hover); color: var(--accent); }
 
-.dropdown .btn-atende-config i { margin-right: 8px; }
+.dropdown .btn-atende-config i { flex-shrink: 0; }
 
 /* =========================================
-    RESPONSIVIDADE
+    RESPONSIVIDADE – proporção em telas menores, sem rolagem desnecessária
     ========================================= */
+html, body { overflow: hidden; }
+.app { min-width: 0; overflow: hidden; }
+
 @media (max-width: 640px) {
     .sidebar-wrapper { max-width: 100%; }
-    .sidebar-wrapper:not(.collapsed) { width: min(220px, 100vw - 60px); }
+    .sidebar-wrapper:not(.collapsed) { width: min(220px, 100vw - 72px); }
+    .sidebar { padding: clamp(8px, 2vw, 14px); }
     .logo h2 { font-size: var(--text-lg); }
-    .menu-btn { padding: 8px 10px; font-size: var(--text-base); }
-    .status-box { padding-top: 12px; }
+    .menu-btn { padding: 6px 8px; font-size: var(--text-sm); }
+    .menu-btn .dots { width: 20px; height: 20px; }
+    .menu-group-title { font-size: var(--text-2xs); padding: 2px 0; }
+    .status-box { padding-top: 10px; }
     .support-card, .pc-info .info-item { padding: 8px 10px; }
+    .dropdown button { padding: 6px 8px; font-size: var(--text-sm); }
+}
+
+@media (max-width: 420px) {
+    .sidebar-wrapper:not(.collapsed) { width: min(200px, 100vw - 64px); }
+    .sidebar { padding: 6px 8px; }
+    .logo h2 { font-size: var(--text-base); }
+    .logo span.logo-sub { font-size: var(--text-2xs); }
+    .menu-btn { padding: 5px 6px; font-size: var(--text-xs); gap: var(--icon-text-gap); }
+    .menu-btn .dots { width: 18px; height: 18px; }
+    .menu-btn .dots i { font-size: var(--text-2xs); }
+    .menu-group-title { font-size: var(--text-2xs); }
+    .dropdown button { padding: 5px 6px; font-size: var(--text-xs); }
+    .content-loading-bar { margin: 0 8px 6px; padding: 0 8px; font-size: var(--text-2xs); }
 }
 
 @media (max-height: 500px) {
-    .sidebar { padding: 10px; }
+    .sidebar { padding: 8px 10px; }
     .menu-group-title { padding: 2px 0; }
-    .menu-btn { padding: 6px 10px; }
-    .status-box { padding-top: 10px; }
+    .menu-btn { padding: 5px 8px; }
+    .status-box { padding-top: 8px; }
 }
 
 /* =========================================

@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * @fileoverview Ponto de entrada do aplicativo Captura Unificada
  * @module main
@@ -10,13 +12,16 @@ const { app } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const config = require("./src/config/app.config");
+const logger = require("./src/utils/logger");
 const windowManager = require("./src/window/window.manager");
 const { registerIpcHandlers } = require("./src/ipc/ipc.handlers");
+
+logger.initGlobalHandlers();
 
 /* Nome da aplicação em janelas, notificações e processos (sem referência a runtime) */
 app.setName(config.APP_NAME || "Captura Unificada");
 
-/* ========== OTIMIZAÇÃO V8 ========== */
+/* ========== V8 14.4 (via Electron 40) ========== */
 process.env.V8_CACHE_OPTIONS = "code";
 
 /* ========== INSTÂNCIA ÚNICA ========== */
@@ -32,13 +37,17 @@ if (!gotTheLock) {
    * se a janela principal foi fechada (ex.: só o Atende ficou aberto), recria a janela principal.
    */
   app.on("second-instance", () => {
-    const win = windowManager.getMainWindow();
-    if (win) {
-      if (win.isMinimized()) win.restore();
-      win.focus();
-    } else {
-      windowManager.criarJanela(ICON_PATH);
-      windowManager.preconnectUrls();
+    try {
+      const win = windowManager.getMainWindow();
+      if (win) {
+        if (win.isMinimized()) win.restore();
+        win.focus();
+      } else {
+        windowManager.criarJanela(ICON_PATH);
+        windowManager.preconnectUrls();
+      }
+    } catch (err) {
+      logger.logError(err);
     }
   });
 
@@ -47,11 +56,15 @@ if (!gotTheLock) {
   /**
    * Configura diretório de dados do usuário.
    */
-  const customDataPath = path.join(app.getPath("appData"), config.USER_DATA_DIR);
-  if (!fs.existsSync(customDataPath)) {
-    fs.mkdirSync(customDataPath, { recursive: true });
+  try {
+    const customDataPath = path.join(app.getPath("appData"), config.USER_DATA_DIR);
+    if (!fs.existsSync(customDataPath)) {
+      fs.mkdirSync(customDataPath, { recursive: true });
+    }
+    app.setPath("userData", customDataPath);
+  } catch (err) {
+    logger.logError(err);
   }
-  app.setPath("userData", customDataPath);
 
   /* ========== PERFORMANCE E MEMÓRIA ========== */
   app.commandLine.appendSwitch("disable-http-cache", "false");
@@ -77,8 +90,12 @@ if (!gotTheLock) {
 
   /* ========== INICIALIZAÇÃO ========== */
   app.whenReady().then(() => {
-    windowManager.criarJanela(ICON_PATH);
-    registerIpcHandlers();
-    windowManager.preconnectUrls();
+    try {
+      windowManager.criarJanela(ICON_PATH);
+      registerIpcHandlers();
+      windowManager.preconnectUrls();
+    } catch (err) {
+      logger.logError(err);
+    }
   });
 }

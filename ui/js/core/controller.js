@@ -1,14 +1,25 @@
+"use strict";
+
 /**
  * @fileoverview Controller - Camada de controle e coordenação (MVC)
  * @module core/controller
  *
- * Responsabilidade: Tratar eventos do usuário, coordenar Model e View,
- * e comunicar com o Main Process via window.api (IPC).
+ * Trata eventos do usuário, coordena Model e View e comunica com o Main Process via IPC.
  */
 
 import Model from "./model.js";
 import View from "./view.js";
 import { ELEMENT_IDS, CSS_CLASSES, SISTEMAS } from "../config/constants.js";
+
+/** Mapa sistemaId → { abrir: () => Promise<void>, nome: string } para fluxo único de abertura */
+const SISTEMAS_ABERTURA = Object.freeze({
+  "captura": { abrir: () => window.api.abrirCaptura(), nome: SISTEMAS.CAPTURA },
+  "smart": { abrir: () => window.api.abrirSmart(), nome: SISTEMAS.SMART },
+  "doc-avulsos": { abrir: () => window.api.abrirDocAvulsos(), nome: SISTEMAS.DOC_AVULSOS },
+  "validacao": { abrir: () => window.api.abrirValidacao(), nome: SISTEMAS.VALIDACAO },
+  "ponto-valid": { abrir: () => window.api.abrirPontoValid(), nome: SISTEMAS.PONTO_VALID },
+  "ponto-renova": { abrir: () => window.api.abrirPontoRenova(), nome: SISTEMAS.PONTO_RENOVA },
+});
 
 const Controller = {
   /**
@@ -20,6 +31,22 @@ const Controller = {
     this.carregarInfoSistema();
     this.registrarListenersIPC();
     this.sincronizarEstadoAtendeWindow();
+    this.registrarListenersOffline();
+  },
+
+  /**
+   * Registra listeners de conectividade e exibe aviso quando offline.
+   * O estado vem do Main Process (verificação real com request HTTP a cada 5s).
+   * O mesmo estado é usado para bloquear abertura de sistemas quando offline.
+   */
+  registrarListenersOffline() {
+    const atualizar = (isOnline) => {
+      Model.setConectado(isOnline);
+      View.mostrarOfflineBanner(!isOnline);
+    };
+    window.api.onConnectivityChange(atualizar);
+    atualizar(navigator.onLine); /* estado inicial até o main enviar o primeiro resultado */
+    window.api.requestConnectivityCheck(); /* pede verificação imediata para não ficar em branco ao abrir sem internet */
   },
 
   /**
@@ -106,6 +133,14 @@ const Controller = {
       Model.setInfoSistema({ ip: novoIp });
       View.atualizarIP(novoIp);
     });
+
+    window.api.onContentLoadFailed(() => {
+      Model.setConectado(false);
+      Model.setCarregando(false);
+      View.mostrarLoading(false);
+      View.mostrarOfflineBanner(true);
+      View.mostrarPlaceholderComOffline();
+    });
   },
 
   /**
@@ -128,88 +163,34 @@ const Controller = {
   /* ========== HANDLERS DE EVENTOS ========== */
 
   /**
-   * Handler: clique no botão CapturaWeb.
+   * Abre um sistema da barra lateral (fluxo único: offline check, loading, IPC).
+   * @param {string} sistemaId - "captura" | "smart" | "doc-avulsos" | "validacao" | "ponto-valid" | "ponto-renova"
+   * @param {Event} e - evento de clique (currentTarget = botão do menu)
    */
-  async onCapturaClick(e) {
+  async abrirSistema(sistemaId, e) {
     if (this.bloquearSeCarregando() || e.currentTarget.classList.contains(CSS_CLASSES.ACTIVE)) return;
+    if (!Model.getConectado()) {
+      View.mostrarPlaceholderComOffline();
+      return;
+    }
 
-    Model.setSistemaAtivo("captura");
+    const item = SISTEMAS_ABERTURA[sistemaId];
+    if (!item) return;
+
+    Model.setSistemaAtivo(sistemaId);
     Model.setCarregando(true);
     View.setMenuAtivo(e.currentTarget);
-    View.mostrarLoading(true, SISTEMAS.CAPTURA);
+    View.mostrarLoading(true, item.nome);
 
-    await window.api.abrirCaptura();
+    await item.abrir();
   },
 
-  /**
-   * Handler: clique no botão SMART.
-   */
-  async onSmartClick(e) {
-    if (this.bloquearSeCarregando() || e.currentTarget.classList.contains(CSS_CLASSES.ACTIVE)) return;
-
-    Model.setSistemaAtivo("smart");
-    Model.setCarregando(true);
-    View.setMenuAtivo(e.currentTarget);
-    View.mostrarLoading(true, SISTEMAS.SMART);
-
-    await window.api.abrirSmart();
-  },
-
-  /**
-   * Handler: clique no botão Doc Avulso (Antigo).
-   */
-  async onDocAvulsosClick(e) {
-    if (this.bloquearSeCarregando() || e.currentTarget.classList.contains(CSS_CLASSES.ACTIVE)) return;
-
-    Model.setSistemaAtivo("doc-avulsos");
-    Model.setCarregando(true);
-    View.setMenuAtivo(e.currentTarget);
-    View.mostrarLoading(true, SISTEMAS.DOC_AVULSOS);
-
-    await window.api.abrirDocAvulsos();
-  },
-
-  /**
-   * Handler: clique no botão Validação.
-   */
-  async onValidacaoClick(e) {
-    if (this.bloquearSeCarregando() || e.currentTarget.classList.contains(CSS_CLASSES.ACTIVE)) return;
-
-    Model.setSistemaAtivo("validacao");
-    Model.setCarregando(true);
-    View.setMenuAtivo(e.currentTarget);
-    View.mostrarLoading(true, SISTEMAS.VALIDACAO);
-
-    await window.api.abrirValidacao();
-  },
-
-  /**
-   * Handler: clique no botão Ponto Valid.
-   */
-  async onPontoValidClick(e) {
-    if (this.bloquearSeCarregando() || e.currentTarget.classList.contains(CSS_CLASSES.ACTIVE)) return;
-
-    Model.setSistemaAtivo("ponto-valid");
-    Model.setCarregando(true);
-    View.setMenuAtivo(e.currentTarget);
-    View.mostrarLoading(true, SISTEMAS.PONTO_VALID);
-
-    await window.api.abrirPontoValid();
-  },
-
-  /**
-   * Handler: clique no botão Ponto Renova.
-   */
-  async onPontoRenovaClick(e) {
-    if (this.bloquearSeCarregando() || e.currentTarget.classList.contains(CSS_CLASSES.ACTIVE)) return;
-
-    Model.setSistemaAtivo("ponto-renova");
-    Model.setCarregando(true);
-    View.setMenuAtivo(e.currentTarget);
-    View.mostrarLoading(true, SISTEMAS.PONTO_RENOVA);
-
-    await window.api.abrirPontoRenova();
-  },
+  onCapturaClick(e) { return this.abrirSistema("captura", e); },
+  onSmartClick(e) { return this.abrirSistema("smart", e); },
+  onDocAvulsosClick(e) { return this.abrirSistema("doc-avulsos", e); },
+  onValidacaoClick(e) { return this.abrirSistema("validacao", e); },
+  onPontoValidClick(e) { return this.abrirSistema("ponto-valid", e); },
+  onPontoRenovaClick(e) { return this.abrirSistema("ponto-renova", e); },
 
   /**
    * Handler: clique no botão Atende.
@@ -217,6 +198,10 @@ const Controller = {
    */
   async onAtendeClick(e) {
     if (this.bloquearSeCarregando()) return;
+    if (!Model.getConectado()) {
+      View.mostrarPlaceholderComOffline();
+      return;
+    }
 
     const result = await window.api.abrirAtende();
 

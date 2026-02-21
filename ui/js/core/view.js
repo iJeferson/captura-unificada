@@ -1,9 +1,8 @@
+"use strict";
+
 /**
- * @fileoverview View - Camada de renderização e atualização da interface (MVC)
+ * @fileoverview View - Renderização e atualização da interface (MVC). Apenas DOM.
  * @module core/view
- *
- * Responsabilidade: Toda manipulação do DOM e exibição visual.
- * A View não contém lógica de negócio; apenas reflete o estado.
  */
 
 import { ELEMENT_IDS, CSS_CLASSES } from "../config/constants.js";
@@ -18,6 +17,9 @@ const elementos = {
   contentLoadingBar: () => document.getElementById(ELEMENT_IDS.CONTENT_LOADING_BAR),
   contentArea: () => document.querySelector(".content"),
   placeholder: () => document.getElementById(ELEMENT_IDS.PLACEHOLDER),
+  placeholderContainer: () => document.getElementById(ELEMENT_IDS.PLACEHOLDER_CONTAINER),
+  placeholderOfflineMsg: () => document.getElementById(ELEMENT_IDS.PLACEHOLDER_OFFLINE_MSG),
+  offlineBanner: () => document.getElementById(ELEMENT_IDS.OFFLINE_BANNER),
   menuBtns: () => document.querySelectorAll(`.${CSS_CLASSES.MENU_BTN}`),
   sidebar: () => document.getElementById(ELEMENT_IDS.SIDEBAR),
   sidebarWrapper: () => document.getElementById(ELEMENT_IDS.SIDEBAR_WRAPPER),
@@ -91,6 +93,60 @@ const View = {
     this.elementos.menuBtns().forEach((b) => b.classList.remove(CSS_CLASSES.ACTIVE));
     btn?.classList.add(CSS_CLASSES.ACTIVE);
     this.elementos.placeholder()?.classList.add(CSS_CLASSES.HIDDEN);
+    this.elementos.placeholderOfflineMsg()?.classList.add(CSS_CLASSES.HIDDEN);
+  },
+
+  /**
+   * Exibe ou oculta o aviso de offline (barra no topo da área de conteúdo).
+   * @param {boolean} mostrar
+   */
+  mostrarOfflineBanner(mostrar) {
+    const banner = this.elementos.offlineBanner();
+    const container = this.elementos.placeholderContainer();
+    const placeholderMsg = this.elementos.placeholderOfflineMsg();
+    if (banner) {
+      if (mostrar) {
+        banner.classList.remove(CSS_CLASSES.HIDDEN);
+        banner.setAttribute("aria-hidden", "false");
+      } else {
+        banner.classList.add(CSS_CLASSES.HIDDEN);
+        banner.setAttribute("aria-hidden", "true");
+      }
+    }
+    if (container) container.classList.toggle("is-offline", !!mostrar);
+    if (placeholderMsg) {
+      if (mostrar) placeholderMsg.classList.remove(CSS_CLASSES.HIDDEN);
+      else placeholderMsg.classList.add(CSS_CLASSES.HIDDEN);
+    }
+  },
+
+  /**
+   * Mostra o placeholder e a mensagem de offline (falha de rede ou ao tentar acessar offline).
+   * Força visibilidade para garantir que não fique tela em branco.
+   */
+  mostrarPlaceholderComOffline() {
+    const placeholder = this.elementos.placeholder();
+    const loading = this.elementos.loading();
+    const banner = this.elementos.offlineBanner();
+    const container = this.elementos.placeholderContainer();
+    const offlineMsg = this.elementos.placeholderOfflineMsg();
+
+    if (loading) {
+      loading.classList.add(CSS_CLASSES.HIDDEN);
+      loading.style.display = "none";
+    }
+    if (placeholder) {
+      placeholder.classList.remove(CSS_CLASSES.HIDDEN);
+      placeholder.style.display = "flex";
+      placeholder.style.visibility = "visible";
+    }
+    if (container) container.classList.add("is-offline");
+    if (offlineMsg) offlineMsg.classList.remove(CSS_CLASSES.HIDDEN);
+    if (banner) {
+      banner.classList.remove(CSS_CLASSES.HIDDEN);
+      banner.style.display = "flex";
+    }
+    this.elementos.menuBtns().forEach((b) => b.classList.remove(CSS_CLASSES.ACTIVE));
   },
 
   /**

@@ -1,9 +1,8 @@
+"use strict";
+
 /**
- * @fileoverview Serviço de atualização automática via GitHub
+ * @fileoverview Atualização automática via GitHub (verificação 4h, download silencioso).
  * @module services/updater.service
- *
- * Fluxo: verificação automática (na abertura + a cada 4h), download em silêncio,
- * instalação na saída do app (próximo restart já inicia na versão nova).
  */
 
 const { autoUpdater } = require("electron-updater");

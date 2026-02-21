@@ -1,11 +1,8 @@
+"use strict";
+
 /**
- * @fileoverview Context Bridge - API segura entre Main e Renderer Process
+ * @fileoverview Context Bridge - API segura Main ↔ Renderer (contextIsolation).
  * @module preload
- *
- * Responsabilidade: Expor funções do Main Process ao Renderer via contextBridge,
- * garantindo isolamento de contexto e segurança (contextIsolation).
- *
- * O Renderer acessa tudo através de window.api.
  */
 
 const { contextBridge, ipcRenderer } = require("electron");
@@ -153,6 +150,23 @@ contextBridge.exposeInMainWorld("api", {
    * @param {Function} callback - Recebe (novoIp: string)
    */
   onUpdateIP: (callback) => ipcRenderer.on("update-ip", (_, ip) => callback(ip)),
+
+  /**
+   * Registra callback quando a conectividade muda (verificação feita no Main Process).
+   * @param {Function} callback - Recebe (isOnline: boolean)
+   */
+  onConnectivityChange: (callback) => ipcRenderer.on("connectivity-change", (_, isOnline) => callback(isOnline)),
+
+  /**
+   * Registra callback quando o carregamento da URL no contentView falhou (rede, timeout).
+   * Usado para mostrar aviso offline em vez de tela em branco.
+   */
+  onContentLoadFailed: (callback) => ipcRenderer.on("content-load-failed", () => callback()),
+
+  /**
+   * Pede ao Main Process que envie o estado de conectividade agora (evita tela em branco ao abrir sem internet).
+   */
+  requestConnectivityCheck: () => ipcRenderer.send("connectivity-request-initial"),
 
   /**
    * Registra callback quando uma atualização foi baixada e está pronta.

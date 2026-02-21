@@ -1,8 +1,8 @@
+"use strict";
+
 /**
- * @fileoverview Serviço de informações do sistema
+ * @fileoverview Serviço de informações do sistema (hostname, IP, AnyDesk, versão).
  * @module services/system.service
- *
- * Responsabilidade: Coletar hostname, IP, versão do app e ID AnyDesk.
  */
 
 const os = require("os");

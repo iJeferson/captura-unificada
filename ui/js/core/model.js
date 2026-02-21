@@ -1,9 +1,8 @@
+"use strict";
+
 /**
- * @fileoverview Model - Camada de dados e estado da aplicação (MVC)
+ * @fileoverview Model - Estado central da UI (MVC). Única fonte da verdade.
  * @module core/model
- *
- * Responsabilidade: Armazenar e gerenciar o estado central da UI.
- * O Model é a única fonte da verdade; View e Controller o consultam/atualizam.
  */
 
 /**
@@ -21,6 +20,8 @@ const estado = {
   sidebarColapsada: false,
   /** Indica se atualização foi baixada e está pronta para aplicar */
   atualizacaoPronta: false,
+  /** Conectividade (via Main Process): true = online, false = offline. Usado para banner e bloqueio de abertura de sistemas. */
+  conectado: true,
   /** Informações do sistema obtidas via IPC */
   infoSistema: {
     version: "",
@@ -106,6 +107,20 @@ const Model = {
   /** @returns {boolean} */
   getAtualizacaoPronta() {
     return this.estado.atualizacaoPronta;
+  },
+
+  /**
+   * Define o estado de conectividade (atualizado pelo Main Process).
+   * @param {boolean} valor - true = online, false = offline
+   */
+  setConectado(valor) {
+    this.estado.conectado = valor;
+    return this.estado.conectado;
+  },
+
+  /** @returns {boolean} */
+  getConectado() {
+    return this.estado.conectado;
   },
 
   /**

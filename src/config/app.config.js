@@ -1,14 +1,14 @@
+"use strict";
+
 /**
- * @fileoverview Configurações centralizadas da aplicação
+ * @fileoverview Configurações centralizadas do Main Process.
  * @module config/app.config
- *
- * Responsabilidade: Armazenar constantes, URLs e parâmetros
- * utilizados em todo o Main Process da aplicação.
  */
 
 const path = require("path");
 
-module.exports = {
+/** @type {Record<string, unknown>} */
+const appConfig = {
   /** Nome da aplicação (janelas, notificações, processos) */
   APP_NAME: "Captura Unificada",
 
@@ -17,6 +17,9 @@ module.exports = {
 
   /** Nome do diretório de dados do usuário (dentro de AppData) */
   USER_DATA_DIR: "captura-unificada-data",
+
+  /** Diretório de logs de erro (um arquivo por data: YYYY-MM-DD.log) */
+  LOG_DIR: "C:\\temp\\captura-unificada",
 
   /**
    * SEGURANÇA – conexões e certificados
@@ -107,4 +110,16 @@ module.exports = {
 
   /** BCC (Griaule) - usado pelo SMART (CIN). */
   BCC_EXE: "C:\\Griaule\\BCC\\BCC.exe",
+
+  /** Verificação de conectividade (aviso offline) */
+  CONNECTIVITY: {
+    checkUrl: "https://www.google.com/generate_204",
+    intervalMs: 5000,
+    timeoutMs: 5000,
+    consecutiveNeeded: 2,
+    /** Tempo mínimo sem conexão (ms) antes de tratar como offline — evita piscar por cache/navegador */
+    minOfflineDurationMs: 5000,
+  },
 };
+
+module.exports = Object.freeze(appConfig);

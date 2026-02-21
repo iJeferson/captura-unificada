@@ -1,21 +1,27 @@
 {
   "name": "captura-unificada",
   "productName": "Captura Unificada",
-  "version": "1.0.18",
+  "version": "1.0.20",
   "description": "Launcher de sistemas integrados",
   "main": "main.js",
   "author": "Jeferson Oliveira",
   "copyright": "©Jeferson Oliveira - 2026",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win --x64"
+    "build": "electron-builder --win --x64",
+    "postinstall": "node scripts/copy-fontawesome.js"
+  },
+  "engines": {
+    "electron": "40.0.0",
+    "node": ">=24.11.0"
   },
   "devDependencies": {
-    "electron": "^30.0.0",
-    "electron-builder": "^24.13.3"
+    "@fortawesome/fontawesome-free": "^6.4.2",
+    "electron": "40.0.0",
+    "electron-builder": "^25.0.0"
   },
   "dependencies": {
-    "electron-updater": "^6.8.3"
+    "electron-updater": "^6.3.9"
   },
   "build": {
     "appId": "com.consorcio.capturaunificada",
@@ -53,7 +59,8 @@
       "runAfterFinish": true,
       "uninstallDisplayName": "Captura Unificada",
       "deleteAppDataOnUninstall": false,
-      "differentialPackage": true
+      "differentialPackage": true,
+      "include": "build/installer.nsh"
     }
   }
 }

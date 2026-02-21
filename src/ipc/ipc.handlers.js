@@ -1,9 +1,8 @@
+"use strict";
+
 /**
  * @fileoverview Handlers IPC - comunicação Main Process ↔ Renderer
  * @module ipc/ipc.handlers
- *
- * Responsabilidade: Registrar e processar todas as mensagens IPC
- * entre a janela principal (UI) e o processo principal.
  */
 
 const { ipcMain, session } = require("electron");
@@ -11,6 +10,7 @@ const { exec, spawn } = require("child_process");
 const { promisify } = require("util");
 const { autoUpdater } = require("electron-updater");
 const config = require("../config/app.config");
+const logger = require("../utils/logger");
 const execAsync = promisify(exec);
 const {
   configurarAmbienteCaptura,
@@ -23,142 +23,108 @@ const { getAtendeConfig, setAtendeConfig, buildAtendeUrl } = require("../service
 const windowManager = require("../window/window.manager");
 
 /**
- * Registra todos os handlers IPC.
- * Deve ser chamado após a janela estar criada.
+ * Abre um sistema no contentView: prepara estado, executa setup assíncrono (opcional) e carrega a URL.
+ * Erros são logados; não propaga exceção para não exibir em tela.
+ * @param {string} sistemaId
+ * @param {string} url
+ * @param {() => Promise<void>} [setup] - ex.: configurarAmbienteCaptura
+ */
+async function openSystemContent(sistemaId, url, setup) {
+  if (windowManager.getProcessandoTroca()) return;
+  windowManager.setProcessandoTroca(true);
+  windowManager.setSistemaIniciado(true);
+  windowManager.setCurrentSistema(sistemaId);
+  windowManager.setContentViewVisible(false);
+  try {
+    if (typeof setup === "function") await setup();
+    windowManager.loadContentViewUrl(url);
+    windowManager.ajustarView();
+  } catch (err) {
+    logger.logError(err);
+    windowManager.setProcessandoTroca(false);
+    try {
+      const win = windowManager.getMainWindow();
+      if (win?.webContents && !win.webContents.isDestroyed()) win.webContents.send("load-finished", null);
+    } catch (_) {}
+  }
+}
+
+/**
+ * Registra todos os handlers IPC. Deve ser chamado após a janela estar criada.
  */
 function registerIpcHandlers() {
-  const contentView = windowManager.getContentView();
-  const mainWindow = windowManager.getMainWindow();
-
-  /**
-   * Handler: resize-sidebar
-   * Atualiza a largura da sidebar e redimensiona o contentView.
-   */
   ipcMain.on("resize-sidebar", (_, width) => {
-    windowManager.setCurrentSidebarWidth(width);
-    windowManager.ajustarView();
+    try {
+      windowManager.setCurrentSidebarWidth(width);
+      windowManager.ajustarView();
+    } catch (err) {
+      logger.logError(err);
+    }
   });
 
-  /**
-   * Handler: captura
-   * Inicia o sistema CapturaWeb: para BCC/Java, reinicia serviço e cicla o Suprema RealScan-D, depois carrega a URL.
-   */
+  ipcMain.on("connectivity-request-initial", () => windowManager.requestConnectivityCheck());
+
   ipcMain.handle("captura", async () => {
-    if (windowManager.getProcessandoTroca()) return;
-
-    windowManager.setProcessandoTroca(true);
-    windowManager.setSistemaIniciado(true);
-    windowManager.setCurrentSistema("captura");
-    windowManager.setContentViewVisible(false);
-
-    await configurarAmbienteCaptura();
-    windowManager.loadContentViewUrl(config.URLS.capturaWeb);
-    windowManager.ajustarView();
+    try {
+      return await openSystemContent("captura", config.URLS.capturaWeb, configurarAmbienteCaptura);
+    } catch (err) {
+      logger.logError(err);
+    }
   });
-
-  /**
-   * Handler: smart
-   * Inicia o sistema SMART (CIN): configura hardware e carrega a URL.
-   */
   ipcMain.handle("smart", async () => {
-    if (windowManager.getProcessandoTroca()) return;
-
-    windowManager.setProcessandoTroca(true);
-    windowManager.setSistemaIniciado(true);
-    windowManager.setCurrentSistema("smart");
-    windowManager.setContentViewVisible(false);
-
-    await configurarAmbienteSmart();
-    windowManager.loadContentViewUrl(config.URLS.smart);
-    windowManager.ajustarView();
+    try {
+      return await openSystemContent("smart", config.URLS.smart, configurarAmbienteSmart);
+    } catch (err) {
+      logger.logError(err);
+    }
   });
-
-  /**
-   * Handler: doc-avulsos
-   * Doc Avulsos - usa ambiente Captura (Suprema).
-   */
   ipcMain.handle("doc-avulsos", async () => {
-    if (windowManager.getProcessandoTroca()) return;
-
-    windowManager.setProcessandoTroca(true);
-    windowManager.setSistemaIniciado(true);
-    windowManager.setCurrentSistema("doc-avulsos");
-    windowManager.setContentViewVisible(false);
-
-    await configurarAmbienteCaptura();
-    windowManager.loadContentViewUrl(config.URLS.docAvulsos);
-    windowManager.ajustarView();
+    try {
+      return await openSystemContent("doc-avulsos", config.URLS.docAvulsos, configurarAmbienteCaptura);
+    } catch (err) {
+      logger.logError(err);
+    }
   });
 
-  /**
-   * Verifica se o processo CapturaWeb (externo, Valid) está em execução.
-   * Se não estiver, abre o executável configurado (CAPTURAWEB_VALIDACAO_EXE).
-   */
   async function garantirCapturaWebValidacaoRodando() {
     try {
       const { stdout } = await execAsync('tasklist /FI "IMAGENAME eq CapturaWeb.exe"');
-      const estaRodando = stdout.trim().toLowerCase().includes("capturaweb.exe");
-      if (estaRodando) return;
-
-      const exePath = config.CAPTURAWEB_VALIDACAO_EXE;
-      spawn(exePath, [], { detached: true, stdio: "ignore" }).unref();
-      await new Promise((r) => setTimeout(r, 1500));
+      if (stdout.trim().toLowerCase().includes("capturaweb.exe")) return;
     } catch (_) {
-      const exePath = config.CAPTURAWEB_VALIDACAO_EXE;
-      spawn(exePath, [], { detached: true, stdio: "ignore" }).unref();
-      await new Promise((r) => setTimeout(r, 1500));
+      /* ignora */
     }
+    const exePath = config.CAPTURAWEB_VALIDACAO_EXE;
+    try {
+      spawn(exePath, [], { detached: true, stdio: "ignore" }).unref();
+    } catch (err) {
+      logger.logError(err);
+    }
+    await new Promise((r) => setTimeout(r, 1500));
   }
 
-  /**
-   * Handler: validacao
-   * Validação - usa ambiente Captura (Suprema).
-   * Antes de abrir a URL, verifica se o CapturaWeb externo (Valid) está aberto; se não, abre-o.
-   */
   ipcMain.handle("validacao", async () => {
-    if (windowManager.getProcessandoTroca()) return;
-
-    windowManager.setProcessandoTroca(true);
-    windowManager.setSistemaIniciado(true);
-    windowManager.setCurrentSistema("validacao");
-    windowManager.setContentViewVisible(false);
-
-    await garantirCapturaWebValidacaoRodando();
-    await configurarAmbienteCaptura();
-    windowManager.loadContentViewUrl(config.URLS.validacao);
-    windowManager.ajustarView();
+    try {
+      await garantirCapturaWebValidacaoRodando();
+      return await openSystemContent("validacao", config.URLS.validacao, configurarAmbienteCaptura);
+    } catch (err) {
+      logger.logError(err);
+      return undefined;
+    }
   });
 
-  /**
-   * Handler: ponto-valid
-   * Ponto Valid - sem config de hardware.
-   */
   ipcMain.handle("ponto-valid", async () => {
-    if (windowManager.getProcessandoTroca()) return;
-
-    windowManager.setProcessandoTroca(true);
-    windowManager.setSistemaIniciado(true);
-    windowManager.setCurrentSistema("ponto-valid");
-    windowManager.setContentViewVisible(false);
-
-    windowManager.loadContentViewUrl(config.URLS.pontoValid);
-    windowManager.ajustarView();
+    try {
+      return await openSystemContent("ponto-valid", config.URLS.pontoValid);
+    } catch (err) {
+      logger.logError(err);
+    }
   });
-
-  /**
-   * Handler: ponto-renova
-   * Ponto Renova - sem config de hardware.
-   */
   ipcMain.handle("ponto-renova", async () => {
-    if (windowManager.getProcessandoTroca()) return;
-
-    windowManager.setProcessandoTroca(true);
-    windowManager.setSistemaIniciado(true);
-    windowManager.setCurrentSistema("ponto-renova");
-    windowManager.setContentViewVisible(false);
-
-    windowManager.loadContentViewUrl(config.URLS.pontoRenova);
-    windowManager.ajustarView();
+    try {
+      return await openSystemContent("ponto-renova", config.URLS.pontoRenova);
+    } catch (err) {
+      logger.logError(err);
+    }
   });
 
   /**
@@ -167,19 +133,18 @@ function registerIpcHandlers() {
    * Retorna { needsConfig: true } se IP não estiver configurado.
    */
   ipcMain.handle("atende", async () => {
-    const cfg = getAtendeConfig();
-    if (!cfg?.ip) {
+    try {
+      const cfg = getAtendeConfig();
+      if (!cfg?.ip) {
+        return { needsConfig: true };
+      }
+      const url = buildAtendeUrl(cfg.ip);
+      const result = windowManager.openOrFocusAtendeWindow(url);
+      return { needsConfig: false };
+    } catch (err) {
+      logger.logError(err);
       return { needsConfig: true };
     }
-
-    const url = buildAtendeUrl(cfg.ip);
-    const result = windowManager.openOrFocusAtendeWindow(url);
-
-    if (result.alreadyOpen) {
-      return { needsConfig: false };
-    }
-
-    return { needsConfig: false };
   });
 
   ipcMain.handle("reload-atende-window", () => {
@@ -217,7 +182,14 @@ function registerIpcHandlers() {
    * Handler: system-info
    * Retorna hostname, IP, AnyDesk e versão do app.
    */
-  ipcMain.handle("system-info", () => getSystemInfo());
+  ipcMain.handle("system-info", () => {
+    try {
+      return getSystemInfo();
+    } catch (err) {
+      logger.logError(err);
+      return {};
+    }
+  });
 
   /**
    * Handler: reload-page
@@ -246,10 +218,18 @@ function registerIpcHandlers() {
     } catch (_) {}
     await new Promise((r) => setTimeout(r, 800));
     const exePath = config.CAPTURAWEB_VALIDACAO_EXE;
-    spawn(exePath, [], { detached: true, stdio: "ignore" }).unref();
+    try {
+      spawn(exePath, [], { detached: true, stdio: "ignore" }).unref();
+    } catch (err) {
+      logger.logError(err);
+    }
     await new Promise((r) => setTimeout(r, 1500));
     if (windowManager.getCurrentSistema() === "validacao") {
-      windowManager.reloadContentView();
+      try {
+        windowManager.reloadContentView();
+      } catch (err) {
+        logger.logError(err);
+      }
     }
   });
 
@@ -258,7 +238,11 @@ function registerIpcHandlers() {
    * Reinicia o serviço Valid-ServicoIntegracaoHardware (CapturaWeb).
    */
   ipcMain.handle("reiniciar-servico-hardware", async () => {
-    await reiniciarServicoHardware();
+    try {
+      await reiniciarServicoHardware();
+    } catch (err) {
+      logger.logError(err);
+    }
   });
 
   /**
@@ -266,7 +250,11 @@ function registerIpcHandlers() {
    * Mata o processo BCC e inicia novamente (SMART CIN).
    */
   ipcMain.handle("reiniciar-bcc", async () => {
-    await reiniciarBCC();
+    try {
+      await reiniciarBCC();
+    } catch (err) {
+      logger.logError(err);
+    }
   });
 
   /**
@@ -278,12 +266,14 @@ function registerIpcHandlers() {
     try {
       const ses = session.fromPartition(config.SESSION_PARTITION);
       await ses.clearStorageData();
+      const contentView = windowManager.getContentView();
       if (contentView) {
         windowManager.setContentViewVisible(false);
         windowManager.reloadContentView();
       }
       return true;
     } catch (e) {
+      logger.logError(e);
       return false;
     }
   });

@@ -1,9 +1,8 @@
+"use strict";
+
 /**
- * @fileoverview Serviço de configuração do Atende
+ * @fileoverview Serviço do Atende: leitura/gravação do IP em C:/TOOLS.
  * @module services/atende.service
- *
- * Responsabilidade: Ler e gravar o endereço IP do Atende em arquivo
- * em C:/TOOLS. O arquivo persiste após atualizações do app.
  */
 
 const fs = require("fs");

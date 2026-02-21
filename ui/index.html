@@ -8,7 +8,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css" />
     <link rel="stylesheet" href="style.css" />
     <title>Captura Unificada</title>
     <style>
@@ -93,27 +93,27 @@
             <section class="menu-group">
               <h3 class="menu-group-title">Sistemas Integrados</h3>
               <div class="system-item">
-                <button class="menu-btn" id="captura">
+                <button class="menu-btn" id="captura" title="CapturaWeb">
                   <span><i class="fas fa-globe"></i><span class="btn-label">CapturaWeb</span></span>
                   <span class="active-tag">ATIVO</span>
                   <span class="dots" data-menu="menu1" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu1">
                   <button class="btn-action btn-action-featured" data-action="reiniciar-servico-hardware"><i class="fas fa-microchip"></i>Reiniciar Serviço</button>
-                  <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
-                  <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
+                  <button class="btn-reload"><i class="fas fa-redo"></i>Reiniciar página</button>
+                  <button class="btn-cache"><i class="fas fa-broom"></i>Limpar cache</button>
                 </div>
               </div>
               <div class="system-item">
-                <button class="menu-btn" id="smart">
+                <button class="menu-btn" id="smart" title="SMART (CIN)">
                   <span><i class="fas fa-file-invoice"></i><span class="btn-label">SMART (CIN)</span></span>
                   <span class="active-tag">ATIVO</span>
                   <span class="dots" data-menu="menu2" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu2">
                   <button class="btn-action btn-action-featured" data-action="reiniciar-bcc"><i class="fas fa-plug-circle-bolt"></i>Reiniciar BCC</button>
-                  <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
-                  <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
+                  <button class="btn-reload"><i class="fas fa-redo"></i>Reiniciar página</button>
+                  <button class="btn-cache"><i class="fas fa-broom"></i>Limpar cache</button>
                 </div>
               </div>
               <div class="system-item">
@@ -123,56 +123,56 @@
                   <span class="dots" data-menu="menu7" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu7">
-                  <button class="btn-atende-config" id="atende-config-btn"><i class="fas fa-cog"></i> Configurar endereço</button>
-                  <button class="btn-reload" data-reload-target="atende"><i class="fas fa-redo"></i> Reiniciar página</button>
+                  <button class="btn-atende-config" id="atende-config-btn"><i class="fas fa-cog"></i>Configurar endereço</button>
+                  <button class="btn-reload" data-reload-target="atende"><i class="fas fa-redo"></i>Reiniciar página</button>
                 </div>
               </div>
             </section>
             <section class="menu-group">
               <h3 class="menu-group-title">Outros Sistemas</h3>
               <div class="system-item">
-                <button class="menu-btn" id="validacao">
+                <button class="menu-btn" id="validacao" title="Validação">
                   <span><i class="fas fa-fingerprint"></i><span class="btn-label">Validação</span></span>
                   <span class="active-tag">ATIVO</span>
                   <span class="dots" data-menu="menu4" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu4">
                   <button class="btn-action btn-action-featured" data-action="reiniciar-validacao"><i class="fas fa-arrows-rotate"></i>Reiniciar Validação</button>
-                  <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
-                  <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
+                  <button class="btn-reload"><i class="fas fa-redo"></i>Reiniciar página</button>
+                  <button class="btn-cache"><i class="fas fa-broom"></i>Limpar cache</button>
                 </div>
               </div>
               <div class="system-item">
-                <button class="menu-btn" id="doc-avulsos">
-                  <span><i class="fas fa-archive"></i><span class="btn-label">Doc Avulso (Antigo)</span></span>
+                <button class="menu-btn" id="doc-avulsos" title="Doc Avulso (Antigo)">
+                  <span><i class="fas fa-archive"></i><span class="btn-label">Doc Avulso<span class="label-suffix"> (Antigo)</span></span></span>
                   <span class="active-tag">ATIVO</span>
                   <span class="dots" data-menu="menu3" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu3">
-                  <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
-                  <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
+                  <button class="btn-reload"><i class="fas fa-redo"></i>Reiniciar página</button>
+                  <button class="btn-cache"><i class="fas fa-broom"></i>Limpar cache</button>
                 </div>
               </div>
               <div class="system-item">
-                <button class="menu-btn" id="ponto-valid">
+                <button class="menu-btn" id="ponto-valid" title="Ponto Valid">
                   <span><i class="fas fa-user-clock"></i><span class="btn-label">Ponto Valid</span></span>
                   <span class="active-tag">ATIVO</span>
                   <span class="dots" data-menu="menu5" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu5">
-                  <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
-                  <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
+                  <button class="btn-reload"><i class="fas fa-redo"></i>Reiniciar página</button>
+                  <button class="btn-cache"><i class="fas fa-broom"></i>Limpar cache</button>
                 </div>
               </div>
               <div class="system-item">
-                <button class="menu-btn" id="ponto-renova">
+                <button class="menu-btn" id="ponto-renova" title="Ponto Renova">
                   <span><i class="fas fa-clock-rotate-left"></i><span class="btn-label">Ponto Renova</span></span>
                   <span class="active-tag">ATIVO</span>
                   <span class="dots" data-menu="menu6" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu6">
-                  <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
-                  <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
+                  <button class="btn-reload"><i class="fas fa-redo"></i>Reiniciar página</button>
+                  <button class="btn-cache"><i class="fas fa-broom"></i>Limpar cache</button>
                 </div>
               </div>
             </section>
@@ -223,13 +223,23 @@
         </div>
       </div>
 
-      <!-- ÁREA DE CONTEÚDO: Placeholder, loading do launcher, barra de carregamento da URL e view do sistema -->
+      <!-- ÁREA DE CONTEÚDO: Aviso offline, placeholder, loading do launcher, barra de carregamento da URL e view do sistema -->
       <main class="content">
+        <div id="offline-banner" class="offline-banner hidden" role="status" aria-live="polite">
+          <i class="fas fa-wifi"></i>
+          <span>Sem conexão. Entre em contato com o Suporte Técnico.</span>
+        </div>
         <div id="placeholder" class="placeholder">
-          <div class="placeholder-container">
-            <i class="fas fa-display"></i>
-            <h2>Aguardando seleção</h2>
-            <p>Escolha um sistema na barra lateral.</p>
+          <div class="placeholder-container" id="placeholder-container">
+            <i class="fas fa-display" aria-hidden="true"></i>
+            <div class="placeholder-when-online">
+              <h2>Aguardando seleção</h2>
+              <p>Escolha um sistema na barra lateral.</p>
+            </div>
+            <div id="placeholder-offline-msg" class="placeholder-when-offline hidden">
+              <h2>Sem conexão no momento</h2>
+              <p>Verifique sua conectividade. Se o problema persistir, entre em contato com o Suporte Técnico.</p>
+            </div>
           </div>
         </div>
 

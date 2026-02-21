@@ -1,13 +1,12 @@
+"use strict";
+
 /**
  * @fileoverview Constantes e seletores da UI (Renderer)
  * @module config/constants
- *
- * Responsabilidade: Centralizar IDs, classes e textos
- * usados na camada View e Controller.
  */
 
 /** IDs dos elementos do DOM */
-export const ELEMENT_IDS = {
+export const ELEMENT_IDS = Object.freeze({
   CAPTURA: "captura",
   SMART: "smart",
   DOC_AVULSOS: "doc-avulsos",
@@ -27,6 +26,9 @@ export const ELEMENT_IDS = {
   LOADING: "loading",
   CONTENT_LOADING_BAR: "content-loading-bar",
   PLACEHOLDER: "placeholder",
+  PLACEHOLDER_CONTAINER: "placeholder-container",
+  PLACEHOLDER_OFFLINE_MSG: "placeholder-offline-msg",
+  OFFLINE_BANNER: "offline-banner",
   UPDATE_INDICATOR: "update-indicator",
   APP_VERSION: "app-version",
   HOSTNAME: "hostname",
@@ -35,10 +37,10 @@ export const ELEMENT_IDS = {
   THEME_TOGGLE: "theme-toggle",
   THEME_ICON: "theme-icon",
   THEME_TEXT: "theme-text",
-};
+});
 
 /** Classes CSS utilizadas */
-export const CSS_CLASSES = {
+export const CSS_CLASSES = Object.freeze({
   ACTIVE: "active",
   HIDDEN: "hidden",
   SHOW: "show",
@@ -53,10 +55,10 @@ export const CSS_CLASSES = {
   BTN_ATENDE_CONFIG: "btn-atende-config",
   /** Estado visual: janela do Atende está aberta (cor diferente + ícone) */
   ATENDE_WINDOW_OPEN: "atende-window-open",
-};
+});
 
 /** Nomes dos sistemas para exibição no loading */
-export const SISTEMAS = {
+export const SISTEMAS = Object.freeze({
   CAPTURA: "CapturaWeb",
   SMART: "SMART (CIN)",
   DOC_AVULSOS: "Doc Avulso (Antigo)",
@@ -66,10 +68,10 @@ export const SISTEMAS = {
   ATENDE: "Atende",
   ATUALIZACAO: "Atualização",
   CACHE: "Limpeza de Cache",
-};
+});
 
 /** Textos do tema */
-export const TEMA = {
+export const TEMA = Object.freeze({
   ESCURO: "Modo Escuro",
   CLARO: "Modo Claro",
-};
+});
