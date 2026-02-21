@@ -28,13 +28,17 @@ if (!gotTheLock) {
   const ICON_PATH = path.join(__dirname, "icon.png");
 
   /**
-   * Foca na janela existente quando uma segunda instância é aberta.
+   * Quando o usuário abre o atalho de novo: foca na janela principal se existir;
+   * se a janela principal foi fechada (ex.: só o Atende ficou aberto), recria a janela principal.
    */
   app.on("second-instance", () => {
     const win = windowManager.getMainWindow();
     if (win) {
       if (win.isMinimized()) win.restore();
       win.focus();
+    } else {
+      windowManager.criarJanela(ICON_PATH);
+      windowManager.preconnectUrls();
     }
   });
 

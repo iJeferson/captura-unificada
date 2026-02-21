@@ -152,11 +152,16 @@ function criarJanela(iconPathParam) {
 
   mainWindow.loadFile(path.join(__dirname, "..", "..", "ui", "index.html"));
 
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+    contentView = null;
+  });
+
   mainWindow.once("ready-to-show", () => {
     updateMainWindowTitle();
     mainWindow.maximize();
     mainWindow.show();
-    initUpdater({ mainWindow, iconPath });
+    initUpdater({ mainWindow, iconPath, getMainWindow: () => (mainWindow && !mainWindow.isDestroyed() ? mainWindow : null) });
   });
 
   const bounds = () => getContentBounds() || { x: 220, y: 0, width: 1000, height: 800 };
@@ -238,7 +243,7 @@ module.exports = {
   ajustarView,
   preconnectUrls,
   openOrFocusAtendeWindow,
-  getMainWindow: () => mainWindow,
+  getMainWindow: () => (mainWindow && !mainWindow.isDestroyed() ? mainWindow : null),
   getContentView: () => contentView,
   getAtendeWindow: () => atendeWindow,
   isAtendeWindowOpen: () => atendeWindow != null && !atendeWindow.isDestroyed(),

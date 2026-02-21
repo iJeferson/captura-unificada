@@ -2,23 +2,31 @@
  * @fileoverview Serviço de atualização automática via GitHub
  * @module services/updater.service
  *
- * Responsabilidade: Verificar, baixar e aplicar atualizações
- * do aplicativo (atualização automática).
+ * Fluxo: verificação automática (na abertura + a cada 4h), download em silêncio,
+ * instalação na saída do app (próximo restart já inicia na versão nova).
  */
 
 const { autoUpdater } = require("electron-updater");
 const { app, Notification, dialog } = require("electron");
 const config = require("../config/app.config");
 
+const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000; /* 4 horas */
+let periodicCheckTimer = null;
+let listenersRegistered = false;
+
 /**
  * Inicializa e configura o auto-updater.
  * Só executa quando o app está empacotado (produção).
+ * - Auto-download: sim (silencioso).
+ * - Aplicação: no próximo encerramento do app (autoInstallOnAppQuit).
  *
  * @param {Object} params
- * @param {Object} params.mainWindow - Janela principal para enviar eventos
+ * @param {Object} params.mainWindow - Janela principal (para compatibilidade)
  * @param {string} params.iconPath - Caminho do ícone para notificações
+ * @param {function} [params.getMainWindow] - Função que retorna a janela principal atual (evita referência destruída)
  */
-function initUpdater({ mainWindow, iconPath }) {
+function initUpdater({ mainWindow, iconPath, getMainWindow }) {
+  const getWin = typeof getMainWindow === "function" ? getMainWindow : () => mainWindow;
   if (!app.isPackaged) return;
 
   autoUpdater.setFeedURL({
@@ -32,9 +40,18 @@ function initUpdater({ mainWindow, iconPath }) {
 
   autoUpdater.checkForUpdatesAndNotify();
 
+  if (periodicCheckTimer == null) {
+    periodicCheckTimer = setInterval(() => {
+      if (app.isPackaged) autoUpdater.checkForUpdatesAndNotify();
+    }, CHECK_INTERVAL_MS);
+    periodicCheckTimer.unref?.();
+  }
+
+  if (listenersRegistered) return;
+  listenersRegistered = true;
+
   /**
-   * Evento disparado quando o download da nova versão é concluído.
-   * Exibe notificação nativa e avisa a UI para mostrar o badge.
+   * Download concluído: notificação + badge na UI. Aplicação ocorre no próximo restart (autoInstallOnAppQuit).
    */
   autoUpdater.on("update-downloaded", (info) => {
     const appName = config.APP_NAME || "Captura Unificada";
@@ -47,13 +64,13 @@ function initUpdater({ mainWindow, iconPath }) {
 
     notification.show();
 
-    if (mainWindow) {
-      mainWindow.webContents.send("update-ready");
-    }
+    const win = getWin();
+    if (win && !win.isDestroyed()) win.webContents.send("update-ready");
 
     notification.on("click", () => {
+      const currentWin = getWin();
       dialog
-        .showMessageBox(mainWindow, {
+        .showMessageBox(currentWin && !currentWin.isDestroyed() ? currentWin : null, {
           type: "question",
           buttons: ["Reiniciar Agora", "Depois"],
           defaultId: 0,
