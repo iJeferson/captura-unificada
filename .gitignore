@@ -15,9 +15,10 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Logs
+# Logs (arquivos de log do app ficam em C:\temp\captura-unificada, fora do repo)
 *.log
 logs/
+npm-debug.log*
 
 # Environment
 .env
@@ -25,7 +26,6 @@ logs/
 
 # Build
 dist/
-build/
 *.o
 *.a
 
