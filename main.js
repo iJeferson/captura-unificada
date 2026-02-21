@@ -1,52 +1,55 @@
-const {
-  app,
-  BrowserWindow,
-  WebContentsView,
-  ipcMain,
-  dialog,
-  session,
-  Notification
-} = require("electron");
-const path = require("path");
-const os = require("os");
-const fs = require("fs");
-const { exec } = require("child_process");
-const { autoUpdater } = require("electron-updater");
+/**
+ * @fileoverview Ponto de entrada do aplicativo Captura Unificada
+ * @module main
+ *
+ * Launcher de sistemas integrados (CapturaWeb, SMART/CIN e demais).
+ * Garante instância única, configura ambiente e inicializa módulos.
+ */
 
-// Otimização de compilação de Script (V8)
+const { app } = require("electron");
+const path = require("path");
+const fs = require("fs");
+const config = require("./src/config/app.config");
+const windowManager = require("./src/window/window.manager");
+const { registerIpcHandlers } = require("./src/ipc/ipc.handlers");
+
+/* Nome da aplicação em janelas, notificações e processos (sem referência a runtime) */
+app.setName(config.APP_NAME || "Captura Unificada");
+
+/* ========== OTIMIZAÇÃO V8 ========== */
 process.env.V8_CACHE_OPTIONS = "code";
 
+/* ========== INSTÂNCIA ÚNICA ========== */
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
   app.quit();
 } else {
-  let win,
-    contentView,
-    sistemaIniciado = false;
-  let processandoTroca = false;
-  let currentSidebarWidth = 260;
-  const TOPBAR_HEIGHT = 0;
   const ICON_PATH = path.join(__dirname, "icon.png");
 
+  /**
+   * Foca na janela existente quando uma segunda instância é aberta.
+   */
   app.on("second-instance", () => {
+    const win = windowManager.getMainWindow();
     if (win) {
       if (win.isMinimized()) win.restore();
       win.focus();
     }
   });
 
-  app.setAppUserModelId("com.consorcio.capturaunificada");
+  app.setAppUserModelId(config.APP_ID);
 
-  const customDataPath = path.join(
-    app.getPath("appData"),
-    "captura-unificada-data",
-  );
-  if (!fs.existsSync(customDataPath))
+  /**
+   * Configura diretório de dados do usuário.
+   */
+  const customDataPath = path.join(app.getPath("appData"), config.USER_DATA_DIR);
+  if (!fs.existsSync(customDataPath)) {
     fs.mkdirSync(customDataPath, { recursive: true });
+  }
   app.setPath("userData", customDataPath);
 
-  // --- FLAGS DE PERFORMANCE (NÍVEL CHROME) ---
+  /* ========== FLAGS DE PERFORMANCE (CHROME) ========== */
   app.commandLine.appendSwitch("disable-http-cache", "false");
   app.commandLine.appendSwitch("ignore-gpu-blocklist");
   app.commandLine.appendSwitch("enable-gpu-rasterization");
@@ -55,216 +58,10 @@ if (!gotTheLock) {
   app.commandLine.appendSwitch("ignore-certificate-errors");
   app.commandLine.appendSwitch("disable-web-security");
 
-  // --- LOGICA DE ATUALIZAÇÃO SILENCIOSA ---
-  function checkUpdates() {
-    if (app.isPackaged) {
-      autoUpdater.setFeedURL({
-        provider: "github",
-        owner: "iJeferson",
-        repo: "captura-unificada",
-      });
-
-      // Configurações para modo silencioso
-      autoUpdater.autoDownload = true;
-      autoUpdater.autoInstallOnAppQuit = true; 
-
-      autoUpdater.checkForUpdatesAndNotify();
-
-      autoUpdater.on("update-downloaded", (info) => {
-        // 1. Notificação Nativa do Windows
-        const notification = new Notification({
-          title: "Captura Unificada",
-          body: `Nova versão (${info.version}) baixada. Será aplicada no próximo reinício.`,
-          icon: ICON_PATH
-        });
-
-        notification.show();
-
-        // 2. Avisa a UI para mostrar o Badge/Indicador na sidebar
-        if (win) {
-          win.webContents.send("update-ready");
-        }
-
-        // Se clicar na notificação, oferece reinício imediato
-        notification.on('click', () => {
-          dialog.showMessageBox(win, {
-            type: 'question',
-            buttons: ['Reiniciar Agora', 'Depois'],
-            defaultId: 0,
-            title: 'Atualização Pronta',
-            message: 'Deseja reiniciar o aplicativo para aplicar a atualização agora?'
-          }).then(result => {
-            if (result.response === 0) autoUpdater.quitAndInstall();
-          });
-        });
-      });
-
-      autoUpdater.on("error", (err) => {
-        console.error("Erro no updater:", err);
-      });
-    }
-  }
-
-  const esperar = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-  function obterAnydeskID() {
-    const caminhos = [
-      path.join(process.env.ProgramData || "C:\\ProgramData", "AnyDesk", "service.conf"),
-      path.join(process.env.APPDATA || "", "AnyDesk", "system.conf"),
-      "C:\\ProgramData\\AnyDesk\\service.conf",
-    ];
-    try {
-      for (const p of caminhos) {
-        if (fs.existsSync(p)) {
-          const conteudo = fs.readFileSync(p, "utf8");
-          const match = conteudo.match(/(?:ad\.anydesk\.id|id)=(\d+)/);
-          if (match) return match[1];
-        }
-      }
-      return "---";
-    } catch (e) {
-      return "Erro";
-    }
-  }
-
-  // --- HARDWARE ---
-  async function configurarAmbienteSmart() {
-    exec('sc stop "Valid-ServicoIntegracaoHardware"');
-    await esperar(800);
-    exec('tasklist /FI "IMAGENAME eq BCC.exe"', (err, stdout) => {
-      if (!stdout.includes("BCC.exe"))
-        exec('start "" "C:\\Griaule\\BCC\\BCC.exe"');
-    });
-  }
-
-  async function configurarAmbienteCaptura() {
-    exec("taskkill /F /IM BCC.exe /T");
-    exec("taskkill /F /IM javaw.exe /T");
-    await esperar(600);
-    const cmd = `powershell -Command "Get-PnpDevice -FriendlyName '*Suprema RealScan-D*' | Disable-PnpDevice -Confirm:$false; Enable-PnpDevice -Confirm:$false"`;
-    exec(cmd);
-    await esperar(600);
-    exec('sc start "Valid-ServicoIntegracaoHardware"');
-  }
-
-  function ajustarView() {
-    if (!win || !contentView || !sistemaIniciado) return;
-    const { width, height } = win.getContentBounds();
-    contentView.setBounds({
-      x: currentSidebarWidth,
-      y: TOPBAR_HEIGHT,
-      width: width - currentSidebarWidth,
-      height: height - TOPBAR_HEIGHT,
-    });
-  }
-
-  function criarJanela() {
-    win = new BrowserWindow({
-      width: 1300,
-      height: 800,
-      minWidth: 900,
-      minHeight: 600,
-      show: false,
-      backgroundColor: "#0b1220",
-      autoHideMenuBar: true,
-      icon: ICON_PATH,
-      webPreferences: {
-        preload: path.join(__dirname, "preload.js"),
-        contextIsolation: true,
-      },
-    });
-
-    win.loadFile(path.join(__dirname, "ui", "index.html"));
-    win.once("ready-to-show", () => {
-      win.maximize();
-      win.show();
-      checkUpdates();
-    });
-
-    contentView = new WebContentsView({
-      webPreferences: {
-        backgroundThrottling: false,
-        partition: "persist:captura",
-        backForwardCache: true,
-      },
-    });
-
-    contentView.webContents.on("did-finish-load", () => {
-      if (contentView.webContents.getURL() !== "about:blank") {
-        contentView.setVisible(true);
-        processandoTroca = false;
-        win.webContents.send("load-finished");
-      }
-    });
-
-    win.contentView.addChildView(contentView);
-    contentView.setVisible(false);
-    win.on("resize", ajustarView);
-  }
-
+  /* ========== INICIALIZAÇÃO ========== */
   app.whenReady().then(() => {
-    criarJanela();
-    contentView.webContents.session.preconnect({
-      url: "https://cnhba-prod.si.valid.com.br",
-    });
-    contentView.webContents.session.preconnect({
-      url: "https://nimba.dpt.ba.gov.br:8100",
-    });
-  });
-
-  // --- IPC HANDLERS ---
-  ipcMain.handle("captura", async () => {
-    if (processandoTroca) return;
-    processandoTroca = true;
-    sistemaIniciado = true;
-    contentView.setVisible(false);
-    await configurarAmbienteCaptura();
-    contentView.webContents.loadURL(
-      "https://cnhba-prod.si.valid.com.br/CapturaWebV2",
-    );
-    ajustarView();
-  });
-
-  ipcMain.handle("smart", async () => {
-    if (processandoTroca) return;
-    processandoTroca = true;
-    sistemaIniciado = true;
-    contentView.setVisible(false);
-    await configurarAmbienteSmart();
-    contentView.webContents.loadURL("https://nimba.dpt.ba.gov.br:8100");
-    ajustarView();
-  });
-
-  ipcMain.handle("system-info", () => ({
-    hostname: os.hostname(),
-    ip:
-      Object.values(os.networkInterfaces())
-        .flat()
-        .find((i) => i.family === "IPv4" && !i.internal)?.address ||
-      "127.0.0.1",
-    anydesk: obterAnydeskID(),
-    version: app.getVersion() 
-  }));
-
-  ipcMain.handle("reload-page", () => {
-    contentView.webContents.reload();
-  });
-
-  ipcMain.handle("apply-update-now", () => {
-    autoUpdater.quitAndInstall();
-  });
-
-  ipcMain.handle("clear-cache", async () => {
-    try {
-      const ses = session.fromPartition("persist:captura");
-      await ses.clearStorageData();
-      if (contentView) {
-        contentView.setVisible(false);
-        contentView.webContents.reload();
-      }
-      return true;
-    } catch (e) {
-      return false;
-    }
+    windowManager.criarJanela(ICON_PATH);
+    registerIpcHandlers();
+    windowManager.preconnectUrls();
   });
 }

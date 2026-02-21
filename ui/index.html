@@ -1,11 +1,16 @@
 <!doctype html>
+<!--
+  Template principal da UI - Captura Unificada
+  Estrutura: Sidebar (menu, tema, suporte) + Área de conteúdo (placeholder/loading)
+  IDs e classes devem corresponder a ui/js/config/constants.js
+-->
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
     <link rel="stylesheet" href="style.css" />
-    <title>Consórcio Bahia Digital</title>
+    <title>Captura Unificada</title>
     <style>
       body { background-color: #0b1220; margin: 0; padding: 0; }
       .app { display: flex; opacity: 0; animation: fadeIn 0.3s forwards; }
@@ -56,44 +61,113 @@
   </head>
   <body class="dark-theme">
     <div class="app">
-      <aside class="sidebar" id="sidebar">
-        <div class="logo">
-          <h2>Captura Unificada<span id="app-version" class="version-tag"></span></h2>
-          <span>Sistemas Integrados</span>
-        </div>
-
-        <div class="theme-switch" id="theme-toggle">
-          <i class="fas fa-moon" id="theme-icon"></i>
-          <span id="theme-text">Modo Escuro</span>
-        </div>
-
-        <nav class="menu">
-          <div class="system-item">
-            <button class="menu-btn" id="captura">
-              <span><i class="fas fa-globe"></i> CapturaWeb</span>
-              <span class="active-tag">ATIVO</span>
-              <span class="dots" data-menu="menu1">⋮</span>
-            </button>
-            <div class="dropdown" id="menu1">
-              <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
-              <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
-            </div>
+      <!-- Wrapper: sidebar + botão colapsar (na borda direita do menu) -->
+      <div class="sidebar-wrapper" id="sidebar-wrapper">
+        <aside class="sidebar" id="sidebar">
+          <div class="logo">
+            <h2>Captura Unificada<span id="app-version" class="version-tag"></span></h2>
+            <span class="logo-sub">Launcher</span>
           </div>
 
-          <div class="system-item">
-            <button class="menu-btn" id="smart">
-              <span><i class="fas fa-file-invoice"></i> SMART (CIN)</span>
-              <span class="active-tag">ATIVO</span>
-              <span class="dots" data-menu="menu2">⋮</span>
-            </button>
-            <div class="dropdown" id="menu2">
-              <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
-              <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
-            </div>
+          <!-- Aparência: tema escuro/claro com ícones identificáveis -->
+          <div class="theme-section" title="Alternar entre tema escuro e claro">
+            <span class="theme-label"><i class="fas fa-circle-half-stroke" aria-hidden="true"></i> Aparência</span>
+            <label class="theme-toggle-wrap" aria-label="Tema: escuro (ativado) ou claro">
+              <input type="checkbox" class="theme-switch-input" id="theme-toggle" checked aria-label="Tema escuro" />
+              <span class="theme-switch-slider">
+                <i class="theme-icon theme-icon-moon fas fa-moon" aria-hidden="true"></i>
+                <i class="theme-icon theme-icon-sun fas fa-sun" aria-hidden="true"></i>
+              </span>
+            </label>
           </div>
-        </nav>
 
-        <div class="status-box">
+          <nav class="menu">
+            <section class="menu-group">
+              <h3 class="menu-group-title">Sistemas Integrados</h3>
+              <div class="system-item">
+                <button class="menu-btn" id="captura">
+                  <span><i class="fas fa-globe"></i><span class="btn-label">CapturaWeb</span></span>
+                  <span class="active-tag">ATIVO</span>
+                  <span class="dots" data-menu="menu1">⋮</span>
+                </button>
+                <div class="dropdown" id="menu1">
+                  <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
+                  <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
+                </div>
+              </div>
+              <div class="system-item">
+                <button class="menu-btn" id="smart">
+                  <span><i class="fas fa-file-invoice"></i><span class="btn-label">SMART (CIN)</span></span>
+                  <span class="active-tag">ATIVO</span>
+                  <span class="dots" data-menu="menu2">⋮</span>
+                </button>
+                <div class="dropdown" id="menu2">
+                  <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
+                  <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
+                </div>
+              </div>
+              <div class="system-item">
+                <button class="menu-btn" id="atende" title="Abre em janela separada. Clique de novo para trazer a janela à frente.">
+                  <span><i class="fas fa-ticket atende-icon"></i><span class="btn-label">Atende</span></span>
+                  <span class="atende-window-tag">JANELA ABERTA</span>
+                  <span class="dots" data-menu="menu7">⋮</span>
+                </button>
+                <div class="dropdown" id="menu7">
+                  <button class="btn-atende-config" id="atende-config-btn"><i class="fas fa-cog"></i> Configurar endereço</button>
+                  <button class="btn-reload" data-reload-target="atende"><i class="fas fa-redo"></i> Reiniciar página</button>
+                </div>
+              </div>
+            </section>
+            <section class="menu-group">
+              <h3 class="menu-group-title">Outros Sistemas</h3>
+              <div class="system-item">
+                <button class="menu-btn" id="validacao">
+                  <span><i class="fas fa-fingerprint"></i><span class="btn-label">Validação</span></span>
+                  <span class="active-tag">ATIVO</span>
+                  <span class="dots" data-menu="menu4">⋮</span>
+                </button>
+                <div class="dropdown" id="menu4">
+                  <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
+                  <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
+                </div>
+              </div>
+              <div class="system-item">
+                <button class="menu-btn" id="doc-avulsos">
+                  <span><i class="fas fa-archive"></i><span class="btn-label">Doc Avulso (Antigo)</span></span>
+                  <span class="active-tag">ATIVO</span>
+                  <span class="dots" data-menu="menu3">⋮</span>
+                </button>
+                <div class="dropdown" id="menu3">
+                  <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
+                  <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
+                </div>
+              </div>
+              <div class="system-item">
+                <button class="menu-btn" id="ponto-valid">
+                  <span><i class="fas fa-user-clock"></i><span class="btn-label">Ponto Valid</span></span>
+                  <span class="active-tag">ATIVO</span>
+                  <span class="dots" data-menu="menu5">⋮</span>
+                </button>
+                <div class="dropdown" id="menu5">
+                  <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
+                  <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
+                </div>
+              </div>
+              <div class="system-item">
+                <button class="menu-btn" id="ponto-renova">
+                  <span><i class="fas fa-clock-rotate-left"></i><span class="btn-label">Ponto Renova</span></span>
+                  <span class="active-tag">ATIVO</span>
+                  <span class="dots" data-menu="menu6">⋮</span>
+                </button>
+                <div class="dropdown" id="menu6">
+                  <button class="btn-reload"><i class="fas fa-redo"></i> Reiniciar página</button>
+                  <button class="btn-cache"><i class="fas fa-broom"></i> Limpar cache</button>
+                </div>
+              </div>
+            </section>
+          </nav>
+
+          <div class="status-box">
           <div id="update-indicator" class="update-badge" title="Clique para reiniciar e aplicar agora">
             <i class="fas fa-arrow-up-from-bracket"></i>
             <span>ATUALIZAÇÃO PRONTA</span>
@@ -114,9 +188,31 @@
             <div class="info-item"><i class="fas fa-network-wired"></i><div class="text"><strong>IP</strong><span id="ip">---</span></div></div>
             <div class="info-item"><i class="fas fa-id-card-clip"></i><div class="text"><strong>AnyDesk</strong><span id="anydesk" class="anydesk-id">---</span></div></div>
           </div>
+
+          <div class="sidebar-footer">
+            <div class="copyright-entity">@Consórcio Bahia Digital - 2026</div>
+          </div>
         </div>
       </aside>
+        <button type="button" class="collapse-btn" id="toggle-sidebar" title="Recolher menu" aria-label="Recolher ou expandir barra lateral">
+          <i class="fas fa-angles-left" id="toggle-icon" aria-hidden="true"></i>
+        </button>
+      </div>
 
+      <!-- Modal: Configurar endereço IP do Atende (salvo em C:/TOOLS) -->
+      <div id="atende-modal" class="modal-overlay hidden">
+        <div class="modal-atende">
+          <h3><i class="fas fa-headset"></i> Configurar Atende</h3>
+          <p class="modal-desc">Informe o endereço IP (ex: 192.168.1.100) ou URL completa para teste. O arquivo será salvo em C:\TOOLS.</p>
+          <input type="text" id="atende-input" placeholder="Ex: 192.168.1.100 ou https://www.google.com" class="modal-input" />
+          <div class="modal-buttons">
+            <button type="button" id="atende-cancel" class="btn-modal-cancel">Cancelar</button>
+            <button type="button" id="atende-save" class="btn-modal-save"><i class="fas fa-save"></i> Salvar e Abrir</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ÁREA DE CONTEÚDO: Placeholder inicial, loading ou view do sistema ativo -->
       <main class="content">
         <div id="placeholder" class="placeholder">
           <div class="placeholder-container">
@@ -132,6 +228,6 @@
         </div>
       </main>
     </div>
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
   </body>
 </html>
