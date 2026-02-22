@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * @fileoverview Serviço do Atende: leitura/gravação do IP em C:/TOOLS.
+ * @fileoverview Serviço do Atende: leitura/gravação do IP e tema (dark/light) em captura-unificada-atende.json.
  * @module services/atende.service
  */
 
@@ -10,7 +10,7 @@ const path = require("path");
 const config = require("../config/app.config");
 
 /**
- * Retorna o caminho do arquivo de config do Atende (em C:/TOOLS).
+ * Retorna o caminho do arquivo de config do Atende (ex.: C:/TOOLS/captura-unificada-atende.json).
  * @returns {string}
  */
 function getConfigPath() {
@@ -18,8 +18,21 @@ function getConfigPath() {
 }
 
 /**
- * Lê a configuração do Atende (IP ou URL) do arquivo em C:/TOOLS.
- * @returns {{ ip: string } | null} Objeto com ip/url ou null se não configurado
+ * Garante que o valor salvo tenha pelo menos o protocolo http (ou https se o usuário digitou).
+ * @param {string} valor
+ * @returns {string}
+ */
+function normalizeUrl(valor) {
+  const s = (valor || "").trim();
+  if (!s) return s;
+  if (s.toLowerCase().startsWith("https://")) return s;
+  if (s.toLowerCase().startsWith("http://")) return s;
+  return "http://" + s;
+}
+
+/**
+ * Lê a configuração do Atende (IP/URL e tema) do arquivo.
+ * @returns {{ ip?: string, theme?: "dark"|"light" } | null}
  */
 function getAtendeConfig() {
   try {
@@ -29,18 +42,20 @@ function getAtendeConfig() {
     const content = fs.readFileSync(configPath, "utf8");
     const data = JSON.parse(content);
     const ip = (data?.ip || data?.url || "").trim();
+    const theme = data?.theme === "light" ? "light" : data?.theme === "dark" ? "dark" : undefined;
 
-    if (!ip) return null;
-    return { ip };
+    return { ip: ip || undefined, theme };
   } catch (e) {
     return null;
   }
 }
 
 /**
- * Salva o IP ou URL do Atende no arquivo em C:/TOOLS.
- * Cria o diretório C:/TOOLS se não existir.
- * @param {string} ip - Endereço IP (ex: "192.168.1.100") ou URL completa (ex: "https://www.google.com")
+ * Salva o IP ou URL do Atende exatamente como o usuário digitou.
+ * Preserva o tema já salvo no arquivo.
+ * Para só IP/host (ex: 192.168.1.1), na abertura usamos o template com http e /guiche.asp?auto=1.
+ * Para URL completa (ex: http://servidor/pagina.asp), usamos como está, sem acrescentar nada.
+ * @param {string} ip - Endereço IP ou URL (digite com http se for URL completa)
  * @returns {boolean} true se salvou com sucesso
  */
 function setAtendeConfig(ip) {
@@ -54,7 +69,11 @@ function setAtendeConfig(ip) {
     }
 
     const configPath = getConfigPath();
-    const data = { ip: ipClean };
+    const current = getAtendeConfig();
+    const data = {
+      ip: ipClean,
+      theme: current?.theme || "dark",
+    };
     fs.writeFileSync(configPath, JSON.stringify(data, null, 2), "utf8");
     return true;
   } catch (e) {
@@ -64,14 +83,42 @@ function setAtendeConfig(ip) {
 }
 
 /**
+ * Salva apenas o tema (dark/light) no arquivo, mantendo o IP existente.
+ * @param {"dark"|"light"} theme
+ * @returns {boolean}
+ */
+function setTheme(theme) {
+  try {
+    const configPath = getConfigPath();
+    const configDir = config.ATENDE.CONFIG_DIR;
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+
+    const current = getAtendeConfig();
+    const data = {
+      ip: (current?.ip || "").trim() || "",
+      theme: theme === "light" ? "light" : "dark",
+    };
+    fs.writeFileSync(configPath, JSON.stringify(data, null, 2), "utf8");
+    return true;
+  } catch (e) {
+    console.error("Erro ao salvar tema Atende:", e);
+    return false;
+  }
+}
+
+/**
  * Monta a URL do Atende a partir do IP ou URL configurada.
- * Se o valor começar com http:// ou https://, usa como URL completa.
- * Caso contrário, usa o template http://{IP}/guiche.asp?auto=1
- * @param {string} ipOuUrl - IP (ex: 192.168.1.100) ou URL completa (ex: https://www.google.com)
+ * Se o usuário informou URL completa (http/https), usa como está, sem acrescentar nada.
+ * Se informou só IP ou host, usa o template http://{IP}/guiche.asp?auto=1.
+ * @param {string} ipOuUrl - IP (ex: "192.168.1.1") ou URL completa (ex: "http://192.168.1.1/guiche.asp?auto=1")
  * @returns {string}
  */
 function buildAtendeUrl(ipOuUrl) {
   const valor = (ipOuUrl || "").trim();
+  if (!valor) return "";
+
   if (valor.startsWith("http://") || valor.startsWith("https://")) {
     return valor;
   }
@@ -81,5 +128,6 @@ function buildAtendeUrl(ipOuUrl) {
 module.exports = {
   getAtendeConfig,
   setAtendeConfig,
+  setTheme,
   buildAtendeUrl,
 };

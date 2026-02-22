@@ -59,11 +59,18 @@ contextBridge.exposeInMainWorld("api", {
   getAtendeConfig: () => ipcRenderer.invoke("atende-get-config"),
 
   /**
-   * Salva o IP do Atende no arquivo no Desktop.
+   * Salva o IP/URL do Atende (grava com http:// se o usuário digitar só IP).
    * @param {string} ip
    * @returns {Promise<boolean>}
    */
   setAtendeConfig: (ip) => ipcRenderer.invoke("atende-set-config", ip),
+
+  /**
+   * Salva o tema (dark/light) em captura-unificada-atende.json.
+   * @param {"dark"|"light"} theme
+   * @returns {Promise<boolean>}
+   */
+  setTheme: (theme) => ipcRenderer.invoke("atende-set-theme", theme),
 
   /**
    * Oculta/mostra o contentView para permitir interação com o modal do Atende.

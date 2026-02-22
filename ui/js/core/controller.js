@@ -28,10 +28,25 @@ const Controller = {
   init() {
     this.registrarHandlers();
     View.aplicarTema(Model.getTemaEscuro());
+    this.aplicarTemaSalvo();
     this.carregarInfoSistema();
     this.registrarListenersIPC();
     this.sincronizarEstadoAtendeWindow();
     this.registrarListenersOffline();
+  },
+
+  /**
+   * Carrega o tema salvo em captura-unificada-atende.json e aplica como tema ativo.
+   */
+  async aplicarTemaSalvo() {
+    try {
+      const cfg = await window.api.getAtendeConfig();
+      if (cfg?.theme) {
+        const isDark = cfg.theme === "dark";
+        Model.setTemaEscuro(isDark);
+        View.aplicarTema(isDark);
+      }
+    } catch (_) {}
   },
 
   /**
@@ -352,6 +367,7 @@ const Controller = {
     const isDark = checkbox ? checkbox.checked : Model.getTemaEscuro();
     Model.setTemaEscuro(isDark);
     View.aplicarTema(isDark);
+    window.api.setTheme(isDark ? "dark" : "light");
   },
 };
 

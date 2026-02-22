@@ -88,14 +88,19 @@ function getMainWindowRef() {
 
 /**
  * Abre a janela do Atende ou traz a existente à frente.
+ * Se a janela já existir, apenas mostra e foca (não recarrega a URL).
  * @param {string} url
  * @returns {{ alreadyOpen: boolean }}
  */
 function openOrFocusAtendeWindow(url) {
+  const urlToLoad = (url || "").trim();
   if (atendeWindow && !atendeWindow.isDestroyed()) {
     atendeWindow.show();
     atendeWindow.focus();
     return { alreadyOpen: true };
+  }
+  if (!urlToLoad || !urlToLoad.startsWith("http")) {
+    return { alreadyOpen: false };
   }
 
   const version = app.getVersion();
@@ -122,7 +127,15 @@ function openOrFocusAtendeWindow(url) {
     return { action: "deny" };
   });
 
-  atendeWindow.loadURL(url);
+  atendeWindow.webContents.on("did-finish-load", () => {
+    if (atendeWindow && !atendeWindow.isDestroyed()) {
+      atendeWindow.setTitle(`Captura Unificada v${version} — Atende`);
+    }
+  });
+
+  atendeWindow.loadURL(urlToLoad).catch((err) => {
+    if (logger && logger.logError) logger.logError(err);
+  });
 
   atendeWindow.on("closed", () => {
     atendeWindow = null;

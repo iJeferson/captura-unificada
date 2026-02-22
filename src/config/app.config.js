@@ -111,14 +111,30 @@ const appConfig = {
   /** BCC (Griaule) - usado pelo SMART (CIN). */
   BCC_EXE: "C:\\Griaule\\BCC\\BCC.exe",
 
-  /** Verificação de conectividade (aviso offline) */
+  /**
+   * Verificação de conectividade (aviso offline).
+   * Defina checkMode e a URL ou host que será validado.
+   *
+   * Rede estável (ex.: escritório): intervalMs 5000, timeoutMs 5000, consecutiveNeededForOnline 3.
+   * Rede instável (ex.: Wi‑Fi fraco, 4G): valores abaixo — menos piscar e mais tolerância a falhas pontuais.
+   */
   CONNECTIVITY: {
+    /** "url" = requisição HTTP(S) ao checkUrl; "ping" = comando ping ao checkHost */
+    checkMode: "url",
+    /** URL usada quando checkMode === "url" */
     checkUrl: "https://www.google.com/generate_204",
-    intervalMs: 5000,
-    timeoutMs: 5000,
+    /** Host usado quando checkMode === "ping" (IP ou domínio) */
+    checkHost: "8.8.8.8",
+    /** Intervalo entre verificações (ms). Rede instável: 6000–8000 para não sobrecarregar. */
+    intervalMs: 7000,
+    /** Timeout da verificação (ms). Rede instável: 8000–10000 para dar tempo de responder. */
+    timeoutMs: 8000,
+    /** Quantas falhas consecutivas para declarar offline (2 = evita um único timeout virar offline). */
     consecutiveNeeded: 2,
-    /** Tempo mínimo sem conexão (ms) antes de tratar como offline — evita piscar por cache/navegador */
-    minOfflineDurationMs: 5000,
+    /** Quantos sucessos consecutivos para declarar online de novo (2 = reconhece volta da internet mais rápido). */
+    consecutiveNeededForOnline: 2,
+    /** Tempo mínimo sem conexão (ms) antes de mostrar offline — evita piscar por cache/navegador. */
+    minOfflineDurationMs: 6000,
   },
 };
 

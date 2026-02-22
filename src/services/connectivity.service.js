@@ -2,21 +2,28 @@
 
 /**
  * Serviço de verificação de conectividade (Main Process).
- * Envia estado online/offline ao renderer com histerese para evitar piscar.
+ * Suporta verificação por URL (HTTP/HTTPS) ou por ping. Envia estado online/offline ao renderer com histerese.
  * @module services/connectivity.service
  */
 
+const http = require("http");
 const https = require("https");
+const { exec } = require("child_process");
 const config = require("../config/app.config");
 const logger = require("../utils/logger");
 
 const CONNECTIVITY = config.CONNECTIVITY || {
+  checkMode: "url",
   checkUrl: "https://www.google.com/generate_204",
-  intervalMs: 5000,
-  timeoutMs: 5000,
+  checkHost: "8.8.8.8",
+  intervalMs: 7000,
+  timeoutMs: 8000,
   consecutiveNeeded: 2,
-  minOfflineDurationMs: 5000,
+  consecutiveNeededForOnline: 2,
+  minOfflineDurationMs: 6000,
 };
+const checkMode = CONNECTIVITY.checkMode || "url";
+const consecutiveForOnline = Math.max(1, CONNECTIVITY.consecutiveNeededForOnline ?? 2);
 
 /**
  * Códigos de erro de rede do Chromium (did-fail-load).
@@ -43,7 +50,10 @@ let lastSent = null;
 let firstFailTime = null;
 /** Timer de offline atrasado (falha de carga): só envia após minOfflineDurationMs. */
 let pendingOfflineTimer = null;
+/** Recheck rápido quando o primeiro sucesso ocorre após estar offline (reconhece volta da internet mais cedo). */
+let fastRecheckTimerId = null;
 const minOfflineMs = CONNECTIVITY.minOfflineDurationMs ?? 5000;
+const FAST_RECHECK_MS = 2500;
 
 /**
  * Envia estado offline ao renderer (content-load-failed + connectivity-change).
@@ -80,16 +90,33 @@ function sendIfStable(wc, online) {
       clearTimeout(pendingOfflineTimer);
       pendingOfflineTimer = null;
     }
+    if (fastRecheckTimerId) {
+      clearTimeout(fastRecheckTimerId);
+      fastRecheckTimerId = null;
+    }
     firstFailTime = null;
     consecutiveOk++;
     consecutiveFail = 0;
-    if (consecutiveOk >= CONNECTIVITY.consecutiveNeeded && lastSent !== true) {
+    if (lastSent === null) {
       lastSent = true;
       wc.send("connectivity-change", true);
+    } else if (consecutiveOk >= consecutiveForOnline && lastSent !== true) {
+      lastSent = true;
+      wc.send("connectivity-change", true);
+    } else if (lastSent === false && consecutiveOk === 1) {
+      /* Primeiro sucesso após offline: recheck em 2,5s para não esperar o próximo intervalo (7s). */
+      fastRecheckTimerId = setTimeout(() => {
+        fastRecheckTimerId = null;
+        requestCheck();
+      }, FAST_RECHECK_MS);
     }
     return;
   }
 
+  if (fastRecheckTimerId) {
+    clearTimeout(fastRecheckTimerId);
+    fastRecheckTimerId = null;
+  }
   consecutiveFail++;
   consecutiveOk = 0;
   if (consecutiveFail === 1) firstFailTime = Date.now();
@@ -114,15 +141,40 @@ function sendIfStable(wc, online) {
 }
 
 /**
- * Executa uma verificação HTTP e notifica o renderer.
+ * Verificação por ping (Windows: ping -n 1 <host>).
+ * @param {import('electron').WebContents} wc
  */
-function checkAndNotify() {
-  const win = typeof getMainWindow === "function" ? getMainWindow() : null;
-  const wc = win?.webContents;
-  if (!wc || wc.isDestroyed()) return;
+function checkByPing(wc) {
+  const host = CONNECTIVITY.checkHost || "8.8.8.8";
+  const timeoutMs = Math.max(1000, CONNECTIVITY.timeoutMs || 5000);
+  const cmd = process.platform === "win32"
+    ? `ping -n 1 -w ${timeoutMs} ${host}`   /* Windows: -w em ms */
+    : `ping -c 1 -W ${Math.round(timeoutMs / 1000)} ${host}`;  /* Linux/Mac: -W em segundos */
 
-  const req = https.get(CONNECTIVITY.checkUrl, () => sendIfStable(wc, true));
-  req.setTimeout(CONNECTIVITY.timeoutMs, () => {
+  exec(cmd, { timeout: timeoutMs + 500 }, (err, _stdout, _stderr) => {
+    sendIfStable(wc, !err);
+  });
+}
+
+/**
+ * Verificação por requisição HTTP(S) à URL configurável.
+ * @param {import('electron').WebContents} wc
+ */
+function checkByUrl(wc) {
+  const url = CONNECTIVITY.checkUrl || "https://www.google.com/generate_204";
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch (_) {
+    sendIfStable(wc, false);
+    return;
+  }
+  const isHttps = parsed.protocol === "https:";
+  const lib = isHttps ? https : http;
+  const timeoutMs = CONNECTIVITY.timeoutMs || 5000;
+
+  const req = lib.get(url, () => sendIfStable(wc, true));
+  req.setTimeout(timeoutMs, () => {
     req.destroy();
     sendIfStable(wc, false);
   });
@@ -130,6 +182,21 @@ function checkAndNotify() {
     logger.logError(err);
     sendIfStable(wc, false);
   });
+}
+
+/**
+ * Executa uma verificação (URL ou ping, conforme config) e notifica o renderer.
+ */
+function checkAndNotify() {
+  const win = typeof getMainWindow === "function" ? getMainWindow() : null;
+  const wc = win?.webContents;
+  if (!wc || wc.isDestroyed()) return;
+
+  if (checkMode === "ping") {
+    checkByPing(wc);
+  } else {
+    checkByUrl(wc);
+  }
 }
 
 /**
@@ -173,6 +240,10 @@ function reset() {
   if (pendingOfflineTimer) {
     clearTimeout(pendingOfflineTimer);
     pendingOfflineTimer = null;
+  }
+  if (fastRecheckTimerId) {
+    clearTimeout(fastRecheckTimerId);
+    fastRecheckTimerId = null;
   }
   getMainWindow = null;
   lastSent = null;

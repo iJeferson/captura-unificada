@@ -51,12 +51,14 @@ const View = {
     if (loader) {
       if (mostrar) {
         loader.classList.remove(CSS_CLASSES.HIDDEN);
+        loader.style.display = ""; /* restaura display após offline (mostrarPlaceholderComOffline define display:none) */
         if (loaderText && nomeSistema) {
           loaderText.innerText = `Iniciando ${nomeSistema}`;
         }
         contentArea?.classList.remove("fade-in-view");
       } else {
         loader.classList.add(CSS_CLASSES.HIDDEN);
+        loader.style.display = "";
         if (contentArea) {
           contentArea.classList.remove("fade-in-view");
           void contentArea.offsetWidth; // Force reflow para animação

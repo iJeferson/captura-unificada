@@ -19,7 +19,7 @@ const {
   reiniciarBCC,
 } = require("../services/hardware.service");
 const { getSystemInfo } = require("../services/system.service");
-const { getAtendeConfig, setAtendeConfig, buildAtendeUrl } = require("../services/atende.service");
+const { getAtendeConfig, setAtendeConfig, setTheme, buildAtendeUrl } = require("../services/atende.service");
 const windowManager = require("../window/window.manager");
 
 /**
@@ -139,6 +139,9 @@ function registerIpcHandlers() {
         return { needsConfig: true };
       }
       const url = buildAtendeUrl(cfg.ip);
+      if (!url || typeof url !== "string" || !url.startsWith("http")) {
+        return { needsConfig: true };
+      }
       const result = windowManager.openOrFocusAtendeWindow(url);
       return { needsConfig: false };
     } catch (err) {
@@ -161,9 +164,15 @@ function registerIpcHandlers() {
 
   /**
    * Handler: atende-set-config
-   * Salva o IP do Atende no arquivo no Desktop.
+   * Salva o IP/URL do Atende (com http:// se o usuário digitar só IP).
    */
   ipcMain.handle("atende-set-config", (_, ip) => setAtendeConfig(ip));
+
+  /**
+   * Handler: atende-set-theme
+   * Salva o tema (dark/light) em captura-unificada-atende.json.
+   */
+  ipcMain.handle("atende-set-theme", (_, theme) => setTheme(theme));
 
   /**
    * Handler: atende-modal-visible
