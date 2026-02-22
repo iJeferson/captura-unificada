@@ -225,7 +225,7 @@ function criarJanela(iconPathParam) {
         const b = getContentBounds();
         if (b) contentView.setBounds({ x: b.x, y: b.y, width: 0, height: 0 });
       }
-      connectivityService.notifyOffline(); /* envia offline + content-load-failed após minOfflineDurationMs */
+      connectivityService.notifyOffline();
       processandoTroca = false;
       enviarLoadFinished(null);
 
