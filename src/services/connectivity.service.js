@@ -2,7 +2,7 @@
 
 /**
  * Serviço de verificação de conectividade (Main Process).
- * Suporta verificação por URL (HTTP/HTTPS) ou por ping. Envia estado online/offline ao renderer com histerese.
+ * Verificação por URL ou ping; histerese para evitar piscar. Não exige administrador.
  * @module services/connectivity.service
  */
 

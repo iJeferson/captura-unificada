@@ -116,6 +116,9 @@
                   <button class="btn-cache"><i class="fas fa-broom"></i>Limpar cache</button>
                 </div>
               </div>
+            </section>
+            <section class="menu-group">
+              <h3 class="menu-group-title">Outros Sistemas</h3>
               <div class="system-item">
                 <button class="menu-btn" id="atende" title="Abre em janela separada. Clique de novo para trazer a janela à frente.">
                   <span><i class="fas fa-ticket atende-icon"></i><span class="btn-label">Atende</span></span>
@@ -127,9 +130,6 @@
                   <button class="btn-reload" data-reload-target="atende"><i class="fas fa-redo"></i>Reiniciar página</button>
                 </div>
               </div>
-            </section>
-            <section class="menu-group">
-              <h3 class="menu-group-title">Outros Sistemas</h3>
               <div class="system-item">
                 <button class="menu-btn" id="validacao" title="Validação">
                   <span><i class="fas fa-fingerprint"></i><span class="btn-label">Validação</span></span>
@@ -210,11 +210,11 @@
         </button>
       </div>
 
-      <!-- Modal: Configurar endereço IP do Atende (salvo em C:/TOOLS) -->
+      <!-- Modal: Configurar endereço IP do Atende -->
       <div id="atende-modal" class="modal-overlay hidden">
         <div class="modal-atende">
           <h3><i class="fas fa-headset"></i> Configurar Atende</h3>
-          <p class="modal-desc">Informe o endereço IP (ex: 192.168.1.100) ou URL completa para teste. O arquivo será salvo em C:\TOOLS.</p>
+          <p class="modal-desc">Informe o endereço IP (ex: 192.168.1.100) ou URL completa para teste. A configuração é salva na pasta do aplicativo (não é necessário administrador).</p>
           <input type="text" id="atende-input" placeholder="Ex: 192.168.1.100 ou https://www.google.com" class="modal-input" />
           <div class="modal-buttons">
             <button type="button" id="atende-cancel" class="btn-modal-cancel">Cancelar</button>

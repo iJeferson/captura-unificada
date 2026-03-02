@@ -2,6 +2,7 @@
 
 /**
  * @fileoverview Context Bridge - API segura Main ↔ Renderer (contextIsolation).
+ * Todas as operações invocadas aqui são executadas no Main Process sem exigir administrador.
  * @module preload
  */
 

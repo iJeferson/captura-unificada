@@ -2,10 +2,17 @@
 
 /**
  * @fileoverview Configurações centralizadas do Main Process.
+ * Nenhuma operação do app exige elevação de administrador: logs e config usam AppData do usuário.
  * @module config/app.config
  */
 
 const path = require("path");
+
+/** Base dos dados do usuário (AppData ou equivalente) — sem necessidade de admin */
+const USER_DATA_BASE = path.join(
+  process.env.APPDATA || process.env.LOCALAPPDATA || process.env.USERPROFILE || ".",
+  "captura-unificada-data"
+);
 
 /** @type {Record<string, unknown>} */
 const appConfig = {
@@ -18,8 +25,8 @@ const appConfig = {
   /** Nome do diretório de dados do usuário (dentro de AppData) */
   USER_DATA_DIR: "captura-unificada-data",
 
-  /** Diretório de logs de erro (um arquivo por data: YYYY-MM-DD.log) */
-  LOG_DIR: "C:\\temp\\captura-unificada",
+  /** Diretório de logs (em AppData — não exige administrador) */
+  LOG_DIR: path.join(USER_DATA_BASE, "Logs"),
 
   /**
    * SEGURANÇA – conexões e certificados
@@ -54,19 +61,18 @@ const appConfig = {
     capturaWebBase: "https://cnhba-prod.si.valid.com.br",
     smart: "https://nimba.dpt.ba.gov.br:8100",
     docAvulsos: "https://cnhba.si.valid.com.br/CapturaWeb32",
-    validacao: "https://cnhba.si.valid.com.br/SiteCaptura/conta/login",
+    validacao: "https://cnhba.si.valid.com.br/SiteCaptura/validacao",
     pontoValid: "http://www.adpexpert.com.br",
     pontoRenova: "https://app2.pontomais.com.br/login",
   },
 
   /**
-   * Atende: arquivo no Desktop para armazenar IP (cada desktop pode ter URL diferente).
+   * Atende: config em AppData (não exige administrador).
    * Formato da URL: http://{IP}/guiche.asp?auto=1
-   * O arquivo persiste após atualizações do app.
    */
   ATENDE: {
-    /** Diretório onde o arquivo de config é salvo (ex.: C:/TOOLS) */
-    CONFIG_DIR: "C:/TOOLS",
+    /** Diretório da config (AppData do usuário) */
+    CONFIG_DIR: USER_DATA_BASE,
     /** Nome do arquivo de config */
     CONFIG_FILE: "captura-unificada-atende.json",
     /** Template da URL (substitui {IP}) */
@@ -86,19 +92,19 @@ const appConfig = {
   /** Partition exclusiva do Atende - mantém cache e estado da página separados */
   SESSION_PARTITION_ATENDE: "persist:atende",
 
-  /** Caminhos para leitura do ID do AnyDesk */
+  /** Caminhos para leitura do ID do AnyDesk (APPDATA primeiro — não exige admin) */
   ANYDESK_PATHS: [
-    path.join(process.env.ProgramData || "C:\\ProgramData", "AnyDesk", "service.conf"),
     path.join(process.env.APPDATA || "", "AnyDesk", "system.conf"),
+    path.join(process.env.ProgramData || "C:\\ProgramData", "AnyDesk", "service.conf"),
     "C:\\ProgramData\\AnyDesk\\service.conf",
   ],
 
-  /** Delays para sincronização de processos (ms) */
+  /** Delays para sincronização de processos (ms) - valores otimizados para resposta mais rápida */
   DELAYS: {
-    hardwareSwitch: 800,
-    capturaEnv: 600,
+    hardwareSwitch: 500,
+    capturaEnv: 400,
     /** Pausa entre desligar e ligar o Suprema RealScan-D (para o dispositivo efetivamente reiniciar) */
-    supremaPowerCycle: 1200,
+    supremaPowerCycle: 1000,
   },
 
   /**

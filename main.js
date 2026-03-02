@@ -1,11 +1,10 @@
 "use strict";
 
 /**
- * @fileoverview Ponto de entrada do aplicativo Captura Unificada
- * @module main
- *
+ * @fileoverview Ponto de entrada do aplicativo Captura Unificada.
  * Launcher de sistemas integrados (CapturaWeb, SMART/CIN e demais).
- * Garante instância única, configura ambiente e inicializa módulos.
+ * Garante instância única; dados e logs em AppData — nenhuma operação exige administrador.
+ * @module main
  */
 
 const { app } = require("electron");

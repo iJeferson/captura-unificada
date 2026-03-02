@@ -1,7 +1,8 @@
 "use strict";
 
 /**
- * @fileoverview Handlers IPC - comunicação Main Process ↔ Renderer
+ * @fileoverview Handlers IPC - comunicação Main Process ↔ Renderer.
+ * Nenhuma operação exige elevação de administrador.
  * @module ipc/ipc.handlers
  */
 
@@ -22,6 +23,30 @@ const { getSystemInfo } = require("../services/system.service");
 const { getAtendeConfig, setAtendeConfig, setTheme, buildAtendeUrl } = require("../services/atende.service");
 const windowManager = require("../window/window.manager");
 
+/** Limite aproximado do header Cookie (bytes). Acima disso o servidor pode retornar 400. */
+const COOKIE_HEADER_LIMIT = 3500;
+
+/**
+ * Se os cookies do domínio da URL passarem do limite, remove todos para esse domínio.
+ * Evita "400 Request Header Or Cookie Too Large" sem precisar limpar cache manualmente.
+ * @param {string} url - URL que será carregada (ex.: CapturaWeb, Valid, etc.)
+ */
+async function trimCookiesIfNeeded(url) {
+  try {
+    const ses = session.fromPartition(config.SESSION_PARTITION);
+    const list = await ses.cookies.get({ url });
+    const approxSize = list.reduce((acc, c) => acc + (c.name?.length || 0) + (c.value?.length || 0) + 2, 0);
+    if (approxSize <= COOKIE_HEADER_LIMIT) return;
+    for (const c of list) {
+      try {
+        await ses.cookies.remove(url, c.name);
+      } catch (_) {}
+    }
+  } catch (err) {
+    logger.logError(err);
+  }
+}
+
 /**
  * Abre um sistema no contentView: prepara estado, executa setup assíncrono (opcional) e carrega a URL.
  * Erros são logados; não propaga exceção para não exibir em tela.
@@ -36,8 +61,9 @@ async function openSystemContent(sistemaId, url, setup) {
   windowManager.setCurrentSistema(sistemaId);
   windowManager.setContentViewVisible(false);
   try {
-    if (typeof setup === "function") await setup();
+    await trimCookiesIfNeeded(url);
     windowManager.loadContentViewUrl(url);
+    if (typeof setup === "function") await setup();
     windowManager.ajustarView();
   } catch (err) {
     logger.logError(err);
@@ -99,7 +125,7 @@ function registerIpcHandlers() {
     } catch (err) {
       logger.logError(err);
     }
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise((r) => setTimeout(r, 1000)); /* tempo para o exe iniciar */
   }
 
   ipcMain.handle("validacao", async () => {
@@ -142,7 +168,7 @@ function registerIpcHandlers() {
       if (!url || typeof url !== "string" || !url.startsWith("http")) {
         return { needsConfig: true };
       }
-      const result = windowManager.openOrFocusAtendeWindow(url);
+      windowManager.openOrFocusAtendeWindow(url);
       return { needsConfig: false };
     } catch (err) {
       logger.logError(err);
@@ -221,6 +247,7 @@ function registerIpcHandlers() {
    * Mata o processo CapturaWeb (externo Valid) e abre novamente.
    * Se a view ativa for Validação, recarrega a página após abrir o exe.
    */
+  const DELAY_APOS_SPAWN_MS = 1000;
   ipcMain.handle("reiniciar-validacao", async () => {
     try {
       await execAsync('taskkill /F /IM CapturaWeb.exe /T');
@@ -232,7 +259,7 @@ function registerIpcHandlers() {
     } catch (err) {
       logger.logError(err);
     }
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise((r) => setTimeout(r, DELAY_APOS_SPAWN_MS));
     if (windowManager.getCurrentSistema() === "validacao") {
       try {
         windowManager.reloadContentView();
@@ -268,13 +295,19 @@ function registerIpcHandlers() {
 
   /**
    * Handler: clear-cache
-   * Limpa APENAS a partition persist:captura (sistemas gerais).
-   * NÃO limpa o Atende (persist:atende) - ele mantém cache e estado.
+   * Limpa a partition persist:captura (sistemas gerais), incluindo cookies.
+   * Resolve "400 Request Header Or Cookie Too Large" quando há muitos cookies no domínio.
+   * NÃO limpa o Atende (persist:atende).
    */
   ipcMain.handle("clear-cache", async () => {
     try {
       const ses = session.fromPartition(config.SESSION_PARTITION);
-      await ses.clearStorageData();
+      await ses.clearStorageData({
+        storages: [
+          "appcache", "cookies", "filesystem", "indexdb", "localstorage",
+          "shadercache", "websql", "serviceworkers", "cachestorage",
+        ],
+      });
       const contentView = windowManager.getContentView();
       if (contentView) {
         windowManager.setContentViewVisible(false);

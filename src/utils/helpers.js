@@ -19,7 +19,7 @@ function esperar(ms) {
 
 /**
  * Obtém o ID do AnyDesk instalado no sistema.
- * Busca em arquivos de configuração do AnyDesk (service.conf, system.conf).
+ * Busca primeiro em APPDATA (sem admin); depois em ProgramData.
  * @returns {string} ID do AnyDesk ou "---" se não encontrado
  */
 function obterAnydeskID() {

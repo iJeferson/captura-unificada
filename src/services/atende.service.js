@@ -1,16 +1,17 @@
 "use strict";
 
 /**
- * @fileoverview Serviço do Atende: leitura/gravação do IP e tema (dark/light) em captura-unificada-atende.json.
+ * @fileoverview Serviço do Atende: leitura/gravação do IP e tema em AppData (sem necessidade de admin).
  * @module services/atende.service
  */
 
 const fs = require("fs");
 const path = require("path");
 const config = require("../config/app.config");
+const logger = require("../utils/logger");
 
 /**
- * Retorna o caminho do arquivo de config do Atende (ex.: C:/TOOLS/captura-unificada-atende.json).
+ * Retorna o caminho do arquivo de config do Atende (em AppData do usuário).
  * @returns {string}
  */
 function getConfigPath() {
@@ -77,7 +78,7 @@ function setAtendeConfig(ip) {
     fs.writeFileSync(configPath, JSON.stringify(data, null, 2), "utf8");
     return true;
   } catch (e) {
-    console.error("Erro ao salvar config Atende:", e);
+    logger.logError(e);
     return false;
   }
 }
@@ -103,7 +104,7 @@ function setTheme(theme) {
     fs.writeFileSync(configPath, JSON.stringify(data, null, 2), "utf8");
     return true;
   } catch (e) {
-    console.error("Erro ao salvar tema Atende:", e);
+    logger.logError(e);
     return false;
   }
 }

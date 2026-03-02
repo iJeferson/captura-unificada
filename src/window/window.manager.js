@@ -1,11 +1,10 @@
 "use strict";
 
 /**
- * @fileoverview Gerenciador da janela principal e da janela do Atende
+ * @fileoverview Gerenciador da janela principal e da janela do Atende.
+ * Cria janela principal com contentView; cria/foca janela do Atende.
+ * Conectividade delegada ao connectivity.service. Nenhuma operação exige administrador.
  * @module window/window.manager
- *
- * Responsabilidade: Criar janela principal com contentView; criar/focar
- * janela separada do Atende (BrowserWindow). Conectividade delegada ao connectivity.service.
  */
 
 const { app, BrowserWindow, WebContentsView } = require("electron");

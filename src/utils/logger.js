@@ -1,8 +1,8 @@
 "use strict";
 
 /**
- * Logger de erros em arquivo: um arquivo por data em LOG_DIR, apenas erros com horário.
- * Classifica erros conhecidos (rede, arquivo não encontrado, etc.) com rótulos legíveis.
+ * Logger de erros em arquivo (um por dia em LOG_DIR). Classifica erros com rótulos legíveis.
+ * LOG_DIR vem do config (AppData); fallback para tmpdir — não exige administrador.
  * @module utils/logger
  */
 
@@ -10,7 +10,7 @@ const fs = require("fs");
 const path = require("path");
 const config = require("../config/app.config");
 
-const LOG_DIR = config.LOG_DIR || "C:\\temp\\captura-unificada";
+const LOG_DIR = config.LOG_DIR || path.join(require("os").tmpdir(), "captura-unificada", "logs");
 let dirChecked = false;
 
 /**
