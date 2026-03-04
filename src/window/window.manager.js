@@ -290,6 +290,25 @@ function criarJanela(iconPathParam) {
   return { win: mainWindow, contentView };
 }
 
+/**
+ * Registra callback único: executa quando o contentView carrega e a URL contém o padrão.
+ * Usado para reiniciar serviço apenas ao chegar no CapturaWebV2 (após login Keycloak).
+ * @param {string} urlPattern - substring da URL (ex.: cnhba-prod.si.valid.com.br/CapturaWebV2)
+ * @param {() => void|Promise<void>} callback
+ */
+function onContentReachUrl(urlPattern, callback) {
+  const cv = contentView;
+  if (!cv?.webContents) return;
+  const handler = () => {
+    const current = cv.webContents.getURL();
+    if (current && current.includes(urlPattern)) {
+      cv.webContents.removeListener("did-finish-load", handler);
+      Promise.resolve(callback()).catch((err) => logger.logError(err));
+    }
+  };
+  cv.webContents.on("did-finish-load", handler);
+}
+
 function preconnectUrls() {
   const session = contentView?.webContents?.session;
   if (session) {
@@ -331,4 +350,5 @@ module.exports = {
   reloadContentView: () => contentView?.webContents?.reload(),
   reloadActiveView: () => getActiveWebContents()?.reload(),
   loadContentViewUrl: (url) => contentView?.webContents?.loadURL(url),
+  onContentReachUrl,
 };

@@ -179,11 +179,13 @@ const Controller = {
 
   /**
    * Abre um sistema da barra lateral (fluxo único: offline check, loading, IPC).
+   * Captura: sempre executa o fluxo BCC (mesmo se já ativo), para garantir consistência.
    * @param {string} sistemaId - "captura" | "smart" | "doc-avulsos" | "validacao" | "ponto-valid" | "ponto-renova"
    * @param {Event} e - evento de clique (currentTarget = botão do menu)
    */
   async abrirSistema(sistemaId, e) {
-    if (this.bloquearSeCarregando() || e.currentTarget.classList.contains(CSS_CLASSES.ACTIVE)) return;
+    const jaAtivo = e.currentTarget.classList.contains(CSS_CLASSES.ACTIVE);
+    if (this.bloquearSeCarregando() || (jaAtivo && sistemaId !== "captura")) return;
     if (!Model.getConectado()) {
       View.mostrarPlaceholderComOffline();
       return;

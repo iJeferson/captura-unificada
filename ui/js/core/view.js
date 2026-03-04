@@ -162,16 +162,22 @@ const View = {
 
   /**
    * Alterna o estado colapsado/expandido da sidebar (wrapper).
-   * Atualiza o ícone do toggle.
+   * Atualiza o ícone e o texto do botão (Recolher/Expandir menu).
    * @returns {boolean} true se ficou colapsada
    */
   toggleSidebar() {
     const wrapper = this.elementos.sidebarWrapper();
     const toggleIcon = this.elementos.toggleIcon();
+    const toggleBtn = document.getElementById(ELEMENT_IDS.TOGGLE_SIDEBAR);
     const isCollapsed = wrapper?.classList.toggle(CSS_CLASSES.COLLAPSED);
 
     if (toggleIcon) {
       toggleIcon.className = isCollapsed ? "fas fa-angles-right" : "fas fa-angles-left";
+    }
+    if (toggleBtn) {
+      const texto = isCollapsed ? "Expandir menu" : "Recolher menu";
+      toggleBtn.setAttribute("title", texto);
+      toggleBtn.setAttribute("aria-label", texto);
     }
 
     return isCollapsed ?? false;
@@ -303,6 +309,7 @@ const View = {
     const input = document.getElementById(ELEMENT_IDS.ATENDE_INPUT);
     return input?.value?.trim() || "";
   },
+
 };
 
 export default View;

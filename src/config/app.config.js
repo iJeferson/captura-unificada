@@ -118,6 +118,13 @@ const appConfig = {
   BCC_EXE: "C:\\Griaule\\BCC\\BCC.exe",
 
   /**
+   * Serviços Griaule a parar ao abrir CapturaWeb (evita conflito com Suprema).
+   * GBS BCC Service hospeda BCC e Capturar Digital. Tenta cada nome (net stop).
+   * Se não funcionar, verifique o nome exato em services.msc e adicione aqui.
+   */
+  SERVICOS_GRIAULE_PARAR: ["GBS BCC Service"],
+
+  /**
    * Verificação de conectividade (aviso offline).
    * Defina checkMode e a URL ou host que será validado.
    *

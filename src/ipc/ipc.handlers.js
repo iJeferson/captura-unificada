@@ -12,10 +12,15 @@ const { promisify } = require("util");
 const { autoUpdater } = require("electron-updater");
 const config = require("../config/app.config");
 const logger = require("../utils/logger");
+const { esperar } = require("../utils/helpers");
 const execAsync = promisify(exec);
 const {
   configurarAmbienteCaptura,
   configurarAmbienteSmart,
+  matarBCC,
+  pararServicoValid,
+  iniciarBCC,
+  reiniciarServicoValidUmaVez,
   reiniciarServicoHardware,
   reiniciarBCC,
 } = require("../services/hardware.service");
@@ -49,6 +54,7 @@ async function trimCookiesIfNeeded(url) {
 
 /**
  * Abre um sistema no contentView: prepara estado, executa setup assíncrono (opcional) e carrega a URL.
+ * Ordem: setup (ex.: matar BCC, reiniciar serviço) → depois carrega a URL.
  * Erros são logados; não propaga exceção para não exibir em tela.
  * @param {string} sistemaId
  * @param {string} url
@@ -62,8 +68,8 @@ async function openSystemContent(sistemaId, url, setup) {
   windowManager.setContentViewVisible(false);
   try {
     await trimCookiesIfNeeded(url);
-    windowManager.loadContentViewUrl(url);
     if (typeof setup === "function") await setup();
+    windowManager.loadContentViewUrl(url);
     windowManager.ajustarView();
   } catch (err) {
     logger.logError(err);
@@ -92,7 +98,30 @@ function registerIpcHandlers() {
 
   ipcMain.handle("captura", async () => {
     try {
-      return await openSystemContent("captura", config.URLS.capturaWeb, configurarAmbienteCaptura);
+      const url = config.URLS.capturaWeb;
+      if (windowManager.getProcessandoTroca()) return;
+      windowManager.setProcessandoTroca(true);
+      windowManager.setSistemaIniciado(true);
+      windowManager.setCurrentSistema("captura");
+      windowManager.setContentViewVisible(false);
+      try {
+        await trimCookiesIfNeeded(url);
+        await matarBCC();
+        await pararServicoValid();
+        iniciarBCC();
+        windowManager.loadContentViewUrl(url);
+        windowManager.ajustarView();
+        await esperar(4000);
+        await matarBCC();
+        await reiniciarServicoValidUmaVez();
+      } catch (err) {
+        logger.logError(err);
+        windowManager.setProcessandoTroca(false);
+        try {
+          const win = windowManager.getMainWindow();
+          if (win?.webContents && !win.webContents.isDestroyed()) win.webContents.send("load-finished", null);
+        } catch (_) {}
+      }
     } catch (err) {
       logger.logError(err);
     }

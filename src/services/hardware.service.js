@@ -6,7 +6,8 @@
  * @module services/hardware.service
  */
 
-const { exec } = require("child_process");
+const { exec, spawn } = require("child_process");
+const path = require("path");
 const { promisify } = require("util");
 const { esperar } = require("../utils/helpers");
 const config = require("../config/app.config");
@@ -35,9 +36,7 @@ async function execBestEffort(cmd) {
  */
 async function reiniciarServicoHardware() {
   await execBestEffort(`net stop "${SERVICO_HARDWARE}"`);
-  await esperar(config.DELAYS.hardwareSwitch);
   await execBestEffort(`net start "${SERVICO_HARDWARE}"`);
-  await esperar(config.DELAYS.hardwareSwitch);
 }
 
 /**
@@ -74,36 +73,110 @@ async function configurarAmbienteSmart() {
 }
 
 /**
- * Desliga e liga o leitor Suprema RealScan-D (trocar SMART → CapturaWeb).
- * Best-effort: Disable/Enable-PnpDevice exigem admin; em falha apenas registra e continua.
+ * Aguarda o processo BCC.exe aparecer na lista de processos.
+ * Faz polling a cada 150ms. Timeout de 30s se não aparecer.
+ * @returns {Promise<boolean>} true se apareceu, false se timeout
  */
-async function ciclarSupremaRealScanD() {
-  const disableCmd = `powershell -Command "Get-PnpDevice -FriendlyName '*Suprema RealScan-D*' | Disable-PnpDevice -Confirm:$false"`;
-  const enableCmd = `powershell -Command "Get-PnpDevice -FriendlyName '*Suprema RealScan-D*' | Enable-PnpDevice -Confirm:$false"`;
-  await execBestEffort(disableCmd);
-  await esperar(config.DELAYS.supremaPowerCycle ?? 1200);
-  await execBestEffort(enableCmd);
-  await esperar(config.DELAYS.capturaEnv);
+async function aguardarBCCAparecer() {
+  const intervaloMs = 150;
+  const timeoutMs = 30000;
+  const inicio = Date.now();
+  while (Date.now() - inicio < timeoutMs) {
+    try {
+      const { stdout } = await execAsync('tasklist /FI "IMAGENAME eq BCC.exe"');
+      if (stdout?.toLowerCase().includes("bcc.exe")) return true;
+    } catch (_) {}
+    await esperar(intervaloMs);
+  }
+  return false;
+}
+
+/**
+ * Inicia o processo BCC (best-effort).
+ * Usa spawn com cwd no diretório do BCC para garantir inicialização correta.
+ */
+function iniciarBCC() {
+  try {
+    const bccDir = path.dirname(config.BCC_EXE);
+    spawn(config.BCC_EXE, [], {
+      cwd: bccDir,
+      detached: true,
+      stdio: "ignore",
+    }).unref();
+  } catch (err) {
+    logger.logError(err);
+    try {
+      exec(`start "" "${config.BCC_EXE}"`, (e) => { if (e) logger.logError(e); });
+    } catch (e2) {
+      logger.logError(e2);
+    }
+  }
+}
+
+/**
+ * Para o serviço Valid (libera hardware para o BCC iniciar, igual ao fluxo SMART).
+ */
+async function pararServicoValid() {
+  await execBestEffort(`net stop "${SERVICO_HARDWARE}"`);
+  await esperar(config.DELAYS.hardwareSwitch);
+}
+
+/**
+ * Para os serviços Griaule (GBS BCC Service, etc.) e mata o processo BCC.
+ * Evita conflito com Suprema ao abrir CapturaWeb.
+ */
+async function matarBCC() {
+  const servicos = config.SERVICOS_GRIAULE_PARAR || [];
+  for (const nome of servicos) {
+    await execBestEffort(`net stop "${nome}"`);
+  }
+  await execBestEffort("taskkill /F /IM BCC.exe /T");
+}
+
+/**
+ * Reinicia o serviço Valid uma vez sem delay.
+ */
+async function reiniciarServicoValidUmaVez() {
+  await execBestEffort(`net stop "${SERVICO_HARDWARE}"`);
+  await execBestEffort(`net start "${SERVICO_HARDWARE}"`);
+}
+
+/**
+ * Reinicia o serviço Valid duas vezes com delays configurados.
+ * Os delays dão tempo ao serviço/DLL (RS_SDK) para descarregar corretamente e evitam erro RS_ExitSDK.
+ */
+async function reiniciarServicoValidDuasVezes() {
+  const { hardwareSwitch } = config.DELAYS;
+
+  await execBestEffort(`net stop "${SERVICO_HARDWARE}"`);
+  await esperar(hardwareSwitch);
+  await execBestEffort(`net start "${SERVICO_HARDWARE}"`);
+  await esperar(hardwareSwitch);
+
+  await execBestEffort(`net stop "${SERVICO_HARDWARE}"`);
+  await esperar(hardwareSwitch);
+  await execBestEffort(`net start "${SERVICO_HARDWARE}"`);
+  await esperar(hardwareSwitch);
 }
 
 /**
  * Configura o ambiente para o CapturaWeb.
- * Encerra BCC e Java (best-effort), cicla Suprema (best-effort), inicia serviço Valid (best-effort).
+ * Encerra BCC (best-effort), reinicia o serviço Valid duas vezes sem delay.
  */
 async function configurarAmbienteCaptura() {
-  await execBestEffort("taskkill /F /IM BCC.exe /T");
-  await execBestEffort("taskkill /F /IM javaw.exe /T");
-  await esperar(config.DELAYS.capturaEnv);
-  await execBestEffort(`net stop "${SERVICO_HARDWARE}"`);
-  await esperar(config.DELAYS.hardwareSwitch);
-  await ciclarSupremaRealScanD();
-  await execBestEffort(`net start "${SERVICO_HARDWARE}"`);
-  await esperar(config.DELAYS.hardwareSwitch);
+  await matarBCC();
+  await reiniciarServicoValidDuasVezes();
 }
 
 module.exports = {
   configurarAmbienteSmart,
   configurarAmbienteCaptura,
+  matarBCC,
+  pararServicoValid,
+  iniciarBCC,
+  aguardarBCCAparecer,
+  reiniciarServicoValidUmaVez,
+  reiniciarServicoValidDuasVezes,
   reiniciarServicoHardware,
   reiniciarBCC,
 };
