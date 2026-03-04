@@ -9,7 +9,7 @@ const { autoUpdater } = require("electron-updater");
 const { app, Notification, dialog } = require("electron");
 const config = require("../config/app.config");
 
-const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000; /* 4 horas */
+const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
 let periodicCheckTimer = null;
 let listenersRegistered = false;
 

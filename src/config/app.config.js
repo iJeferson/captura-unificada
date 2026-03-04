@@ -38,7 +38,7 @@ const appConfig = {
   ALLOW_INSECURE_CONNECTIONS: true,
 
   /** Largura da sidebar expandida (px) */
-  SIDEBAR_WIDTH_EXPANDED: 220,
+  SIDEBAR_WIDTH_EXPANDED: 240,
 
   /** Largura da sidebar colapsada (px) */
   SIDEBAR_WIDTH_COLLAPSED: 32,
@@ -52,7 +52,7 @@ const appConfig = {
     height: 800,
     minWidth: 900,
     minHeight: 600,
-    backgroundColor: "#0b1220",
+    backgroundColor: "#0a0a0d",
   },
 
   /** URLs dos sistemas integrados */
@@ -103,8 +103,6 @@ const appConfig = {
   DELAYS: {
     hardwareSwitch: 500,
     capturaEnv: 400,
-    /** Pausa entre desligar e ligar o Suprema RealScan-D (para o dispositivo efetivamente reiniciar) */
-    supremaPowerCycle: 1000,
   },
 
   /**

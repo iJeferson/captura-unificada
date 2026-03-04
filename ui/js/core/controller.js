@@ -275,7 +275,7 @@ const Controller = {
 
     const isCollapsed = View.toggleSidebar();
     Model.setSidebarColapsada(isCollapsed);
-    window.api.resizeSidebar(isCollapsed ? 32 : 220);
+    window.api.resizeSidebar(isCollapsed ? "collapsed" : "expanded");
   },
 
   /**

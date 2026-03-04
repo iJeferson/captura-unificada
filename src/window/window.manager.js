@@ -187,7 +187,13 @@ function criarJanela(iconPathParam) {
     connectivityService.requestCheck();
   });
 
-  const bounds = () => getContentBounds() || { x: 220, y: 0, width: 1000, height: 800 };
+  const bounds = () =>
+    getContentBounds() || {
+      x: config.SIDEBAR_WIDTH_EXPANDED,
+      y: 0,
+      width: 1000,
+      height: 800,
+    };
 
   contentView = new WebContentsView({
     webPreferences: {
@@ -210,7 +216,7 @@ function criarJanela(iconPathParam) {
   });
 
   contentView.webContents.on("did-finish-load", () => {
-    contentLoadFailureHandled = true; /* sucesso: não tratar falhas tardias */
+    contentLoadFailureHandled = true;
     if (mainWindow?.webContents && !mainWindow.webContents.isDestroyed()) {
       mainWindow.webContents.send("content-loading-state", false);
     }

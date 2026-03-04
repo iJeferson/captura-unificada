@@ -15,11 +15,11 @@ const logger = require("../utils/logger");
 const { esperar } = require("../utils/helpers");
 const execAsync = promisify(exec);
 const {
-  configurarAmbienteCaptura,
   configurarAmbienteSmart,
   matarBCC,
   pararServicoValid,
   iniciarBCC,
+  iniciarServicoValid,
   reiniciarServicoValidUmaVez,
   reiniciarServicoHardware,
   reiniciarBCC,
@@ -58,7 +58,7 @@ async function trimCookiesIfNeeded(url) {
  * Erros são logados; não propaga exceção para não exibir em tela.
  * @param {string} sistemaId
  * @param {string} url
- * @param {() => Promise<void>} [setup] - ex.: configurarAmbienteCaptura
+ * @param {() => Promise<void>} [setup] - ex.: configurarAmbienteSmart
  */
 async function openSystemContent(sistemaId, url, setup) {
   if (windowManager.getProcessandoTroca()) return;
@@ -85,8 +85,12 @@ async function openSystemContent(sistemaId, url, setup) {
  * Registra todos os handlers IPC. Deve ser chamado após a janela estar criada.
  */
 function registerIpcHandlers() {
-  ipcMain.on("resize-sidebar", (_, width) => {
+  ipcMain.on("resize-sidebar", (_, state) => {
     try {
+      const width =
+        state === "collapsed"
+          ? config.SIDEBAR_WIDTH_COLLAPSED
+          : config.SIDEBAR_WIDTH_EXPANDED;
       windowManager.setCurrentSidebarWidth(width);
       windowManager.ajustarView();
     } catch (err) {
@@ -111,15 +115,16 @@ function registerIpcHandlers() {
         iniciarBCC();
         windowManager.loadContentViewUrl(url);
         windowManager.ajustarView();
-        await esperar(4000);
+        await esperar(6000);
         await matarBCC();
-        await reiniciarServicoValidUmaVez();
+        await iniciarServicoValid();
       } catch (err) {
         logger.logError(err);
         windowManager.setProcessandoTroca(false);
         try {
           const win = windowManager.getMainWindow();
-          if (win?.webContents && !win.webContents.isDestroyed()) win.webContents.send("load-finished", null);
+          if (win?.webContents && !win.webContents.isDestroyed())
+            win.webContents.send("load-finished", null);
         } catch (_) {}
       }
     } catch (err) {
@@ -135,32 +140,17 @@ function registerIpcHandlers() {
   });
   ipcMain.handle("doc-avulsos", async () => {
     try {
-      return await openSystemContent("doc-avulsos", config.URLS.docAvulsos, configurarAmbienteCaptura);
+      await iniciarServicoValid();
+      return await openSystemContent("doc-avulsos", config.URLS.docAvulsos);
     } catch (err) {
       logger.logError(err);
     }
   });
 
-  async function garantirCapturaWebValidacaoRodando() {
-    try {
-      const { stdout } = await execAsync('tasklist /FI "IMAGENAME eq CapturaWeb.exe"');
-      if (stdout.trim().toLowerCase().includes("capturaweb.exe")) return;
-    } catch (_) {
-      /* ignora */
-    }
-    const exePath = config.CAPTURAWEB_VALIDACAO_EXE;
-    try {
-      spawn(exePath, [], { detached: true, stdio: "ignore" }).unref();
-    } catch (err) {
-      logger.logError(err);
-    }
-    await new Promise((r) => setTimeout(r, 1000)); /* tempo para o exe iniciar */
-  }
-
   ipcMain.handle("validacao", async () => {
     try {
-      await garantirCapturaWebValidacaoRodando();
-      return await openSystemContent("validacao", config.URLS.validacao, configurarAmbienteCaptura);
+      await matarBCC();
+      return await openSystemContent("validacao", config.URLS.validacao);
     } catch (err) {
       logger.logError(err);
       return undefined;

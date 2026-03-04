@@ -120,5 +120,4 @@ function initGlobalHandlers() {
 module.exports = {
   logError,
   initGlobalHandlers,
-  getLogDir: () => LOG_DIR,
 };

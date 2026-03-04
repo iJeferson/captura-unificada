@@ -73,25 +73,6 @@ async function configurarAmbienteSmart() {
 }
 
 /**
- * Aguarda o processo BCC.exe aparecer na lista de processos.
- * Faz polling a cada 150ms. Timeout de 30s se não aparecer.
- * @returns {Promise<boolean>} true se apareceu, false se timeout
- */
-async function aguardarBCCAparecer() {
-  const intervaloMs = 150;
-  const timeoutMs = 30000;
-  const inicio = Date.now();
-  while (Date.now() - inicio < timeoutMs) {
-    try {
-      const { stdout } = await execAsync('tasklist /FI "IMAGENAME eq BCC.exe"');
-      if (stdout?.toLowerCase().includes("bcc.exe")) return true;
-    } catch (_) {}
-    await esperar(intervaloMs);
-  }
-  return false;
-}
-
-/**
  * Inicia o processo BCC (best-effort).
  * Usa spawn com cwd no diretório do BCC para garantir inicialização correta.
  */
@@ -142,41 +123,19 @@ async function reiniciarServicoValidUmaVez() {
 }
 
 /**
- * Reinicia o serviço Valid duas vezes com delays configurados.
- * Os delays dão tempo ao serviço/DLL (RS_SDK) para descarregar corretamente e evitam erro RS_ExitSDK.
+ * Inicia o serviço Valid (apenas net start).
  */
-async function reiniciarServicoValidDuasVezes() {
-  const { hardwareSwitch } = config.DELAYS;
-
-  await execBestEffort(`net stop "${SERVICO_HARDWARE}"`);
-  await esperar(hardwareSwitch);
+async function iniciarServicoValid() {
   await execBestEffort(`net start "${SERVICO_HARDWARE}"`);
-  await esperar(hardwareSwitch);
-
-  await execBestEffort(`net stop "${SERVICO_HARDWARE}"`);
-  await esperar(hardwareSwitch);
-  await execBestEffort(`net start "${SERVICO_HARDWARE}"`);
-  await esperar(hardwareSwitch);
-}
-
-/**
- * Configura o ambiente para o CapturaWeb.
- * Encerra BCC (best-effort), reinicia o serviço Valid duas vezes sem delay.
- */
-async function configurarAmbienteCaptura() {
-  await matarBCC();
-  await reiniciarServicoValidDuasVezes();
 }
 
 module.exports = {
   configurarAmbienteSmart,
-  configurarAmbienteCaptura,
   matarBCC,
   pararServicoValid,
   iniciarBCC,
-  aguardarBCCAparecer,
+  iniciarServicoValid,
   reiniciarServicoValidUmaVez,
-  reiniciarServicoValidDuasVezes,
   reiniciarServicoHardware,
   reiniciarBCC,
 };

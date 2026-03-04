@@ -1,22 +1,20 @@
 <!doctype html>
-<!--
-  Template principal da UI - Captura Unificada
-  Estrutura: Sidebar (menu, tema, suporte) + Área de conteúdo (placeholder/loading)
-  IDs e classes devem corresponder a ui/js/config/constants.js
--->
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="icon" href="../icon.png" type="image/png" />
     <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css" />
     <link rel="stylesheet" href="style.css" />
     <title>Captura Unificada</title>
     <style>
-      body { background-color: #0b1220; margin: 0; padding: 0; }
+      body { background-color: #0a0a0d; margin: 0; padding: 0; }
       .app { display: flex; opacity: 0; animation: fadeIn 0.3s forwards; }
       @keyframes fadeIn { to { opacity: 1; } }
 
-      /* Estilo da versão no título */
       .version-tag {
         font-size: 10px;
         opacity: 0.5;
@@ -26,14 +24,13 @@
         letter-spacing: 0.5px;
       }
 
-      /* Estilo do Badge de Atualização Silenciosa */
       .update-badge {
-        display: none; /* Escondido por padrão */
+        display: none;
         align-items: center;
         gap: 10px;
-        background: rgba(37, 99, 235, 0.1);
-        border: 1px solid rgba(37, 99, 235, 0.3);
-        color: #60a5fa;
+        background: rgba(0, 229, 255, 0.12);
+        border: 1px solid rgba(0, 229, 255, 0.4);
+        color: #67e8f9;
         padding: 10px;
         border-radius: 8px;
         font-size: 11px;
@@ -45,23 +42,22 @@
       }
 
       .update-badge:hover {
-        background: rgba(37, 99, 235, 0.2);
-        border-color: #2563eb;
+        background: rgba(0, 229, 255, 0.2);
+        border-color: #22d3ee;
         color: #fff;
       }
 
       .update-badge i { font-size: 14px; }
 
       @keyframes pulseUpdate {
-        0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
-        70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+        0% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0.5); }
+        70% { box-shadow: 0 0 0 10px rgba(0, 229, 255, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0); }
       }
     </style>
   </head>
   <body class="dark-theme">
     <div class="app">
-      <!-- Wrapper: sidebar + botão colapsar (na borda direita do menu) -->
       <div class="sidebar-wrapper" id="sidebar-wrapper">
         <aside class="sidebar" id="sidebar">
           <div class="logo">
@@ -69,7 +65,6 @@
             <span class="logo-sub">Launcher</span>
           </div>
 
-          <!-- Aparência: tema escuro/claro com ícones identificáveis -->
           <div class="theme-section" title="Alternar entre tema escuro e claro">
             <span class="theme-label"><i class="fas fa-circle-half-stroke" aria-hidden="true"></i> Aparência</span>
             <label class="theme-toggle-wrap" aria-label="Tema: escuro (ativado) ou claro">
@@ -81,11 +76,8 @@
             </label>
           </div>
 
-          <!-- Indicador de carregamento da página (URL) – compacto e animado -->
           <div id="content-loading-bar" class="content-loading-bar hidden" aria-hidden="true" title="Página carregando">
-            <span class="content-loading-dot"></span>
-            <span class="content-loading-dot"></span>
-            <span class="content-loading-dot"></span>
+            <span class="content-loading-spinner"></span>
             <span class="content-loading-label">Carregando</span>
           </div>
 
@@ -149,6 +141,7 @@
                   <span class="dots" data-menu="menu3" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu3">
+                  <button class="btn-action btn-action-featured" data-action="reiniciar-servico-hardware"><i class="fas fa-microchip"></i>Reiniciar Serviço</button>
                   <button class="btn-reload"><i class="fas fa-redo"></i>Reiniciar página</button>
                   <button class="btn-cache"><i class="fas fa-broom"></i>Limpar cache</button>
                 </div>
@@ -210,7 +203,6 @@
         </button>
       </div>
 
-      <!-- Modal: Configurar endereço IP do Atende -->
       <div id="atende-modal" class="modal-overlay hidden">
         <div class="modal-atende">
           <h3><i class="fas fa-headset"></i> Configurar Atende</h3>
@@ -223,7 +215,6 @@
         </div>
       </div>
 
-      <!-- ÁREA DE CONTEÚDO: Aviso offline, placeholder, loading do launcher, barra de carregamento da URL e view do sistema -->
       <main class="content">
         <div id="offline-banner" class="offline-banner hidden" role="status" aria-live="polite">
           <i class="fas fa-wifi"></i>

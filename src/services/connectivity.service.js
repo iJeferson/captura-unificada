@@ -104,7 +104,6 @@ function sendIfStable(wc, online) {
       lastSent = true;
       wc.send("connectivity-change", true);
     } else if (lastSent === false && consecutiveOk === 1) {
-      /* Primeiro sucesso após offline: recheck em 2,5s para não esperar o próximo intervalo (7s). */
       fastRecheckTimerId = setTimeout(() => {
         fastRecheckTimerId = null;
         requestCheck();
@@ -148,8 +147,8 @@ function checkByPing(wc) {
   const host = CONNECTIVITY.checkHost || "8.8.8.8";
   const timeoutMs = Math.max(1000, CONNECTIVITY.timeoutMs || 5000);
   const cmd = process.platform === "win32"
-    ? `ping -n 1 -w ${timeoutMs} ${host}`   /* Windows: -w em ms */
-    : `ping -c 1 -W ${Math.round(timeoutMs / 1000)} ${host}`;  /* Linux/Mac: -W em segundos */
+    ? `ping -n 1 -w ${timeoutMs} ${host}`
+    : `ping -c 1 -W ${Math.round(timeoutMs / 1000)} ${host}`;
 
   exec(cmd, { timeout: timeoutMs + 500 }, (err, _stdout, _stderr) => {
     sendIfStable(wc, !err);

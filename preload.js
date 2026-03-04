@@ -142,9 +142,9 @@ contextBridge.exposeInMainWorld("api", {
 
   /**
    * Notifica o Main Process para redimensionar a sidebar.
-   * @param {number} width - Largura em pixels (32 colapsada, 220 expandida)
+   * @param {"collapsed"|"expanded"} state - Estado da sidebar (usa valores de app.config)
    */
-  resizeSidebar: (width) => ipcRenderer.send("resize-sidebar", width),
+  resizeSidebar: (state) => ipcRenderer.send("resize-sidebar", state),
 
   /**
    * Registra callback quando a página termina de carregar.

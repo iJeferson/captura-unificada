@@ -35,8 +35,6 @@ export const ELEMENT_IDS = Object.freeze({
   IP: "ip",
   ANYDESK: "anydesk",
   THEME_TOGGLE: "theme-toggle",
-  THEME_ICON: "theme-icon",
-  THEME_TEXT: "theme-text",
 });
 
 /** Classes CSS utilizadas */

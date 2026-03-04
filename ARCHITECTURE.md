@@ -1,93 +1,92 @@
-# Arquitetura - Captura Unificada
+# Arquitetura — Captura Unificada
 
-Documentação da estrutura do projeto e responsabilidades de cada módulo.
+## Visão geral
 
----
-
-## Visão Geral
-
-Aplicação **Electron** que funciona como launcher para sistemas integrados (CapturaWeb e SMART/CIN), com atualização automática via GitHub e integração com hardware de biometria.
+Launcher de sistemas integrados com preparação de hardware (CapturaWeb, SMART), atualização automática e interface MVC.
 
 ---
 
-## Estrutura de Diretórios
+## Estrutura
 
 ```
 captura-unificada/
-├── main.js                 # Ponto de entrada (bootstrap)
-├── preload.js              # Context Bridge (Main ↔ Renderer)
-├── icon.png                # Ícone do app
-├── package.json
-│
-├── src/                    # Main Process (Node.js)
-│   ├── config/
-│   │   └── app.config.js   # Constantes, URLs, configurações
+├── main.js                 # Bootstrap, instância única, userData
+├── preload.js              # Context Bridge (window.api)
+├── icon.png
+├── build/installer.nsh
+├── src/
+│   ├── config/app.config.js    # URLs, delays, caminhos
 │   ├── services/
-│   │   ├── updater.service.js    # Auto-update via GitHub
-│   │   ├── hardware.service.js  # Suprema, Griaule BCC, Valid
-│   │   └── system.service.js    # Hostname, IP, AnyDesk
-│   ├── ipc/
-│   │   └── ipc.handlers.js # Handlers IPC (captura, smart, etc.)
-│   ├── window/
-│   │   └── window.manager.js    # Janela principal e WebContentsView
+│   │   ├── updater.service.js      # Auto-update GitHub
+│   │   ├── hardware.service.js     # BCC, Valid, Griaule
+│   │   ├── system.service.js       # Hostname, IP, AnyDesk
+│   │   ├── atende.service.js       # Atende (IP, URL)
+│   │   └── connectivity.service.js # Online/offline
+│   ├── ipc/ipc.handlers.js    # Handlers IPC
+│   ├── window/window.manager.js    # Janela, contentView, Atende
 │   └── utils/
-│       └── helpers.js      # esperar(), obterAnydeskID()
-│
-└── ui/                     # Renderer Process (Browser)
-    ├── index.html          # Template da interface
-    ├── style.css           # Estilos
-    ├── app.js              # Ponto de entrada (inicializa Controller)
+│       ├── helpers.js       # esperar(), obterAnydeskID()
+│       └── logger.js        # Logs em arquivo
+└── ui/
+    ├── index.html
+    ├── style.css
+    ├── app.js
     └── js/
-        ├── config/
-        │   └── constants.js      # IDs, classes, textos
-        ├── core/                 # MVC
-        │   ├── model.js          # Estado da aplicação
-        │   ├── view.js           # Manipulação do DOM
-        │   └── controller.js    # Eventos e coordenação
+        ├── config/constants.js
+        └── core/            # MVC
+            ├── model.js
+            ├── view.js
+            └── controller.js
 ```
 
 ---
 
-## Main Process (Electron)
+## Fluxos de abertura
+
+| Sistema | Preparação |
+|---------|------------|
+| **CapturaWeb** | matarBCC → parar Valid → iniciar BCC → carregar URL → esperar 6s → matar BCC → iniciar Valid |
+| **SMART (CIN)** | parar Valid → iniciar BCC se não rodando → carregar URL |
+| **Doc Avulsos** | iniciar Valid (se parado) → carregar URL |
+| **Validação** | matar BCC → carregar URL |
+| **Ponto Valid, Ponto Renova** | carregar URL |
+| **Atende** | janela separada (URL configurável) |
+
+---
+
+## Main Process
 
 | Módulo | Responsabilidade |
-|--------|-------------------|
-| **main.js** | Bootstrap: instância única, userData, flags Chrome, inicialização |
-| **preload.js** | Expõe `window.api` ao Renderer via contextBridge |
-| **config/app.config** | URLs, dimensões, partition, caminhos AnyDesk |
-| **services/updater** | Verificar/baixar atualizações, notificação, quitAndInstall |
-| **services/hardware** | Configurar ambiente Captura (Suprema) e SMART (BCC) |
-| **services/system** | getSystemInfo: hostname, IP, AnyDesk, version |
-| **ipc/handlers** | Registrar handlers: captura, smart, system-info, reload, cache, resize-sidebar |
-| **window/manager** | Criar janela, contentView, ajustarView, preconnect |
-| **utils/helpers** | esperar(ms), obterAnydeskID() |
+|--------|------------------|
+| main.js | Instância única, userData, flags, inicialização |
+| preload.js | window.api via contextBridge |
+| config | URLs, dimensões, partition, caminhos |
+| updater | Verificar/baixar atualizações |
+| hardware | matarBCC, iniciarBCC, parar/iniciar/reiniciar Valid |
+| system | getSystemInfo |
+| atende | Config IP, buildAtendeUrl |
+| connectivity | Verificação de rede |
+| ipc/handlers | captura, smart, doc-avulsos, validacao, etc. |
+| window/manager | Janela, contentView, Atende |
+| helpers | esperar, obterAnydeskID |
+| logger | logError, initGlobalHandlers |
 
 ---
 
-## Renderer Process (UI)
+## Renderer (UI)
 
 | Módulo | Responsabilidade |
-|--------|-------------------|
-| **app.js** | DOMContentLoaded → Controller.init() |
-| **config/constants** | ELEMENT_IDS, CSS_CLASSES, SISTEMAS, TEMA |
-| **core/model** | Estado: carregando, sistemaAtivo, temaEscuro, infoSistema |
-| **core/view** | mostrarLoading, setMenuAtivo, toggleSidebar, aplicarTema, etc. |
-| **core/controller** | Handlers de clique, listeners IPC, coordenação Model ↔ View |
+|--------|------------------|
+| app.js | Inicializa Controller |
+| constants | ELEMENT_IDS, CSS_CLASSES, SISTEMAS |
+| model | Estado (carregando, sistemaAtivo, tema, etc.) |
+| view | DOM, loading, menu ativo, sidebar, tema |
+| controller | Cliques, IPC, coordenação |
 
 ---
 
-## Fluxo de Dados
+## Padrões
 
-```
-[Usuário clica] → Controller (handler) → Model (setState) + View (atualiza DOM)
-                                    → window.api (IPC) → Main Process
-```
-
----
-
-## Padrões Utilizados
-
-- **MVC** na camada UI (Model-View-Controller)
-- **Separação por responsabilidade** (config, services, ipc, window)
-- **Context Bridge** para comunicação segura Main ↔ Renderer
-- **Single Instance Lock** para evitar múltiplas janelas
+- **MVC** na UI
+- **Context Bridge** para Main ↔ Renderer
+- **Single Instance Lock**
