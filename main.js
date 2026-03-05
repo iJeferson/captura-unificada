@@ -68,7 +68,7 @@ if (!gotTheLock) {
     try {
       windowManager.criarJanela(ICON_PATH);
       registerIpcHandlers();
-      windowManager.preconnectUrls();
+      setImmediate(() => windowManager.preconnectUrls());
     } catch (err) {
       logger.logError(err);
     }

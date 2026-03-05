@@ -60,6 +60,7 @@ const appConfig = {
     capturaWeb: "https://cnhba-prod.si.valid.com.br/CapturaWebV2",
     capturaWebBase: "https://cnhba-prod.si.valid.com.br",
     smart: "https://nimba.dpt.ba.gov.br:8100",
+    s4ipm: "http://10.96.11.46/",
     docAvulsos: "https://cnhba.si.valid.com.br/CapturaWeb32",
     validacao: "https://cnhba.si.valid.com.br/SiteCaptura/validacao",
     pontoValid: "http://www.adpexpert.com.br",

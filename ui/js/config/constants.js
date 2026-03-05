@@ -9,6 +9,7 @@
 export const ELEMENT_IDS = Object.freeze({
   CAPTURA: "captura",
   SMART: "smart",
+  S4IPM: "s4ipm",
   DOC_AVULSOS: "doc-avulsos",
   VALIDACAO: "validacao",
   PONTO_VALID: "ponto-valid",
@@ -59,6 +60,7 @@ export const CSS_CLASSES = Object.freeze({
 export const SISTEMAS = Object.freeze({
   CAPTURA: "CapturaWeb",
   SMART: "SMART (CIN)",
+  S4IPM: "S4IPM",
   DOC_AVULSOS: "Doc Avulso (Antigo)",
   VALIDACAO: "Validação",
   PONTO_VALID: "Ponto Valid",

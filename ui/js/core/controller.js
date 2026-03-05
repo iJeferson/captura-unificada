@@ -15,6 +15,7 @@ import { ELEMENT_IDS, CSS_CLASSES, SISTEMAS } from "../config/constants.js";
 const SISTEMAS_ABERTURA = Object.freeze({
   "captura": { abrir: () => window.api.abrirCaptura(), nome: SISTEMAS.CAPTURA },
   "smart": { abrir: () => window.api.abrirSmart(), nome: SISTEMAS.SMART },
+  "s4ipm": { abrir: () => window.api.abrirS4ipm(), nome: SISTEMAS.S4IPM },
   "doc-avulsos": { abrir: () => window.api.abrirDocAvulsos(), nome: SISTEMAS.DOC_AVULSOS },
   "validacao": { abrir: () => window.api.abrirValidacao(), nome: SISTEMAS.VALIDACAO },
   "ponto-valid": { abrir: () => window.api.abrirPontoValid(), nome: SISTEMAS.PONTO_VALID },
@@ -70,6 +71,7 @@ const Controller = {
   registrarHandlers() {
     document.getElementById(ELEMENT_IDS.CAPTURA)?.addEventListener("click", (e) => this.onCapturaClick(e));
     document.getElementById(ELEMENT_IDS.SMART)?.addEventListener("click", (e) => this.onSmartClick(e));
+    document.getElementById(ELEMENT_IDS.S4IPM)?.addEventListener("click", (e) => this.onS4ipmClick(e));
     document.getElementById(ELEMENT_IDS.DOC_AVULSOS)?.addEventListener("click", (e) => this.onDocAvulsosClick(e));
     document.getElementById(ELEMENT_IDS.VALIDACAO)?.addEventListener("click", (e) => this.onValidacaoClick(e));
     document.getElementById(ELEMENT_IDS.PONTO_VALID)?.addEventListener("click", (e) => this.onPontoValidClick(e));
@@ -204,6 +206,7 @@ const Controller = {
 
   onCapturaClick(e) { return this.abrirSistema("captura", e); },
   onSmartClick(e) { return this.abrirSistema("smart", e); },
+  onS4ipmClick(e) { return this.abrirSistema("s4ipm", e); },
   onDocAvulsosClick(e) { return this.abrirSistema("doc-avulsos", e); },
   onValidacaoClick(e) { return this.abrirSistema("validacao", e); },
   onPontoValidClick(e) { return this.abrirSistema("ponto-valid", e); },

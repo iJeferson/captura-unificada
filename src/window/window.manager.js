@@ -18,6 +18,7 @@ const connectivityService = require("../services/connectivity.service");
 const SISTEMA_LABELS = {
   "captura": "CapturaWeb",
   "smart": "SMART (CIN)",
+  "s4ipm": "S4IPM",
   "atende": "Atende",
   "validacao": "Validação",
   "doc-avulsos": "Doc Avulso (Antigo)",
@@ -182,9 +183,11 @@ function criarJanela(iconPathParam) {
     updateMainWindowTitle();
     mainWindow.maximize();
     mainWindow.show();
-    initUpdater({ mainWindow, iconPath, getMainWindow: getMainWindowRef });
-    connectivityService.start(getMainWindowRef);
-    connectivityService.requestCheck();
+    setImmediate(() => {
+      initUpdater({ mainWindow, iconPath, getMainWindow: getMainWindowRef });
+      connectivityService.start(getMainWindowRef);
+      connectivityService.requestCheck();
+    });
   });
 
   const bounds = () =>
@@ -321,6 +324,7 @@ function preconnectUrls() {
     session.preconnect({ url: config.URLS.capturaWebBase });
     session.preconnect({ url: "https://cnhba.si.valid.com.br" });
     session.preconnect({ url: config.URLS.smart });
+    session.preconnect({ url: config.URLS.s4ipm });
     session.preconnect({ url: config.URLS.pontoValid });
     session.preconnect({ url: config.URLS.pontoRenova });
   }

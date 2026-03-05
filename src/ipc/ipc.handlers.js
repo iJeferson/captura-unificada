@@ -138,6 +138,13 @@ function registerIpcHandlers() {
       logger.logError(err);
     }
   });
+  ipcMain.handle("s4ipm", async () => {
+    try {
+      return await openSystemContent("s4ipm", config.URLS.s4ipm);
+    } catch (err) {
+      logger.logError(err);
+    }
+  });
   ipcMain.handle("doc-avulsos", async () => {
     try {
       await iniciarServicoValid();

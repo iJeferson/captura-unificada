@@ -24,6 +24,12 @@ contextBridge.exposeInMainWorld("api", {
   abrirSmart: () => ipcRenderer.invoke("smart"),
 
   /**
+   * Abre S4IPM.
+   * @returns {Promise<void>}
+   */
+  abrirS4ipm: () => ipcRenderer.invoke("s4ipm"),
+
+  /**
    * Abre Doc Avulsos.
    * @returns {Promise<void>}
    */

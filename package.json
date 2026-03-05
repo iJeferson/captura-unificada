@@ -1,7 +1,7 @@
 {
   "name": "captura-unificada",
   "productName": "Captura Unificada",
-  "version": "1.0.21",
+  "version": "1.0.23",
   "description": "Launcher de sistemas integrados",
   "main": "main.js",
   "author": "Jeferson Oliveira",
@@ -40,15 +40,21 @@
       "**/*",
       "!dist/*",
       "!.vscode/*",
+      "!.git/*",
+      "!ARCHITECTURE.md",
+      "!README.md",
+      "!*.pdf",
       "!node_modules/*{test,tests,example,examples,*.md,*.html,*.js.map,*.ts}*"
     ],
+    "asarUnpack": [],
     "win": {
       "target": [
         "nsis"
       ],
       "icon": "icon.png",
       "executableName": "Captura Unificada",
-      "artifactName": "Captura-Unificada-Setup.exe"
+      "artifactName": "Captura-Unificada-Setup.exe",
+      "compression": "maximum"
     },
     "nsis": {
       "oneClick": false,
