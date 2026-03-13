@@ -57,7 +57,7 @@ const appConfig = {
 
   /** URLs dos sistemas integrados */
   URLS: {
-    capturaWeb: "https://cnhba-prod.si.valid.com.br/CapturaWebV2",
+    capturaWeb: "https://cnhba-prod.si.valid.com.br/CapturaWeb",
     capturaWebBase: "https://cnhba-prod.si.valid.com.br",
     smart: "https://nimba.dpt.ba.gov.br:8100",
     s4ipm: "http://10.96.11.46/",
