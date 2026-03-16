@@ -57,7 +57,7 @@ const appConfig = {
 
   /** URLs dos sistemas integrados */
   URLS: {
-    capturaWeb: "https://cnhba-prod.si.valid.com.br/CapturaWebV2",
+    capturaWeb: "https://cnhba-prod.si.valid.com.br/CapturaWeb",
     capturaWebBase: "https://cnhba-prod.si.valid.com.br",
     smart: "https://nimba.dpt.ba.gov.br:8100",
     s4ipm: "http://10.96.11.46/",
@@ -93,6 +93,9 @@ const appConfig = {
   /** Partition exclusiva do Atende - mantém cache e estado da página separados */
   SESSION_PARTITION_ATENDE: "persist:atende",
 
+  /** Partition exclusiva do Ponto Renova - janela separada com sessão isolada */
+  SESSION_PARTITION_PONTO_RENOVA: "persist:ponto-renova",
+
   /** Caminhos para leitura do ID do AnyDesk (APPDATA primeiro — não exige admin) */
   ANYDESK_PATHS: [
     path.join(process.env.APPDATA || "", "AnyDesk", "system.conf"),
@@ -118,10 +121,10 @@ const appConfig = {
 
   /**
    * Serviços Griaule a parar ao abrir CapturaWeb (evita conflito com Suprema).
-   * GBS BCC Service hospeda BCC e Capturar Digital. Tenta cada nome (net stop).
-   * Se não funcionar, verifique o nome exato em services.msc e adicione aqui.
+   * Vazio: usuários sem GBS BCC Service não geram logs de erro desnecessários.
+   * Se tiver Griaule, adicione o nome exato (ex.: "GBS BCC Service") em services.msc.
    */
-  SERVICOS_GRIAULE_PARAR: ["GBS BCC Service"],
+  SERVICOS_GRIAULE_PARAR: [],
 
   /**
    * Verificação de conectividade (aviso offline).

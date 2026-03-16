@@ -210,7 +210,21 @@ const Controller = {
   onDocAvulsosClick(e) { return this.abrirSistema("doc-avulsos", e); },
   onValidacaoClick(e) { return this.abrirSistema("validacao", e); },
   onPontoValidClick(e) { return this.abrirSistema("ponto-valid", e); },
-  onPontoRenovaClick(e) { return this.abrirSistema("ponto-renova", e); },
+  onPontoRenovaClick(e) { return this.onPontoRenovaClickHandler(e); },
+
+  /**
+   * Handler: clique no botão Ponto Renova.
+   * Abre no navegador (Chrome) — funciona; API retorna 403 no Electron.
+   */
+  async onPontoRenovaClickHandler(e) {
+    if (this.bloquearSeCarregando()) return;
+    if (!Model.getConectado()) {
+      View.mostrarPlaceholderComOffline();
+      return;
+    }
+    e.stopPropagation();
+    await window.api.abrirPontoRenovaNoNavegador();
+  },
 
   /**
    * Handler: clique no botão Atende.
@@ -318,8 +332,13 @@ const Controller = {
   onReloadClick(e) {
     if (this.bloquearSeCarregando()) return;
 
-    if (e.target?.closest?.("[data-reload-target]")?.dataset?.reloadTarget === "atende") {
+    const target = e.target?.closest?.("[data-reload-target]")?.dataset?.reloadTarget;
+    if (target === "atende") {
       window.api.reloadAtendeWindow();
+      return;
+    }
+    if (target === "ponto-renova") {
+      window.api.reloadPontoRenovaWindow();
       return;
     }
 
@@ -331,14 +350,19 @@ const Controller = {
 
   /**
    * Handler: clique em "Limpar cache".
-   * Não afeta o Atende (mantém cache e estado).
+   * Não afeta o Atende. Se data-cache-target=ponto-renova, limpa só a janela do Ponto Renova.
    */
-  async onCacheClick() {
+  async onCacheClick(e) {
     if (this.bloquearSeCarregando()) return;
 
+    const target = e.target?.closest?.("[data-cache-target]")?.dataset?.cacheTarget;
     Model.setCarregando(true);
     View.mostrarLoading(true, SISTEMAS.CACHE);
-    await window.api.clearCache();
+    if (target === "ponto-renova") {
+      await window.api.clearPontoRenovaCache();
+    } else {
+      await window.api.clearCache();
+    }
     Model.setCarregando(false);
     View.mostrarLoading(false);
   },
@@ -357,6 +381,8 @@ const Controller = {
       "reiniciar-validacao": () => window.api.reiniciarValidacao(),
       "reiniciar-servico-hardware": () => window.api.reiniciarServicoHardware(),
       "reiniciar-bcc": () => window.api.reiniciarBCC(),
+      "abrir-ponto-renova-navegador": () => window.api.abrirPontoRenovaNoNavegador(),
+      "abrir-ponto-renova-janela": () => window.api.abrirPontoRenova(),
     };
     const fn = actions[action];
     if (fn) await fn();

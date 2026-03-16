@@ -54,6 +54,12 @@ contextBridge.exposeInMainWorld("api", {
   abrirPontoRenova: () => ipcRenderer.invoke("ponto-renova"),
 
   /**
+   * Abre Ponto Renova no navegador padrão do sistema (Chrome, etc.).
+   * @returns {Promise<void>}
+   */
+  abrirPontoRenovaNoNavegador: () => ipcRenderer.invoke("ponto-renova-abrir-navegador"),
+
+  /**
    * Abre Atende (URL do arquivo no Desktop).
    * @returns {Promise<{needsConfig: boolean}>} needsConfig=true se IP não configurado
    */
@@ -97,6 +103,11 @@ contextBridge.exposeInMainWorld("api", {
   reloadAtendeWindow: () => ipcRenderer.invoke("reload-atende-window"),
 
   /**
+   * Recarrega a janela do Ponto Renova.
+   */
+  reloadPontoRenovaWindow: () => ipcRenderer.invoke("reload-ponto-renova-window"),
+
+  /**
    * Registra callback quando o carregamento da página (URL) dentro do launcher inicia ou termina.
    * @param {Function} callback - Recebe (loading: boolean) true = carregando, false = terminou
    */
@@ -123,6 +134,12 @@ contextBridge.exposeInMainWorld("api", {
    * @returns {Promise<boolean>} true se sucesso
    */
   clearCache: () => ipcRenderer.invoke("clear-cache"),
+
+  /**
+   * Limpa o cache da sessão do Ponto Renova (persist:ponto-renova).
+   * @returns {Promise<boolean>}
+   */
+  clearPontoRenovaCache: () => ipcRenderer.invoke("clear-ponto-renova-cache"),
 
   /**
    * Reiniciar Validação: mata CapturaWeb.exe (externo) e abre novamente.

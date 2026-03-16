@@ -7,7 +7,7 @@
  * @module window/window.manager
  */
 
-const { app, BrowserWindow, WebContentsView } = require("electron");
+const { app, BrowserWindow, WebContentsView, session } = require("electron");
 const path = require("path");
 const config = require("../config/app.config");
 const logger = require("../utils/logger");
@@ -29,6 +29,7 @@ const SISTEMA_LABELS = {
 let mainWindow = null;
 let contentView = null;
 let atendeWindow = null;
+let pontoRenovaWindow = null;
 let iconPath = null;
 let sistemaIniciado = false;
 let processandoTroca = false;
@@ -150,6 +151,84 @@ function openOrFocusAtendeWindow(url) {
   return { alreadyOpen: false };
 }
 
+const CHROME_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+function configurarSessaoPontoRenova() {
+  const s = session.fromPartition(config.SESSION_PARTITION_PONTO_RENOVA);
+  s.setUserAgent(CHROME_USER_AGENT);
+  s.webRequest.onBeforeSendHeaders(
+    { urls: ["*://*.pontomais.com.br/*", "*://*.renova.net.br/*"] },
+    (details, callback) => {
+      const headers = { ...details.requestHeaders };
+      headers["User-Agent"] = CHROME_USER_AGENT;
+      headers["Sec-Ch-Ua"] = '"Chromium";v="131", "Google Chrome";v="131", "Not_A Brand";v="24"';
+      headers["Sec-Ch-Ua-Mobile"] = "?0";
+      headers["Sec-Ch-Ua-Platform"] = '"Windows"';
+      callback({ requestHeaders: headers });
+    }
+  );
+  s.setPermissionRequestHandler((_wc, permission, callback, details) => {
+    const url = details?.requestingUrl || "";
+    callback(permission === "geolocation" && url.includes("pontomais.com.br"));
+  });
+  s.setPermissionCheckHandler((wc, permission) =>
+    permission === "geolocation" && (wc?.getURL?.() || "").includes("pontomais.com.br")
+  );
+}
+
+/**
+ * Abre o Ponto Renova em janela separada (sessão isolada, headers Chrome).
+ * Evita 403 da API que ocorre no contentView compartilhado.
+ */
+function openOrFocusPontoRenovaWindow() {
+  const url = config.URLS.pontoRenova;
+  if (pontoRenovaWindow && !pontoRenovaWindow.isDestroyed()) {
+    pontoRenovaWindow.show();
+    pontoRenovaWindow.focus();
+    const wc = mainWindow?.webContents;
+    if (wc && !wc.isDestroyed()) wc.send("load-finished", "ponto-renova");
+    return;
+  }
+  configurarSessaoPontoRenova();
+  const version = app.getVersion();
+  pontoRenovaWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    minWidth: 800,
+    minHeight: 600,
+    title: `Captura Unificada v${version} — Ponto Renova`,
+    icon: iconPath || path.join(__dirname, "..", "..", "icon.png"),
+    backgroundColor: config.WINDOW.backgroundColor,
+    autoHideMenuBar: true,
+    webPreferences: {
+      partition: config.SESSION_PARTITION_PONTO_RENOVA,
+      backgroundThrottling: false,
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+    },
+  });
+  pontoRenovaWindow.webContents.setWindowOpenHandler(({ url: u }) => {
+    pontoRenovaWindow.loadURL(u);
+    return { action: "deny" };
+  });
+  pontoRenovaWindow.webContents.on("did-finish-load", () => {
+    if (pontoRenovaWindow && !pontoRenovaWindow.isDestroyed()) {
+      pontoRenovaWindow.setTitle(`Captura Unificada v${version} — Ponto Renova`);
+    }
+  });
+  pontoRenovaWindow.loadURL(url).catch((err) => logger.logError(err));
+  pontoRenovaWindow.on("closed", () => {
+    pontoRenovaWindow = null;
+  });
+  pontoRenovaWindow.once("ready-to-show", () => {
+    pontoRenovaWindow.show();
+    const wc = mainWindow?.webContents;
+    if (wc && !wc.isDestroyed()) wc.send("load-finished", "ponto-renova");
+  });
+}
+
 function criarJanela(iconPathParam) {
   iconPath = iconPathParam;
   const version = app.getVersion();
@@ -207,6 +286,37 @@ function criarJanela(iconPathParam) {
       contextIsolation: true,
       sandbox: true,
     },
+  });
+
+  const capturaSession = session.fromPartition(config.SESSION_PARTITION);
+  const chromeUserAgent =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+  capturaSession.setUserAgent(chromeUserAgent);
+  capturaSession.webRequest.onBeforeSendHeaders(
+    { urls: ["*://*.pontomais.com.br/*", "*://*.renova.net.br/*"] },
+    (details, callback) => {
+      const headers = { ...details.requestHeaders };
+      headers["User-Agent"] = chromeUserAgent;
+      headers["Sec-Ch-Ua"] = '"Chromium";v="131", "Google Chrome";v="131", "Not_A Brand";v="24"';
+      headers["Sec-Ch-Ua-Mobile"] = "?0";
+      headers["Sec-Ch-Ua-Platform"] = '"Windows"';
+      callback({ requestHeaders: headers });
+    }
+  );
+  const allowGeolocationFor = (url) => typeof url === "string" && url.includes("pontomais.com.br");
+  capturaSession.setPermissionRequestHandler((_webContents, permission, callback, details) => {
+    if (permission === "geolocation" && allowGeolocationFor(details?.requestingUrl)) {
+      callback(true);
+    } else {
+      callback(false);
+    }
+  });
+  capturaSession.setPermissionCheckHandler((webContents, permission, _checkingDetails) => {
+    if (permission === "geolocation") {
+      const url = webContents?.getURL?.() || "";
+      return allowGeolocationFor(url);
+    }
+    return false;
   });
 
   let contentLoadFailureHandled = false;
@@ -339,6 +449,7 @@ module.exports = {
   ajustarView,
   preconnectUrls,
   openOrFocusAtendeWindow,
+  openOrFocusPontoRenovaWindow,
   requestConnectivityCheck: () => connectivityService.requestCheck(),
   getMainWindow: getMainWindowRef,
   getContentView: () => contentView,
@@ -347,6 +458,11 @@ module.exports = {
   reloadAtendeWindow: () => {
     if (atendeWindow && !atendeWindow.isDestroyed() && atendeWindow.webContents) {
       atendeWindow.webContents.reload();
+    }
+  },
+  reloadPontoRenovaWindow: () => {
+    if (pontoRenovaWindow && !pontoRenovaWindow.isDestroyed() && pontoRenovaWindow.webContents) {
+      pontoRenovaWindow.webContents.reload();
     }
   },
   getSistemaIniciado: () => sistemaIniciado,
