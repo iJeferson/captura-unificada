@@ -18,6 +18,7 @@ const { registerIpcHandlers } = require("./src/ipc/ipc.handlers");
 logger.initGlobalHandlers();
 
 app.setName(config.APP_NAME || "Captura Unificada");
+process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = "true";
 process.env.V8_CACHE_OPTIONS = "code";
 const gotTheLock = app.requestSingleInstanceLock();
 
@@ -59,9 +60,16 @@ if (!gotTheLock) {
   app.commandLine.appendSwitch("enable-zero-copy");
   app.commandLine.appendSwitch("enable-inline-resource-suggesting");
   app.commandLine.appendSwitch("disk-cache-size", "52428800");
+  app.commandLine.appendSwitch("disable-features",
+    "PrivateNetworkAccessRespectPreflightResults," +
+    "PrivateNetworkAccessSendPreflights," +
+    "BlockInsecurePrivateNetworkRequests," +
+    "PrivateNetworkAccessForNavigations," +
+    "PrivateNetworkAccessPermissionPrompt," +
+    "PrivateNetworkAccessForWorkers"
+  );
   if (config.ALLOW_INSECURE_CONNECTIONS) {
     app.commandLine.appendSwitch("ignore-certificate-errors");
-    app.commandLine.appendSwitch("disable-web-security");
   }
 
   app.whenReady().then(() => {

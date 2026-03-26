@@ -2,7 +2,7 @@
 
 /**
  * Serviço de hardware: CapturaWeb (Suprema), SMART (Griaule BCC), serviço Valid.
- * Nenhuma operação exige administrador: net start/stop e PnP são best-effort (tentativa, log em falha, continua).
+ * O computador tem permissão para parar/iniciar serviços.
  * @module services/hardware.service
  */
 
@@ -15,7 +15,7 @@ const logger = require("../utils/logger");
 
 const execAsync = promisify(exec);
 
-const SERVICO_HARDWARE = "Valid-ServicoIntegracaoHardware";
+const SERVICOS_VALID = config.SERVICOS_VALID || ["Valid-ServicoIntegracaoHardware"];
 
 /**
  * Verifica se um serviço Windows está rodando (STATE 4 = RUNNING).
@@ -25,7 +25,7 @@ const SERVICO_HARDWARE = "Valid-ServicoIntegracaoHardware";
 async function servicoEstaRodando(nome) {
   try {
     const { stdout } = await execAsync(`sc query "${nome}"`);
-    return /STATE\s*:\s*4\s/.test(stdout); // 4 = RUNNING
+    return /STATE\s*:\s*4\s/.test(stdout);
   } catch {
     return false;
   }
@@ -46,71 +46,107 @@ async function processoEstaRodando(imagem) {
 }
 
 /**
- * Executa um comando e ignora erros (ex.: acesso negado sem admin). Apenas registra no log.
- * @param {string} cmd
- * @returns {Promise<void>}
+ * Detecta se o erro de um comando é esperado e não deve ser logado.
+ * Ex.: processo não encontrado ao matar, serviço já parado ao parar, serviço já iniciado ao iniciar.
  */
-async function execBestEffort(cmd) {
+function isErroEsperado(cmd, err) {
+  const msg = ((err.message || "") + " " + (err.stderr || "")).toLowerCase();
+  const c = cmd.toLowerCase();
+  if (msg.includes("1060") || msg.includes("does not exist") || msg.includes("não existe")) return true;
+  if (c.includes("taskkill") && (msg.includes("foi encontrado") || msg.includes("not found") || err.code === 128)) return true;
+  if (c.includes("net stop") && (msg.includes("3521") || msg.includes("não foi iniciado") || msg.includes("not started"))) return true;
+  if (c.includes("net start") && (msg.includes("2182") || msg.includes("já foi iniciado") || msg.includes("already been started"))) return true;
+  return false;
+}
+
+/**
+ * Executa um comando e aguarda completar.
+ * Só loga erros inesperados (ignora serviço já parado, processo não encontrado, etc.).
+ * @param {string} cmd
+ */
+async function run(cmd) {
   try {
     await execAsync(cmd);
   } catch (err) {
-    logger.logError(err);
+    if (!isErroEsperado(cmd, err)) logger.logError(err);
   }
 }
 
 /**
- * Reinicia o serviço de hardware Valid (net stop + net start).
- * Best-effort: não exige admin; se falhar, apenas registra e continua.
- * Só executa net stop se o serviço estiver rodando (evita log desnecessário).
+ * Aguarda até o BCC.exe aparecer na lista de processos.
+ * Verifica a cada 500ms, com timeout máximo de 10s.
+ * @returns {Promise<boolean>} true se o BCC apareceu, false se timeout.
+ */
+async function aguardarBCCAbrir() {
+  const maxMs = 10000;
+  const intervalo = 200;
+  let esperado = 0;
+  while (esperado < maxMs) {
+    if (await processoEstaRodando("BCC.exe")) return true;
+    await esperar(intervalo);
+    esperado += intervalo;
+  }
+  return false;
+}
+
+/**
+ * Aguarda até o BCC.exe desaparecer da lista de processos.
+ * Verifica a cada 200ms, com timeout máximo de 10s.
+ * @returns {Promise<boolean>} true se o BCC fechou, false se timeout.
+ */
+async function aguardarBCCFechar() {
+  const maxMs = 10000;
+  const intervalo = 200;
+  let esperado = 0;
+  while (esperado < maxMs) {
+    if (!(await processoEstaRodando("BCC.exe"))) return true;
+    await esperar(intervalo);
+    esperado += intervalo;
+  }
+  return false;
+}
+
+/**
+ * Reinicia todos os serviços Valid de hardware (net stop + net start).
+ * Executa em todos sem pré-verificação — erros esperados são filtrados silenciosamente.
  */
 async function reiniciarServicoHardware() {
-  if (await servicoEstaRodando(SERVICO_HARDWARE)) {
-    await execBestEffort(`net stop "${SERVICO_HARDWARE}"`);
+  for (const svc of SERVICOS_VALID) {
+    await run(`net stop "${svc}"`);
   }
-  await execBestEffort(`net start "${SERVICO_HARDWARE}"`);
+  for (const svc of SERVICOS_VALID) {
+    await run(`net start "${svc}"`);
+  }
 }
 
 /**
  * Mata o processo BCC e inicia novamente (SMART CIN).
- * Best-effort: taskkill pode falhar sem admin em processos de outro usuário.
- * Só executa taskkill se o BCC estiver rodando (evita log desnecessário).
+ * Só executa taskkill se o BCC estiver rodando.
  */
 async function reiniciarBCC() {
   if (await processoEstaRodando("BCC.exe")) {
-    await execBestEffort("taskkill /F /IM BCC.exe /T");
+    await run("taskkill /F /IM BCC.exe /T");
   }
   await esperar(config.DELAYS.hardwareSwitch);
-  try {
-    exec(`start "" "${config.BCC_EXE}"`, (err) => { if (err) logger.logError(err); });
-  } catch (err) {
-    logger.logError(err);
-  }
+  iniciarBCC();
   await esperar(config.DELAYS.capturaEnv);
 }
 
 /**
  * Configura o ambiente para o sistema SMART (CIN).
- * Para o serviço Valid: net stop best-effort; inicia BCC se não estiver rodando.
- * Só executa net stop se o serviço estiver rodando (evita log desnecessário).
+ * Para todos os serviços Valid; inicia BCC se não estiver rodando e aguarda estar pronto.
  */
 async function configurarAmbienteSmart() {
-  if (await servicoEstaRodando(SERVICO_HARDWARE)) {
-    await execBestEffort(`net stop "${SERVICO_HARDWARE}"`);
+  for (const svc of SERVICOS_VALID) {
+    await run(`net stop "${svc}"`);
   }
-  const checkBcc = execAsync('tasklist /FI "IMAGENAME eq BCC.exe"').catch(() => ({ stdout: "" }));
-  await esperar(config.DELAYS.hardwareSwitch);
-  const { stdout } = await checkBcc;
-  if (!stdout?.includes("BCC.exe")) {
-    try {
-      exec(`start "" "${config.BCC_EXE}"`, (e) => { if (e) logger.logError(e); });
-    } catch (e) {
-      logger.logError(e);
-    }
+  if (!(await processoEstaRodando("BCC.exe"))) {
+    iniciarBCC();
   }
 }
 
 /**
- * Inicia o processo BCC (best-effort).
+ * Inicia o processo BCC.
  * Usa spawn com cwd no diretório do BCC para garantir inicialização correta.
  */
 function iniciarBCC() {
@@ -132,58 +168,45 @@ function iniciarBCC() {
 }
 
 /**
- * Para o serviço Valid (libera hardware para o BCC iniciar, igual ao fluxo SMART).
- * Só executa net stop se o serviço estiver rodando (evita log desnecessário).
+ * Para todos os serviços Valid (libera hardware para o BCC iniciar).
+ * Executa em todos sem pré-verificação.
  */
 async function pararServicoValid() {
-  if (await servicoEstaRodando(SERVICO_HARDWARE)) {
-    await execBestEffort(`net stop "${SERVICO_HARDWARE}"`);
+  for (const svc of SERVICOS_VALID) {
+    await run(`net stop "${svc}"`);
   }
-  await esperar(config.DELAYS.hardwareSwitch);
 }
 
 /**
- * Para os serviços Griaule (GBS BCC Service, etc.) e mata o processo BCC.
+ * Para os serviços Griaule e mata o processo BCC.
  * Evita conflito com Suprema ao abrir CapturaWeb.
- * Só executa net stop/taskkill se o serviço/processo estiver rodando (evita log desnecessário).
  */
 async function matarBCC() {
   const servicos = config.SERVICOS_GRIAULE_PARAR || [];
   for (const nome of servicos) {
-    if (await servicoEstaRodando(nome)) {
-      await execBestEffort(`net stop "${nome}"`);
-    }
+    await run(`net stop "${nome}"`);
   }
-  if (await processoEstaRodando("BCC.exe")) {
-    await execBestEffort("taskkill /F /IM BCC.exe /T");
-  }
+  await run("taskkill /F /IM BCC.exe /T");
 }
 
 /**
- * Reinicia o serviço Valid uma vez sem delay.
- * Só executa net stop se o serviço estiver rodando (evita log desnecessário).
- */
-async function reiniciarServicoValidUmaVez() {
-  if (await servicoEstaRodando(SERVICO_HARDWARE)) {
-    await execBestEffort(`net stop "${SERVICO_HARDWARE}"`);
-  }
-  await execBestEffort(`net start "${SERVICO_HARDWARE}"`);
-}
-
-/**
- * Inicia o serviço Valid (apenas net start).
+ * Inicia todos os serviços Valid.
+ * Executa em todos sem pré-verificação.
  */
 async function iniciarServicoValid() {
-  await execBestEffort(`net start "${SERVICO_HARDWARE}"`);
+  for (const svc of SERVICOS_VALID) {
+    await run(`net start "${svc}"`);
+  }
 }
 
 module.exports = {
   configurarAmbienteSmart,
+  aguardarBCCAbrir,
+  aguardarBCCFechar,
   matarBCC,
   pararServicoValid,
   iniciarBCC,
   iniciarServicoValid,
-  reiniciarServicoValidUmaVez,
   reiniciarServicoHardware,
   reiniciarBCC,
 };

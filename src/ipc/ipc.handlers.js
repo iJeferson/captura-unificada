@@ -17,11 +17,12 @@ const { esperar } = require("../utils/helpers");
 const execAsync = promisify(exec);
 const {
   configurarAmbienteSmart,
+  aguardarBCCAbrir,
+  aguardarBCCFechar,
   matarBCC,
   pararServicoValid,
   iniciarBCC,
   iniciarServicoValid,
-  reiniciarServicoValidUmaVez,
   reiniciarServicoHardware,
   reiniciarBCC,
 } = require("../services/hardware.service");
@@ -62,7 +63,13 @@ async function trimCookiesIfNeeded(url) {
  * @param {() => Promise<void>} [setup] - ex.: configurarAmbienteSmart
  */
 async function openSystemContent(sistemaId, url, setup) {
-  if (windowManager.getProcessandoTroca()) return;
+  if (windowManager.getProcessandoTroca()) {
+    try {
+      const win = windowManager.getMainWindow();
+      if (win?.webContents && !win.webContents.isDestroyed()) win.webContents.send("load-finished", null);
+    } catch (_) {}
+    return;
+  }
   windowManager.setProcessandoTroca(true);
   windowManager.setSistemaIniciado(true);
   windowManager.setCurrentSistema(sistemaId);
@@ -104,7 +111,13 @@ function registerIpcHandlers() {
   ipcMain.handle("captura", async () => {
     try {
       const url = config.URLS.capturaWeb;
-      if (windowManager.getProcessandoTroca()) return;
+      if (windowManager.getProcessandoTroca()) {
+        try {
+          const win = windowManager.getMainWindow();
+          if (win?.webContents && !win.webContents.isDestroyed()) win.webContents.send("load-finished", null);
+        } catch (_) {}
+        return;
+      }
       windowManager.setProcessandoTroca(true);
       windowManager.setSistemaIniciado(true);
       windowManager.setCurrentSistema("captura");
@@ -112,13 +125,20 @@ function registerIpcHandlers() {
       try {
         await trimCookiesIfNeeded(url);
         await matarBCC();
-        await pararServicoValid();
+        await aguardarBCCFechar();
         iniciarBCC();
+        await aguardarBCCAbrir();
+        await esperar(4000);
+        await matarBCC();
+        await aguardarBCCFechar();
+        iniciarBCC();
+        await aguardarBCCAbrir();
+        await esperar(4000);
+        await matarBCC();
+        await aguardarBCCFechar();
+        reiniciarServicoHardware().catch((err) => logger.logError(err));
         windowManager.loadContentViewUrl(url);
         windowManager.ajustarView();
-        await esperar(6000);
-        await matarBCC();
-        await iniciarServicoValid();
       } catch (err) {
         logger.logError(err);
         windowManager.setProcessandoTroca(false);
@@ -291,10 +311,14 @@ function registerIpcHandlers() {
 
   /**
    * Handler: apply-update-now
-   * Encerra o app e aplica a atualização baixada.
+   * Chamado pelo renderer após o usuário confirmar no modal customizado.
+   * Envia sinal de loading e executa instalação silenciosa com reinício automático.
    */
-  ipcMain.handle("apply-update-now", () => {
-    autoUpdater.quitAndInstall();
+  ipcMain.handle("apply-update-now", async () => {
+    const win = windowManager.getMainWindow();
+    if (win && !win.isDestroyed()) win.webContents.send("update-installing");
+    await esperar(800);
+    autoUpdater.quitAndInstall(true, true);
   });
 
   /**

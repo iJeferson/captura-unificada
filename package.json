@@ -1,14 +1,17 @@
 {
   "name": "captura-unificada",
   "productName": "Captura Unificada",
-  "version": "1.0.25",
+  "version": "1.0.30",
   "description": "Launcher de sistemas integrados",
   "main": "main.js",
   "author": "Jeferson Oliveira",
   "copyright": "©Jeferson Oliveira - 2026",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win --x64",
+    "dev": "electron . --enable-logging",
+    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
+    "prebuild": "npm run clean",
+    "build": "node --no-deprecation node_modules/electron-builder/out/cli/cli.js --win --x64",
     "postinstall": "node scripts/copy-fontawesome.js"
   },
   "engines": {
@@ -37,16 +40,14 @@
       }
     ],
     "files": [
-      "**/*",
-      "!dist/*",
-      "!.vscode/*",
-      "!.git/*",
-      "!ARCHITECTURE.md",
-      "!README.md",
-      "!*.pdf",
-      "!node_modules/*{test,tests,example,examples,*.md,*.html,*.js.map,*.ts}*"
+      "main.js",
+      "preload.js",
+      "icon.png",
+      "src/**/*",
+      "ui/**/*",
+      "!**/*.md",
+      "!**/*.map"
     ],
-    "asarUnpack": [],
     "win": {
       "target": [
         "nsis"

@@ -752,11 +752,12 @@ body.light-theme .offline-banner {
 }
 body.light-theme .offline-banner i { color: var(--accent); }
 
-#loading { 
-    z-index: 999; 
+#loading {
+    z-index: 999;
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     background: rgba(10, 10, 13, 0.85);
+    pointer-events: none;
 }
 body.light-theme #loading { background: rgba(244, 244, 245, 0.9); }
 

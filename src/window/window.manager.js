@@ -7,7 +7,7 @@
  * @module window/window.manager
  */
 
-const { app, BrowserWindow, WebContentsView, session } = require("electron");
+const { app, BrowserWindow, WebContentsView, session, Menu } = require("electron");
 const path = require("path");
 const config = require("../config/app.config");
 const logger = require("../utils/logger");
@@ -33,8 +33,13 @@ let pontoRenovaWindow = null;
 let iconPath = null;
 let sistemaIniciado = false;
 let processandoTroca = false;
+let processandoTrocaTimer = null;
 let currentSidebarWidth = config.SIDEBAR_WIDTH_EXPANDED;
 let currentSistema = null;
+/** URL da última página carregada no contentView (para restauração após queda de rede). */
+let lastLoadedUrl = null;
+/** Sistema que estava ativo antes de uma falha de rede (para restauração). */
+let sistemaAntesDaQueda = null;
 
 function getContentBounds() {
   if (!mainWindow) return null;
@@ -54,9 +59,18 @@ function ajustarView() {
   contentView.setBounds(bounds);
 }
 
+function resetProcessandoTroca() {
+  processandoTroca = false;
+  if (processandoTrocaTimer) {
+    clearTimeout(processandoTrocaTimer);
+    processandoTrocaTimer = null;
+  }
+}
+
 function enviarLoadFinished(sistema) {
   currentSistema = sistema;
-  processandoTroca = false;
+  if (sistema) sistemaAntesDaQueda = null;
+  resetProcessandoTroca();
   updateMainWindowTitle();
   if (mainWindow?.webContents) {
     mainWindow.webContents.send("load-finished", sistema);
@@ -169,12 +183,14 @@ function configurarSessaoPontoRenova() {
     }
   );
   s.setPermissionRequestHandler((_wc, permission, callback, details) => {
+    if (permission === "local-network") { callback(true); return; }
     const url = details?.requestingUrl || "";
     callback(permission === "geolocation" && url.includes("pontomais.com.br"));
   });
-  s.setPermissionCheckHandler((wc, permission) =>
-    permission === "geolocation" && (wc?.getURL?.() || "").includes("pontomais.com.br")
-  );
+  s.setPermissionCheckHandler((wc, permission) => {
+    if (permission === "local-network") return true;
+    return permission === "geolocation" && (wc?.getURL?.() || "").includes("pontomais.com.br");
+  });
 }
 
 /**
@@ -229,6 +245,68 @@ function openOrFocusPontoRenovaWindow() {
   });
 }
 
+/**
+ * Chamado pela verificação periódica quando detecta desconexão.
+ * Esconde o contentView e mostra o placeholder com mensagem offline.
+ * Salva o sistema ativo para restauração posterior.
+ */
+function notificarDesconexao() {
+  if (!currentSistema || !sistemaIniciado) return;
+  if (sistemaAntesDaQueda) return;
+
+  sistemaAntesDaQueda = currentSistema;
+
+  if (contentView) {
+    contentView.setVisible(false);
+    const b = getContentBounds();
+    if (b) contentView.setBounds({ x: b.x, y: b.y, width: 0, height: 0 });
+  }
+
+  resetProcessandoTroca();
+  enviarLoadFinished(null);
+
+  const wc = mainWindow?.webContents;
+  if (wc && !wc.isDestroyed()) {
+    wc.executeJavaScript(`
+      (function() {
+        var pl = document.getElementById('placeholder');
+        var ld = document.getElementById('loading');
+        if (pl) { pl.classList.remove('hidden'); pl.style.display = 'flex'; pl.style.visibility = 'visible'; }
+        if (ld) { ld.classList.add('hidden'); ld.style.display = 'none'; }
+        document.querySelectorAll('.menu-btn').forEach(function(b){ b.classList.remove('active'); });
+      })();
+    `).catch(() => {});
+  }
+}
+
+/**
+ * Restaura o sistema que estava ativo antes de uma queda de rede.
+ * Restaura bounds, define o sistema ativo e dá reload (F5) no contentView.
+ * O handler did-finish-load cuida de tornar o contentView visível e notificar o renderer.
+ */
+function tentarRestaurarAposReconexao() {
+  if (!sistemaAntesDaQueda) return;
+
+  const sistema = sistemaAntesDaQueda;
+  sistemaAntesDaQueda = null;
+
+  currentSistema = sistema;
+  sistemaIniciado = true;
+
+  if (!contentView?.webContents) return;
+
+  const currentUrl = contentView.webContents.getURL();
+  const hasUrl = currentUrl && currentUrl !== "about:blank";
+
+  ajustarView();
+
+  if (hasUrl) {
+    contentView.webContents.reload();
+  } else if (lastLoadedUrl) {
+    contentView.webContents.loadURL(lastLoadedUrl).catch((err) => logger.logError(err));
+  }
+}
+
 function criarJanela(iconPathParam) {
   iconPath = iconPathParam;
   const version = app.getVersion();
@@ -264,7 +342,7 @@ function criarJanela(iconPathParam) {
     mainWindow.show();
     setImmediate(() => {
       initUpdater({ mainWindow, iconPath, getMainWindow: getMainWindowRef });
-      connectivityService.start(getMainWindowRef);
+      connectivityService.start(getMainWindowRef, tentarRestaurarAposReconexao, notificarDesconexao);
       connectivityService.requestCheck();
     });
   });
@@ -285,6 +363,7 @@ function criarJanela(iconPathParam) {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
+      webSecurity: false,
     },
   });
 
@@ -303,15 +382,35 @@ function criarJanela(iconPathParam) {
       callback({ requestHeaders: headers });
     }
   );
+
+  const LOCAL_NET_RE = /^https?:\/\/(localhost|127\.\d|10\.\d|192\.168\.\d|172\.(1[6-9]|2\d|3[0-1])\.)/i;
+  capturaSession.webRequest.onHeadersReceived((details, callback) => {
+    const headers = { ...details.responseHeaders };
+    if (LOCAL_NET_RE.test(details.url)) {
+      headers["Access-Control-Allow-Private-Network"] = ["true"];
+      headers["Access-Control-Allow-Origin"] = ["*"];
+      headers["Access-Control-Allow-Methods"] = ["GET, POST, PUT, DELETE, OPTIONS"];
+      headers["Access-Control-Allow-Headers"] = ["*"];
+    }
+    const ct = headers["content-type"] || headers["Content-Type"];
+    if (details.url.endsWith(".css") && (!ct || !ct[0])) {
+      headers["content-type"] = ["text/css; charset=utf-8"];
+    }
+    callback({ responseHeaders: headers });
+  });
+
   const allowGeolocationFor = (url) => typeof url === "string" && url.includes("pontomais.com.br");
   capturaSession.setPermissionRequestHandler((_webContents, permission, callback, details) => {
     if (permission === "geolocation" && allowGeolocationFor(details?.requestingUrl)) {
+      callback(true);
+    } else if (permission === "local-network") {
       callback(true);
     } else {
       callback(false);
     }
   });
   capturaSession.setPermissionCheckHandler((webContents, permission, _checkingDetails) => {
+    if (permission === "local-network") return true;
     if (permission === "geolocation") {
       const url = webContents?.getURL?.() || "";
       return allowGeolocationFor(url);
@@ -339,16 +438,33 @@ function criarJanela(iconPathParam) {
     }
   });
 
-  /* Falha de carregamento: volta ao placeholder (Aguardando seleção + mensagem offline).
-   * Aceita qualquer frame. Garante contentView oculto e sem área (0x0) para não cobrir o placeholder. */
-  function onContentLoadFailed(_event, errorCode, errorDescription, validatedURL, _isMainFrame) {
+  /* Falha de carregamento do frame principal.
+   * -3 (ERR_ABORTED) é ignorado pois indica redirect — nova navegação segue automaticamente.
+   * Erros de rede: modo offline completo (esconde contentView, mostra placeholder).
+   * Outros erros (SSL, timeout HTTP, etc.): apenas desbloqueia a UI sem ativar modo offline. */
+  function onContentLoadFailed(_event, errorCode, errorDescription, validatedURL, isMainFrame) {
+    if (!isMainFrame) return;
     if (contentLoadFailureHandled) return;
     if (validatedURL === "about:blank" || (typeof validatedURL === "string" && !validatedURL.trim())) return;
+    if (errorCode === -3) return;
+
     contentLoadFailureHandled = true;
+
+    const isNetErr = connectivityService.isNetworkError(errorCode);
+
+    if (!isNetErr) {
+      resetProcessandoTroca();
+      if (mainWindow?.webContents && !mainWindow.webContents.isDestroyed()) {
+        mainWindow.webContents.send("load-finished", null);
+      }
+      return;
+    }
 
     const loadErr = new Error(errorDescription || `Load failed (code ${errorCode})`);
     loadErr.code = String(errorCode);
     logger.logError(loadErr);
+
+    if (currentSistema) sistemaAntesDaQueda = currentSistema;
 
     try {
       if (contentView) {
@@ -357,7 +473,7 @@ function criarJanela(iconPathParam) {
         if (b) contentView.setBounds({ x: b.x, y: b.y, width: 0, height: 0 });
       }
       connectivityService.notifyOffline();
-      processandoTroca = false;
+      resetProcessandoTroca();
       enviarLoadFinished(null);
 
       const wc = mainWindow?.webContents;
@@ -396,6 +512,36 @@ function criarJanela(iconPathParam) {
     if (input.key === "F5") contentView.webContents.reload();
     else contentView.webContents.toggleDevTools();
   });
+
+  contentView.webContents.setWindowOpenHandler(() => {
+    return { action: "deny" };
+  });
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    {
+      label: "Ações",
+      submenu: [
+        {
+          label: "Recarregar página",
+          accelerator: "F5",
+          click: () => {
+            if (contentView?.webContents && contentView.webContents.getURL() !== "about:blank") {
+              contentView.webContents.reload();
+            }
+          },
+        },
+        {
+          label: "DevTools",
+          accelerator: "F12",
+          click: () => {
+            if (contentView?.webContents) {
+              contentView.webContents.toggleDevTools();
+            }
+          },
+        },
+      ],
+    },
+  ]));
 
   mainWindow.contentView.addChildView(contentView);
   contentView.setVisible(false);
@@ -470,11 +616,27 @@ module.exports = {
   getCurrentSistema: () => currentSistema,
   setCurrentSistema: (s) => (currentSistema = s),
   getProcessandoTroca: () => processandoTroca,
-  setProcessandoTroca: (v) => (processandoTroca = v),
+  setProcessandoTroca: (v) => {
+    processandoTroca = v;
+    if (processandoTrocaTimer) {
+      clearTimeout(processandoTrocaTimer);
+      processandoTrocaTimer = null;
+    }
+    if (v) {
+      processandoTrocaTimer = setTimeout(() => {
+        processandoTroca = false;
+        processandoTrocaTimer = null;
+        logger.logError(new Error("processandoTroca reset por timeout de segurança (60s)"));
+      }, 60000);
+    }
+  },
   setCurrentSidebarWidth: (w) => (currentSidebarWidth = w),
   setContentViewVisible: (v) => contentView && (contentView.setVisible(v)),
   reloadContentView: () => contentView?.webContents?.reload(),
   reloadActiveView: () => getActiveWebContents()?.reload(),
-  loadContentViewUrl: (url) => contentView?.webContents?.loadURL(url),
+  loadContentViewUrl: (url) => {
+    lastLoadedUrl = url;
+    contentView?.webContents?.loadURL(url);
+  },
   onContentReachUrl,
 };

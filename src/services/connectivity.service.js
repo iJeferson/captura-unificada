@@ -42,6 +42,8 @@ const NETWORK_ERROR_CODES = Object.freeze([
 ]);
 
 let getMainWindow = null;
+let onReconnectCallback = null;
+let onDisconnectCallback = null;
 let intervalId = null;
 let consecutiveOk = 0;
 let consecutiveFail = 0;
@@ -101,8 +103,12 @@ function sendIfStable(wc, online) {
       lastSent = true;
       wc.send("connectivity-change", true);
     } else if (consecutiveOk >= consecutiveForOnline && lastSent !== true) {
+      const wasOffline = lastSent === false;
       lastSent = true;
       wc.send("connectivity-change", true);
+      if (wasOffline && onReconnectCallback) {
+        try { onReconnectCallback(); } catch (_) {}
+      }
     } else if (lastSent === false && consecutiveOk === 1) {
       fastRecheckTimerId = setTimeout(() => {
         fastRecheckTimerId = null;
@@ -133,8 +139,12 @@ function sendIfStable(wc, online) {
 
   if (consecutiveFail >= CONNECTIVITY.consecutiveNeeded && lastSent !== false) {
     if (minOfflineMs <= 0 || minElapsed) {
+      const wasOnline = lastSent === true;
       lastSent = false;
       wc.send("connectivity-change", false);
+      if (wasOnline && onDisconnectCallback) {
+        try { onDisconnectCallback(); } catch (_) {}
+      }
     }
   }
 }
@@ -202,9 +212,11 @@ function checkAndNotify() {
  * Inicia a verificação periódica de conectividade.
  * @param {() => import('electron').BrowserWindow | null} getWindow - Função que retorna a janela principal atual
  */
-function start(getWindow) {
+function start(getWindow, onReconnect, onDisconnect) {
   if (intervalId) return;
   getMainWindow = getWindow;
+  onReconnectCallback = typeof onReconnect === "function" ? onReconnect : null;
+  onDisconnectCallback = typeof onDisconnect === "function" ? onDisconnect : null;
   checkAndNotify();
   intervalId = setInterval(checkAndNotify, CONNECTIVITY.intervalMs);
 }
@@ -245,6 +257,8 @@ function reset() {
     fastRecheckTimerId = null;
   }
   getMainWindow = null;
+  onReconnectCallback = null;
+  onDisconnectCallback = null;
   lastSent = null;
   consecutiveOk = 0;
   consecutiveFail = 0;

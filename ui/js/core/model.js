@@ -31,16 +31,30 @@ const estado = {
   },
 };
 
+let carregandoTimer = null;
+const CARREGANDO_TIMEOUT_MS = 60000;
+
 const Model = {
   estado,
 
   /**
    * Define o estado de carregamento.
+   * Reset automático por timeout de segurança para evitar travamento da UI.
    * @param {boolean} valor
    * @returns {boolean}
    */
   setCarregando(valor) {
     this.estado.carregando = valor;
+    if (carregandoTimer) {
+      clearTimeout(carregandoTimer);
+      carregandoTimer = null;
+    }
+    if (valor) {
+      carregandoTimer = setTimeout(() => {
+        this.estado.carregando = false;
+        carregandoTimer = null;
+      }, CARREGANDO_TIMEOUT_MS);
+    }
     return this.estado.carregando;
   },
 

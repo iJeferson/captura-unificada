@@ -61,8 +61,9 @@ const Controller = {
       View.mostrarOfflineBanner(!isOnline);
     };
     window.api.onConnectivityChange(atualizar);
-    atualizar(navigator.onLine); /* estado inicial até o main enviar o primeiro resultado */
-    window.api.requestConnectivityCheck(); /* pede verificação imediata para não ficar em branco ao abrir sem internet */
+    window.addEventListener("online", () => window.api.requestConnectivityCheck());
+    atualizar(navigator.onLine);
+    window.api.requestConnectivityCheck();
   },
 
   /**
@@ -90,6 +91,11 @@ const Controller = {
 
     document.getElementById(ELEMENT_IDS.TOGGLE_SIDEBAR)?.addEventListener("click", () => this.onToggleSidebar());
     document.getElementById(ELEMENT_IDS.UPDATE_INDICATOR)?.addEventListener("click", () => this.onUpdateClick());
+    document.getElementById(ELEMENT_IDS.UPDATE_CONFIRM)?.addEventListener("click", () => this.onUpdateConfirm());
+    document.getElementById(ELEMENT_IDS.UPDATE_LATER)?.addEventListener("click", () => this.onUpdateLater());
+    document.getElementById(ELEMENT_IDS.UPDATE_MODAL)?.addEventListener("click", (e) => {
+      if (e.target.id === ELEMENT_IDS.UPDATE_MODAL) this.onUpdateLater();
+    });
 
     document.querySelectorAll(`.${CSS_CLASSES.DOTS}`).forEach((dot) => {
       dot.addEventListener("click", (e) => this.onDotClick(e));
@@ -100,7 +106,7 @@ const Controller = {
       btn.addEventListener("click", (e) => this.onReloadClick(e));
     });
     document.querySelectorAll(`.${CSS_CLASSES.BTN_CACHE}`).forEach((btn) => {
-      btn.addEventListener("click", () => this.onCacheClick());
+      btn.addEventListener("click", (e) => this.onCacheClick(e));
     });
     document.querySelectorAll(".btn-action[data-action]").forEach((btn) => {
       btn.addEventListener("click", (e) => this.onActionClick(e));
@@ -146,6 +152,11 @@ const Controller = {
       View.mostrarBadgeAtualizacao(true);
     });
 
+    window.api.onUpdateInstalling(() => {
+      Model.setCarregando(true);
+      View.mostrarLoading(true, "Atualizando");
+    });
+
     window.api.onUpdateIP((novoIp) => {
       Model.setInfoSistema({ ip: novoIp });
       View.atualizarIP(novoIp);
@@ -169,14 +180,6 @@ const Controller = {
     View.atualizarInfoSistema(Model.getInfoSistema());
   },
 
-  /**
-   * Verifica se uma operação está em andamento (bloqueia ações).
-   * @returns {boolean}
-   */
-  bloquearSeCarregando() {
-    return Model.getCarregando();
-  },
-
   /* ========== HANDLERS DE EVENTOS ========== */
 
   /**
@@ -187,7 +190,7 @@ const Controller = {
    */
   async abrirSistema(sistemaId, e) {
     const jaAtivo = e.currentTarget.classList.contains(CSS_CLASSES.ACTIVE);
-    if (this.bloquearSeCarregando() || (jaAtivo && sistemaId !== "captura")) return;
+    if (jaAtivo) return;
     if (!Model.getConectado()) {
       View.mostrarPlaceholderComOffline();
       return;
@@ -217,7 +220,6 @@ const Controller = {
    * Abre no navegador (Chrome) — funciona; API retorna 403 no Electron.
    */
   async onPontoRenovaClickHandler(e) {
-    if (this.bloquearSeCarregando()) return;
     if (!Model.getConectado()) {
       View.mostrarPlaceholderComOffline();
       return;
@@ -231,7 +233,6 @@ const Controller = {
    * Se IP não configurado, exibe modal para configurar.
    */
   async onAtendeClick(e) {
-    if (this.bloquearSeCarregando()) return;
     if (!Model.getConectado()) {
       View.mostrarPlaceholderComOffline();
       return;
@@ -252,8 +253,6 @@ const Controller = {
    * Handler: clique em "Configurar endereço" no dropdown do Atende.
    */
   async onAtendeConfigClick(e) {
-    if (this.bloquearSeCarregando()) return;
-
     e.stopPropagation();
     View.fecharDropdowns();
 
@@ -288,30 +287,37 @@ const Controller = {
    * Handler: clique no botão de colapsar/expandir sidebar.
    */
   onToggleSidebar() {
-    if (this.bloquearSeCarregando()) return;
-
     const isCollapsed = View.toggleSidebar();
     Model.setSidebarColapsada(isCollapsed);
     window.api.resizeSidebar(isCollapsed ? "collapsed" : "expanded");
   },
 
   /**
-   * Handler: clique no badge de atualização pronta.
+   * Handler: clique no badge de atualização pronta — abre modal de confirmação.
    */
-  async onUpdateClick() {
-    if (this.bloquearSeCarregando()) return;
+  onUpdateClick() {
+    View.mostrarModalUpdate(true);
+  },
 
-    Model.setCarregando(true);
-    View.mostrarLoading(true, SISTEMAS.ATUALIZACAO);
+  /**
+   * Handler: usuário confirmou a atualização no modal.
+   */
+  async onUpdateConfirm() {
+    View.mostrarModalUpdate(false);
     await window.api.applyUpdateNow();
+  },
+
+  /**
+   * Handler: usuário clicou "Depois" no modal de atualização.
+   */
+  onUpdateLater() {
+    View.mostrarModalUpdate(false);
   },
 
   /**
    * Handler: clique no ícone de mais opções para abrir dropdown.
    */
   onDotClick(e) {
-    if (this.bloquearSeCarregando()) return;
-
     e.stopPropagation();
     const menuId = e.currentTarget.dataset.menu;
     View.fecharDropdowns(menuId);
@@ -330,8 +336,6 @@ const Controller = {
    * Se for o botão do dropdown do Atende, recarrega a janela do Atende.
    */
   onReloadClick(e) {
-    if (this.bloquearSeCarregando()) return;
-
     const target = e.target?.closest?.("[data-reload-target]")?.dataset?.reloadTarget;
     if (target === "atende") {
       window.api.reloadAtendeWindow();
@@ -353,9 +357,7 @@ const Controller = {
    * Não afeta o Atende. Se data-cache-target=ponto-renova, limpa só a janela do Ponto Renova.
    */
   async onCacheClick(e) {
-    if (this.bloquearSeCarregando()) return;
-
-    const target = e.target?.closest?.("[data-cache-target]")?.dataset?.cacheTarget;
+    const target = e?.target?.closest?.("[data-cache-target]")?.dataset?.cacheTarget;
     Model.setCarregando(true);
     View.mostrarLoading(true, SISTEMAS.CACHE);
     if (target === "ponto-renova") {
@@ -371,8 +373,6 @@ const Controller = {
    * Handler: clique em botões de ação do menu (Reiniciar Validação, Reiniciar Serviço de Hardware, Reiniciar BCC).
    */
   async onActionClick(e) {
-    if (this.bloquearSeCarregando()) return;
-
     const btn = e.target?.closest?.(".btn-action[data-action]");
     const action = btn?.dataset?.action;
     if (!action) return;
@@ -392,8 +392,6 @@ const Controller = {
    * Handler: alteração do interruptor de tema (checkbox).
    */
   onThemeToggle(e) {
-    if (this.bloquearSeCarregando()) return;
-
     const checkbox = e?.target;
     const isDark = checkbox ? checkbox.checked : Model.getTemaEscuro();
     Model.setTemaEscuro(isDark);

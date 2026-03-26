@@ -6,7 +6,7 @@
  */
 
 const { autoUpdater } = require("electron-updater");
-const { app, Notification, dialog } = require("electron");
+const { app, Notification } = require("electron");
 const config = require("../config/app.config");
 
 const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
@@ -57,29 +57,13 @@ function initUpdater({ mainWindow, iconPath, getMainWindow }) {
     const versionLabel = info.version ? `v${info.version}` : info.version;
     const notification = new Notification({
       title: appName,
-      body: `Nova versão ${versionLabel} baixada. Será aplicada no próximo reinício.`,
+      body: `Nova versão ${versionLabel} baixada. Clique em "Atualização Pronta" no launcher para instalar.`,
       icon: iconPath,
     });
-
     notification.show();
 
     const win = getWin();
     if (win && !win.isDestroyed()) win.webContents.send("update-ready");
-
-    notification.on("click", () => {
-      const currentWin = getWin();
-      dialog
-        .showMessageBox(currentWin && !currentWin.isDestroyed() ? currentWin : null, {
-          type: "question",
-          buttons: ["Reiniciar Agora", "Depois"],
-          defaultId: 0,
-          title: `${appName} — Atualização pronta`,
-          message: "Deseja reiniciar o aplicativo para aplicar a atualização agora?",
-        })
-        .then((result) => {
-          if (result.response === 0) autoUpdater.quitAndInstall();
-        });
-    });
   });
 
   autoUpdater.on("error", (err) => {

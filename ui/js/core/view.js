@@ -49,7 +49,7 @@ const View = {
     if (loader) {
       if (mostrar) {
         loader.classList.remove(CSS_CLASSES.HIDDEN);
-        loader.style.display = ""; /* restaura display após offline (mostrarPlaceholderComOffline define display:none) */
+        loader.style.display = "";
         if (loaderText && nomeSistema) {
           loaderText.innerText = `Iniciando ${nomeSistema}`;
         }
@@ -59,14 +59,11 @@ const View = {
         loader.style.display = "";
         if (contentArea) {
           contentArea.classList.remove("fade-in-view");
-          void contentArea.offsetWidth; // Force reflow para animação
+          void contentArea.offsetWidth;
           contentArea.classList.add("fade-in-view");
         }
       }
     }
-
-    document.body.style.pointerEvents = mostrar ? "none" : "auto";
-    document.body.style.cursor = mostrar ? "wait" : "default";
   },
 
   /**
@@ -189,6 +186,18 @@ const View = {
     const indicator = this.elementos.updateIndicator();
     if (indicator) {
       indicator.style.display = mostrar ? "flex" : "none";
+    }
+  },
+
+  /**
+   * Exibe ou oculta o modal de confirmação de atualização.
+   * @param {boolean} mostrar
+   */
+  mostrarModalUpdate(mostrar) {
+    const modal = document.getElementById(ELEMENT_IDS.UPDATE_MODAL);
+    if (modal) {
+      if (mostrar) modal.classList.remove(CSS_CLASSES.HIDDEN);
+      else modal.classList.add(CSS_CLASSES.HIDDEN);
     }
   },
 

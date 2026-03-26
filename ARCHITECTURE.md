@@ -45,8 +45,8 @@ captura-unificada/
 
 | Sistema | Preparação |
 |---------|------------|
-| **CapturaWeb** | matarBCC → parar Valid → iniciar BCC → carregar URL → esperar 6s → matar BCC → iniciar Valid |
-| **SMART (CIN)** | parar Valid → iniciar BCC se não rodando → carregar URL |
+| **CapturaWeb** | matarBCC (se rodando) → (iniciar BCC → esperar 3s → matar BCC) ×2 → carregar URL → reiniciar Valid 2x |
+| **SMART (CIN)** | parar Valid → iniciar BCC se não rodando → aguardar BCC em execução → carregar URL |
 | **Doc Avulsos** | iniciar Valid (se parado) → carregar URL |
 | **Validação** | matar BCC → carregar URL |
 | **Ponto Valid, Ponto Renova** | carregar URL |

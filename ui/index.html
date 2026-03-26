@@ -2,6 +2,7 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; script-src 'self';" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -223,6 +224,17 @@
           <div class="modal-buttons">
             <button type="button" id="atende-cancel" class="btn-modal-cancel">Cancelar</button>
             <button type="button" id="atende-save" class="btn-modal-save"><i class="fas fa-save"></i> Salvar e Abrir</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="update-modal" class="modal-overlay hidden">
+        <div class="modal-atende">
+          <h3><i class="fas fa-arrow-up"></i> Atualização Disponível</h3>
+          <p class="modal-desc">Uma nova versão foi baixada e está pronta para instalar. O aplicativo será reiniciado automaticamente.</p>
+          <div class="modal-buttons">
+            <button type="button" id="update-later" class="btn-modal-cancel">Depois</button>
+            <button type="button" id="update-confirm" class="btn-modal-save"><i class="fas fa-download"></i> Atualizar Agora</button>
           </div>
         </div>
       </div>

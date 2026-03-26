@@ -103,10 +103,22 @@ const appConfig = {
     "C:\\ProgramData\\AnyDesk\\service.conf",
   ],
 
+  /**
+   * Serviços Valid de hardware a gerenciar (parar/iniciar/reiniciar).
+   * Alguns desktops têm apenas um, outros têm ambos.
+   * A ordem importa: o primeiro é parado primeiro e iniciado por último.
+   */
+  SERVICOS_VALID: [
+    "Valid-ServicoIntegracaoHardware",
+    "Valid - Servico de Hardware",
+  ],
+
   /** Delays para sincronização de processos (ms) - valores otimizados para resposta mais rápida */
   DELAYS: {
     hardwareSwitch: 500,
     capturaEnv: 400,
+    /** Tempo para o BCC inicializar antes de carregar a URL do SMART (CIN). */
+    bccStartup: 1500,
   },
 
   /**
@@ -140,16 +152,16 @@ const appConfig = {
     checkUrl: "https://www.google.com/generate_204",
     /** Host usado quando checkMode === "ping" (IP ou domínio) */
     checkHost: "8.8.8.8",
-    /** Intervalo entre verificações (ms). Rede instável: 6000–8000 para não sobrecarregar. */
-    intervalMs: 7000,
-    /** Timeout da verificação (ms). Rede instável: 8000–10000 para dar tempo de responder. */
-    timeoutMs: 8000,
-    /** Quantas falhas consecutivas para declarar offline (2 = evita um único timeout virar offline). */
-    consecutiveNeeded: 2,
-    /** Quantos sucessos consecutivos para declarar online de novo (2 = reconhece volta da internet mais rápido). */
+    /** Intervalo entre verificações (ms). */
+    intervalMs: 15000,
+    /** Timeout da verificação (ms). */
+    timeoutMs: 10000,
+    /** Quantas falhas consecutivas para declarar offline. */
+    consecutiveNeeded: 4,
+    /** Quantos sucessos consecutivos para declarar online de novo. */
     consecutiveNeededForOnline: 2,
-    /** Tempo mínimo sem conexão (ms) antes de mostrar offline — evita piscar por cache/navegador. */
-    minOfflineDurationMs: 6000,
+    /** Tempo mínimo sem conexão (ms) antes de mostrar offline. */
+    minOfflineDurationMs: 30000,
   },
 };
 
