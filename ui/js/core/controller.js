@@ -9,7 +9,7 @@
 
 import Model from "./model.js";
 import View from "./view.js";
-import { ELEMENT_IDS, CSS_CLASSES, SISTEMAS } from "../config/constants.js";
+import { ELEMENT_IDS, CSS_CLASSES, SISTEMAS, EMBED_CONTENT_TOP_PX } from "../config/constants.js";
 
 /** Mapa sistemaId → { abrir: () => Promise<void>, nome: string } para fluxo único de abertura */
 const SISTEMAS_ABERTURA = Object.freeze({
@@ -34,6 +34,9 @@ const Controller = {
     this.registrarListenersIPC();
     this.sincronizarEstadoAtendeWindow();
     this.registrarListenersOffline();
+    void this.sincronizarUpdatePendente();
+    void this.atualizarBadgeDownloads();
+    void this.sincronizarInsetEmbutido();
   },
 
   /**
@@ -90,7 +93,17 @@ const Controller = {
     });
 
     document.getElementById(ELEMENT_IDS.TOGGLE_SIDEBAR)?.addEventListener("click", () => this.onToggleSidebar());
-    document.getElementById(ELEMENT_IDS.UPDATE_INDICATOR)?.addEventListener("click", () => this.onUpdateClick());
+    document.getElementById(ELEMENT_IDS.SIDEBAR)?.addEventListener(
+      "click",
+      (e) => {
+        const t = e.target.closest("#" + ELEMENT_IDS.UPDATE_INDICATOR);
+        if (!t || t.classList.contains(CSS_CLASSES.HIDDEN)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        this.onUpdateClick();
+      },
+      true
+    );
     document.getElementById(ELEMENT_IDS.UPDATE_CONFIRM)?.addEventListener("click", () => this.onUpdateConfirm());
     document.getElementById(ELEMENT_IDS.UPDATE_LATER)?.addEventListener("click", () => this.onUpdateLater());
     document.getElementById(ELEMENT_IDS.UPDATE_MODAL)?.addEventListener("click", (e) => {
@@ -100,7 +113,7 @@ const Controller = {
     document.querySelectorAll(`.${CSS_CLASSES.DOTS}`).forEach((dot) => {
       dot.addEventListener("click", (e) => this.onDotClick(e));
     });
-    document.addEventListener("click", () => this.onDocumentClick());
+    document.addEventListener("click", (e) => this.onDocumentClick(e));
 
     document.querySelectorAll(`.${CSS_CLASSES.BTN_RELOAD}`).forEach((btn) => {
       btn.addEventListener("click", (e) => this.onReloadClick(e));
@@ -113,6 +126,16 @@ const Controller = {
     });
 
     document.getElementById(ELEMENT_IDS.THEME_TOGGLE)?.addEventListener("change", (e) => this.onThemeToggle(e));
+
+    document.getElementById(ELEMENT_IDS.CHROME_DOWNLOAD_BTN)?.addEventListener("click", (e) => {
+      void this.onChromeDownloadsBtnClick(e);
+    });
+    document.getElementById(ELEMENT_IDS.CHROME_DOWNLOADS_OPEN_FOLDER)?.addEventListener("click", () => {
+      void window.api.openDownloadsFolder();
+    });
+    document.getElementById(ELEMENT_IDS.CHROME_DOWNLOADS_LIST)?.addEventListener("click", (e) => {
+      this.onChromeDownloadsListClick(e);
+    });
   },
 
   /**
@@ -125,6 +148,16 @@ const Controller = {
     } catch (_) {}
   },
 
+  async sincronizarUpdatePendente() {
+    try {
+      const pendente = await window.api.getUpdateDownloadedPending();
+      if (pendente) {
+        Model.setAtualizacaoPronta(true);
+        View.mostrarBadgeAtualizacao(true);
+      }
+    } catch (_) {}
+  },
+
   registrarListenersIPC() {
     window.api.onLoadFinished((sistema) => {
       Model.setCarregando(false);
@@ -132,6 +165,15 @@ const Controller = {
       if (sistema && sistema !== "atende") {
         Model.setSistemaAtivo(sistema);
         View.setMenuAtivoPorId(sistema);
+      }
+      const embedded = sistema && sistema !== "atende" && sistema !== "ponto-renova";
+      if (!embedded) {
+        View.setChromeDownloadsPopoverOpen(false);
+        void window.api.markDownloadsPanelViewed();
+        void this.atualizarBadgeDownloads();
+        void window.api.setContentEmbedTopInset(EMBED_CONTENT_TOP_PX);
+      } else {
+        void this.sincronizarInsetEmbutido();
       }
     });
 
@@ -141,10 +183,19 @@ const Controller = {
 
     window.api.onAtendeWindowOpened(() => {
       View.setAtendeWindowOpen(true);
+      View.setChromeDownloadsPopoverOpen(false);
+      void window.api.markDownloadsPanelViewed();
+      void this.atualizarBadgeDownloads();
+      void window.api.setContentEmbedTopInset(EMBED_CONTENT_TOP_PX);
     });
 
     window.api.onAtendeWindowClosed(() => {
       View.setAtendeWindowOpen(false);
+      const id = Model.getSistemaAtivo();
+      const embedded = id && id !== "atende" && id !== "ponto-renova";
+      if (embedded) {
+        void this.sincronizarInsetEmbutido();
+      }
     });
 
     window.api.onUpdateReady(() => {
@@ -168,7 +219,34 @@ const Controller = {
       View.mostrarLoading(false);
       View.mostrarOfflineBanner(true);
       View.mostrarPlaceholderComOffline();
+      View.setChromeDownloadsPopoverOpen(false);
+      void window.api.markDownloadsPanelViewed();
+      void this.atualizarBadgeDownloads();
+      void window.api.setContentEmbedTopInset(EMBED_CONTENT_TOP_PX);
     });
+
+    window.api.onDownloadProgress(() => {
+      void this.refrescarPopoverDownloadsSeAberto();
+    });
+
+    window.api.onDownloadStarted(() => {
+      void this.refrescarPopoverDownloadsSeAberto();
+    });
+
+    window.api.onDownloadFinished(() => {
+      void this.atualizarBadgeDownloads();
+      void this.refrescarPopoverDownloadsSeAberto();
+    });
+  },
+
+  /**
+   * Mede a barra HTML (navegação + painel de downloads) e informa ao main o recorte do WebContentsView.
+   */
+  sincronizarInsetEmbutido() {
+    const main = document.querySelector("main.content");
+    const h = EMBED_CONTENT_TOP_PX;
+    if (main) main.style.setProperty("--content-embed-top", `${h}px`);
+    void window.api.setContentEmbedTopInset(h);
   },
 
   /**
@@ -191,6 +269,7 @@ const Controller = {
   async abrirSistema(sistemaId, e) {
     const jaAtivo = e.currentTarget.classList.contains(CSS_CLASSES.ACTIVE);
     if (jaAtivo) return;
+    if (Model.getCarregando()) return;
     if (!Model.getConectado()) {
       View.mostrarPlaceholderComOffline();
       return;
@@ -220,11 +299,14 @@ const Controller = {
    * Abre no navegador (Chrome) — funciona; API retorna 403 no Electron.
    */
   async onPontoRenovaClickHandler(e) {
+    if (Model.getCarregando()) return;
     if (!Model.getConectado()) {
       View.mostrarPlaceholderComOffline();
       return;
     }
     e.stopPropagation();
+    View.setChromeDownloadsPopoverOpen(false);
+    void window.api.setContentEmbedTopInset(EMBED_CONTENT_TOP_PX);
     await window.api.abrirPontoRenovaNoNavegador();
   },
 
@@ -233,6 +315,7 @@ const Controller = {
    * Se IP não configurado, exibe modal para configurar.
    */
   async onAtendeClick(e) {
+    if (Model.getCarregando()) return;
     if (!Model.getConectado()) {
       View.mostrarPlaceholderComOffline();
       return;
@@ -327,8 +410,77 @@ const Controller = {
   /**
    * Handler: clique em qualquer lugar do documento (fecha dropdowns).
    */
-  onDocumentClick() {
+  onDocumentClick(e) {
+    this.fecharChromeDownloadsPopover(e);
     View.fecharDropdowns();
+  },
+
+  fecharChromeDownloadsPopover(e) {
+    const sidebarDl = document.getElementById(ELEMENT_IDS.SIDEBAR_DOWNLOADS_ENTRY);
+    if (sidebarDl && e?.target && typeof e.target.closest === "function" && sidebarDl.contains(e.target)) {
+      return;
+    }
+    const panel = document.getElementById(ELEMENT_IDS.CHROME_DOWNLOADS_PANEL);
+    if (panel && e?.target && typeof e.target.closest === "function" && panel.contains(e.target)) {
+      return;
+    }
+    View.setChromeDownloadsPopoverOpen(false);
+    void window.api.markDownloadsPanelViewed();
+    void this.atualizarBadgeDownloads();
+    void this.sincronizarInsetEmbutido();
+  },
+
+  async onChromeDownloadsBtnClick(e) {
+    e.stopPropagation();
+    const panel = document.getElementById(ELEMENT_IDS.CHROME_DOWNLOADS_PANEL);
+    const aberto = panel && !panel.classList.contains(CSS_CLASSES.HIDDEN);
+    if (aberto) {
+      View.setChromeDownloadsPopoverOpen(false);
+      void window.api.markDownloadsPanelViewed();
+      void this.atualizarBadgeDownloads();
+      void this.sincronizarInsetEmbutido();
+      return;
+    }
+    View.setChromeDownloadsPopoverOpen(true);
+    await this.atualizarListaDownloadsPopover();
+    View.setDownloadsToolbarBadge(0);
+    void this.sincronizarInsetEmbutido();
+  },
+
+  async atualizarListaDownloadsPopover() {
+    try {
+      const snap = await window.api.getDownloadsPanelSnapshot();
+      View.renderChromeDownloadsList(snap);
+    } catch (_) {
+      View.renderChromeDownloadsList([]);
+    }
+  },
+
+  async atualizarBadgeDownloads() {
+    try {
+      const n = await window.api.getUnviewedDownloadsCount();
+      View.setDownloadsToolbarBadge(typeof n === "number" ? n : 0);
+    } catch (_) {
+      View.setDownloadsToolbarBadge(0);
+    }
+  },
+
+  async refrescarPopoverDownloadsSeAberto() {
+    const panel = document.getElementById(ELEMENT_IDS.CHROME_DOWNLOADS_PANEL);
+    if (!panel || panel.classList.contains(CSS_CLASSES.HIDDEN)) return;
+    await this.atualizarListaDownloadsPopover();
+    void this.sincronizarInsetEmbutido();
+  },
+
+  onChromeDownloadsListClick(e) {
+    const folderBtn = e.target?.closest?.(".chrome-download-folder-btn");
+    if (folderBtn?.dataset?.path) {
+      void window.api.showDownloadInFolder(folderBtn.dataset.path);
+      return;
+    }
+    const pdfRow = e.target?.closest?.(".chrome-download-row--pdf");
+    const p = pdfRow?.dataset?.path;
+    if (p) void window.api.openDownloadPdf(p);
   },
 
   /**
@@ -346,6 +498,8 @@ const Controller = {
       return;
     }
 
+    if (Model.getCarregando()) return;
+
     const activeBtn = document.querySelector(`.${CSS_CLASSES.MENU_BTN}.${CSS_CLASSES.ACTIVE} span`)?.innerText.trim() || "Sistema";
     Model.setCarregando(true);
     View.mostrarLoading(true, activeBtn);
@@ -357,6 +511,7 @@ const Controller = {
    * Não afeta o Atende. Se data-cache-target=ponto-renova, limpa só a janela do Ponto Renova.
    */
   async onCacheClick(e) {
+    if (Model.getCarregando()) return;
     const target = e?.target?.closest?.("[data-cache-target]")?.dataset?.cacheTarget;
     Model.setCarregando(true);
     View.mostrarLoading(true, SISTEMAS.CACHE);
@@ -373,6 +528,7 @@ const Controller = {
    * Handler: clique em botões de ação do menu (Reiniciar Validação, Reiniciar Serviço de Hardware, Reiniciar BCC).
    */
   async onActionClick(e) {
+    if (Model.getCarregando()) return;
     const btn = e.target?.closest?.(".btn-action[data-action]");
     const action = btn?.dataset?.action;
     if (!action) return;

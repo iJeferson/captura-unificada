@@ -93,4 +93,33 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.on("update-installing", () => callback());
   },
   applyUpdateNow: () => ipcRenderer.invoke("apply-update-now"),
+  getUpdateDownloadedPending: () => ipcRenderer.invoke("update-downloaded-pending"),
+
+  contentViewNavigateUrl: (url) => ipcRenderer.invoke("content-view-navigate-url", sanitizeString(url, 4096)),
+  setContentEmbedTopInset: (px) => ipcRenderer.invoke("content-embed-set-top-inset", typeof px === "number" ? px : 0),
+  getDownloadsSnapshot: () => ipcRenderer.invoke("downloads-snapshot"),
+  getDownloadsPanelSnapshot: () => ipcRenderer.invoke("downloads-panel-snapshot"),
+  getUnviewedDownloadsCount: () => ipcRenderer.invoke("downloads-unviewed-count"),
+  markDownloadsPanelViewed: () => ipcRenderer.invoke("downloads-mark-panel-viewed"),
+  showDownloadInFolder: (filePath) =>
+    typeof filePath === "string"
+      ? ipcRenderer.invoke("show-download-in-folder", filePath.slice(0, 4096))
+      : false,
+  openDownloadPdf: (filePath) =>
+    typeof filePath === "string"
+      ? ipcRenderer.invoke("open-download-pdf", filePath.slice(0, 4096))
+      : Promise.resolve(false),
+  openDownloadsFolder: () => ipcRenderer.invoke("open-downloads-folder"),
+  onDownloadProgress: (callback) => {
+    if (typeof callback !== "function") return;
+    ipcRenderer.on("download-progress", (_, payload) => callback(payload));
+  },
+  onDownloadStarted: (callback) => {
+    if (typeof callback !== "function") return;
+    ipcRenderer.on("download-started", (_, payload) => callback(payload));
+  },
+  onDownloadFinished: (callback) => {
+    if (typeof callback !== "function") return;
+    ipcRenderer.on("download-finished", (_, payload) => callback(payload));
+  },
 });

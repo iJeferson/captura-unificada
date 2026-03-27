@@ -21,6 +21,7 @@ const elementos = {
   placeholderOfflineMsg: () => document.getElementById(ELEMENT_IDS.PLACEHOLDER_OFFLINE_MSG),
   offlineBanner: () => document.getElementById(ELEMENT_IDS.OFFLINE_BANNER),
   menuBtns: () => document.querySelectorAll(`.${CSS_CLASSES.MENU_BTN}`),
+  menuNav: () => document.querySelector("nav.menu"),
   sidebar: () => document.getElementById(ELEMENT_IDS.SIDEBAR),
   sidebarWrapper: () => document.getElementById(ELEMENT_IDS.SIDEBAR_WRAPPER),
   toggleIcon: () => document.getElementById(ELEMENT_IDS.TOGGLE_ICON),
@@ -63,6 +64,10 @@ const View = {
           contentArea.classList.add("fade-in-view");
         }
       }
+    }
+    const menuNav = this.elementos.menuNav();
+    if (menuNav) {
+      menuNav.classList.toggle(CSS_CLASSES.MENU_BLOCKED, !!mostrar);
     }
   },
 
@@ -185,7 +190,8 @@ const View = {
   mostrarBadgeAtualizacao(mostrar) {
     const indicator = this.elementos.updateIndicator();
     if (indicator) {
-      indicator.style.display = mostrar ? "flex" : "none";
+      if (mostrar) indicator.classList.remove(CSS_CLASSES.HIDDEN);
+      else indicator.classList.add(CSS_CLASSES.HIDDEN);
     }
   },
 
@@ -198,6 +204,74 @@ const View = {
     if (modal) {
       if (mostrar) modal.classList.remove(CSS_CLASSES.HIDDEN);
       else modal.classList.add(CSS_CLASSES.HIDDEN);
+    }
+  },
+
+  setChromeDownloadsPopoverOpen(aberto) {
+    const panel = document.getElementById(ELEMENT_IDS.CHROME_DOWNLOADS_PANEL);
+    const btn = document.getElementById(ELEMENT_IDS.CHROME_DOWNLOAD_BTN);
+    if (panel) panel.classList.toggle(CSS_CLASSES.HIDDEN, !aberto);
+    if (btn) btn.setAttribute("aria-expanded", aberto ? "true" : "false");
+  },
+
+  setDownloadsToolbarBadge(activeCount) {
+    const badge = document.getElementById(ELEMENT_IDS.CHROME_DOWNLOAD_BADGE);
+    if (!badge) return;
+    const n = typeof activeCount === "number" ? activeCount : 0;
+    if (n <= 0) {
+      badge.classList.add(CSS_CLASSES.HIDDEN);
+      badge.textContent = "0";
+      return;
+    }
+    badge.classList.remove(CSS_CLASSES.HIDDEN);
+    badge.textContent = n > 9 ? "9+" : String(n);
+  },
+
+  /**
+   * @param {Array<{ name?: string, path?: string, state?: string, receivedBytes?: number, totalBytes?: number }>} items
+   */
+  renderChromeDownloadsList(items) {
+    const list = document.getElementById(ELEMENT_IDS.CHROME_DOWNLOADS_LIST);
+    const empty = document.getElementById(ELEMENT_IDS.CHROME_DOWNLOADS_EMPTY);
+    if (!list || !empty) return;
+    list.replaceChildren();
+    const arr = Array.isArray(items) ? items : [];
+    empty.classList.toggle(CSS_CLASSES.HIDDEN, arr.length > 0);
+    for (const it of arr) {
+      const row = document.createElement("div");
+      row.className = "chrome-download-row";
+      const name = document.createElement("span");
+      name.className = "chrome-download-name";
+      name.textContent = it.name || "Arquivo";
+      const meta = document.createElement("div");
+      meta.className = "chrome-download-meta";
+      const st = String(it.state || "").toLowerCase();
+      if (st === "progressing") {
+        const rec = it.receivedBytes || 0;
+        const tot = it.totalBytes || 0;
+        const pct = tot > 0 ? Math.round((100 * rec) / tot) : 0;
+        meta.textContent = tot > 0 ? `Baixando… ${pct}%` : "Baixando…";
+      } else if (st === "completed") {
+        meta.textContent = "Concluído · clique para abrir numa nova janela";
+      } else {
+        meta.textContent = st === "cancelled" ? "Cancelado" : "Interrompido";
+      }
+      row.appendChild(name);
+      row.appendChild(meta);
+      if (it.path && st === "completed") {
+        const pathStr = String(it.path);
+        row.classList.add("chrome-download-row--pdf");
+        row.dataset.path = pathStr;
+        row.title = "Clique para abrir numa nova janela";
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "chrome-download-folder-btn";
+        b.textContent = "Pasta";
+        b.title = "Mostrar na pasta Downloads";
+        b.dataset.path = it.path;
+        row.appendChild(b);
+      }
+      list.appendChild(row);
     }
   },
 

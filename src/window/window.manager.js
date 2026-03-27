@@ -8,11 +8,14 @@
  */
 
 const { app, BrowserWindow, WebContentsView, session, Menu } = require("electron");
+const fs = require("fs");
 const path = require("path");
+const { pathToFileURL } = require("url");
 const config = require("../config/app.config");
 const logger = require("../utils/logger");
 const { initUpdater } = require("../services/updater.service");
 const connectivityService = require("../services/connectivity.service");
+const sessionDownloads = require("../services/session-downloads");
 
 /** Rótulos dos sistemas para o título da janela (id → nome exibido) */
 const SISTEMA_LABELS = {
@@ -40,16 +43,97 @@ let currentSistema = null;
 let lastLoadedUrl = null;
 /** Sistema que estava ativo antes de uma falha de rede (para restauração). */
 let sistemaAntesDaQueda = null;
+/** Distância do topo da área cliente até o WebContentsView (reservado para HTML sobre o embed, se necessário). */
+let contentEmbedTopInset = 0;
+
+/** Handler reutilizado em pop-ups e na janela de PDF (definido em criarJanela). */
+let popupOpenHandlerRef = null;
+
+function isAllowedChildWindowUrl(url) {
+  if (url === undefined || url === null) return true;
+  const u = String(url).trim();
+  if (u === "" || u === "about:blank") return true;
+  const lower = u.toLowerCase();
+  if (lower.startsWith("http://") || lower.startsWith("https://")) return true;
+  if (lower.startsWith("blob:")) return true;
+  if (lower.startsWith("data:")) return true;
+  if (lower.startsWith("file://")) return true;
+  if (lower.startsWith("chrome://") || lower.startsWith("chrome-devtools:")) return true;
+  return false;
+}
+
+function wireChildWindowPopups(childWindow) {
+  if (!childWindow?.webContents) return;
+  if (popupOpenHandlerRef) childWindow.webContents.setWindowOpenHandler(popupOpenHandlerRef);
+  const syncTitle = () => {
+    if (childWindow.isDestroyed()) return;
+    const u = childWindow.webContents.getURL();
+    if (u && u !== "about:blank") {
+      childWindow.setTitle(u.length > 140 ? `${u.slice(0, 137)}…` : u);
+    }
+  };
+  childWindow.webContents.on("did-navigate", syncTitle);
+  childWindow.webContents.on("did-navigate-in-page", syncTitle);
+}
+
+/**
+ * Abre um PDF da pasta Downloads numa nova janela do app (mesmo perfil de pop-up).
+ * @param {string} filePath
+ * @returns {boolean}
+ */
+function openPdfInNewWindow(filePath) {
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  const p = typeof filePath === "string" ? filePath.slice(0, 4096) : "";
+  if (!sessionDownloads.isPathUnderDownloads(p) || !/\.pdf$/i.test(p)) return false;
+  try {
+    if (!fs.existsSync(p)) return false;
+  } catch {
+    return false;
+  }
+  const win = new BrowserWindow({
+    parent: mainWindow,
+    width: 1120,
+    height: 780,
+    minWidth: 520,
+    minHeight: 360,
+    autoHideMenuBar: true,
+    icon: iconPath || undefined,
+    backgroundColor: config.WINDOW.backgroundColor,
+    title: path.basename(p),
+    webPreferences: {
+      partition: config.SESSION_PARTITION,
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      webSecurity: false,
+      backgroundThrottling: false,
+    },
+  });
+  wireChildWindowPopups(win);
+  win.loadURL(pathToFileURL(p).href).catch((err) => logger.logError(err));
+  return true;
+}
 
 function getContentBounds() {
   if (!mainWindow) return null;
   const { width, height } = mainWindow.getContentBounds();
+  const top = contentEmbedTopInset;
   return {
     x: currentSidebarWidth,
-    y: config.TOPBAR_HEIGHT,
+    y: top,
     width: Math.max(0, width - currentSidebarWidth),
-    height: Math.max(0, height - config.TOPBAR_HEIGHT),
+    height: Math.max(0, height - top),
   };
+}
+
+/**
+ * Ajusta o Y do embed (0 = página integrada colada ao topo da área de conteúdo).
+ * @param {number} px - pixels desde o topo da área de conteúdo (0–520).
+ */
+function setContentEmbedTopInset(px) {
+  const v = typeof px === "number" && Number.isFinite(px) ? Math.round(px) : 0;
+  contentEmbedTopInset = Math.max(0, Math.min(v, 520));
+  ajustarView();
 }
 
 function ajustarView() {
@@ -191,6 +275,7 @@ function configurarSessaoPontoRenova() {
     if (permission === "local-network") return true;
     return permission === "geolocation" && (wc?.getURL?.() || "").includes("pontomais.com.br");
   });
+  sessionDownloads.registerSessionDownloadHandler(s, getMainWindowRef);
 }
 
 /**
@@ -330,6 +415,11 @@ function criarJanela(iconPathParam) {
 
   mainWindow.loadFile(path.join(__dirname, "..", "..", "ui", "index.html"));
 
+  sessionDownloads.registerSessionDownloadHandler(
+    session.fromPartition(config.SESSION_PARTITION_ATENDE),
+    getMainWindowRef
+  );
+
   mainWindow.on("closed", () => {
     mainWindow = null;
     contentView = null;
@@ -350,7 +440,7 @@ function criarJanela(iconPathParam) {
   const bounds = () =>
     getContentBounds() || {
       x: config.SIDEBAR_WIDTH_EXPANDED,
-      y: 0,
+      y: contentEmbedTopInset,
       width: 1000,
       height: 800,
     };
@@ -416,6 +506,49 @@ function criarJanela(iconPathParam) {
       return allowGeolocationFor(url);
     }
     return false;
+  });
+
+  sessionDownloads.registerSessionDownloadHandler(capturaSession, getMainWindowRef);
+
+  function makeWindowOpenHandler() {
+    return ({ url }) => {
+      if (!isAllowedChildWindowUrl(url)) {
+        return { action: "deny" };
+      }
+      const u = url && String(url).trim();
+      const title =
+        u && u !== "about:blank" ? String(url) : config.APP_NAME;
+      return {
+        action: "allow",
+        overrideBrowserWindowOptions: {
+          parent: mainWindow,
+          width: 1120,
+          height: 780,
+          minWidth: 520,
+          minHeight: 360,
+          autoHideMenuBar: true,
+          icon: iconPath || undefined,
+          backgroundColor: config.WINDOW.backgroundColor,
+          title: title.length > 120 ? `${title.slice(0, 117)}…` : title,
+          webPreferences: {
+            partition: config.SESSION_PARTITION,
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: true,
+            webSecurity: false,
+            backgroundThrottling: false,
+          },
+        },
+      };
+    };
+  }
+
+  const popupOpenHandler = makeWindowOpenHandler();
+  popupOpenHandlerRef = popupOpenHandler;
+  contentView.webContents.setWindowOpenHandler(popupOpenHandler);
+
+  contentView.webContents.on("did-create-window", (childWindow) => {
+    wireChildWindowPopups(childWindow);
   });
 
   let contentLoadFailureHandled = false;
@@ -511,10 +644,6 @@ function criarJanela(iconPathParam) {
     event.preventDefault();
     if (input.key === "F5") contentView.webContents.reload();
     else contentView.webContents.toggleDevTools();
-  });
-
-  contentView.webContents.setWindowOpenHandler(() => {
-    return { action: "deny" };
   });
 
   Menu.setApplicationMenu(Menu.buildFromTemplate([
@@ -638,5 +767,7 @@ module.exports = {
     lastLoadedUrl = url;
     contentView?.webContents?.loadURL(url);
   },
+  setContentEmbedTopInset,
+  openPdfInNewWindow,
   onContentReachUrl,
 };

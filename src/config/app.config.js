@@ -43,21 +43,19 @@ const appConfig = {
   /** Largura da sidebar colapsada (px) */
   SIDEBAR_WIDTH_COLLAPSED: 32,
 
-  /** Altura da barra superior (px) - reservada para futuras extensões */
-  TOPBAR_HEIGHT: 0,
-
   /** Dimensões padrão da janela principal */
   WINDOW: {
-    width: 1300,
+    width: 1280,
     height: 800,
-    minWidth: 900,
-    minHeight: 600,
+    /** Abaixo disso a sidebar não cabe sem rolagem; a janela não reduz mais. */
+    minWidth: 1000,
+    minHeight: 720,
     backgroundColor: "#0a0a0d",
   },
 
   /** URLs dos sistemas integrados */
   URLS: {
-    capturaWeb: "https://cnhba-prod.si.valid.com.br/CapturaWeb",
+    capturaWeb: "https://cnhba-prod.si.valid.com.br/CapturaWeb/Home",
     capturaWebBase: "https://cnhba-prod.si.valid.com.br",
     smart: "https://nimba.dpt.ba.gov.br:8100",
     s4ipm: "http://10.96.11.46/",

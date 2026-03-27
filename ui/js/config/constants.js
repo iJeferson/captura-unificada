@@ -39,7 +39,17 @@ export const ELEMENT_IDS = Object.freeze({
   IP: "ip",
   ANYDESK: "anydesk",
   THEME_TOGGLE: "theme-toggle",
+  SIDEBAR_DOWNLOADS_ENTRY: "sidebar-downloads-entry",
+  CHROME_DOWNLOAD_BTN: "content-downloads-btn",
+  CHROME_DOWNLOADS_PANEL: "content-downloads-panel",
+  CHROME_DOWNLOADS_LIST: "content-downloads-list",
+  CHROME_DOWNLOADS_EMPTY: "content-downloads-empty",
+  CHROME_DOWNLOADS_OPEN_FOLDER: "content-downloads-open-folder",
+  CHROME_DOWNLOAD_BADGE: "downloads-toolbar-badge",
 });
+
+/** Topo reservado acima do WebContentsView (0 = página integrada em tela cheia na área de conteúdo). */
+export const EMBED_CONTENT_TOP_PX = 0;
 
 /** Classes CSS utilizadas */
 export const CSS_CLASSES = Object.freeze({
@@ -57,6 +67,8 @@ export const CSS_CLASSES = Object.freeze({
   BTN_ATENDE_CONFIG: "btn-atende-config",
   /** Estado visual: janela do Atende está aberta (cor diferente + ícone) */
   ATENDE_WINDOW_OPEN: "atende-window-open",
+  /** Menu de sistemas bloqueado durante carregamento (troca/reload/cache) */
+  MENU_BLOCKED: "menu--blocked",
 });
 
 /** Nomes dos sistemas para exibição no loading */

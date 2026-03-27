@@ -13,6 +13,7 @@ const { promisify } = require("util");
 const { autoUpdater } = require("electron-updater");
 const config = require("../config/app.config");
 const logger = require("../utils/logger");
+const { hasPendingDownloadedUpdate } = require("../services/updater.service");
 const { esperar } = require("../utils/helpers");
 const execAsync = promisify(exec);
 const {
@@ -29,6 +30,7 @@ const {
 const { getSystemInfo } = require("../services/system.service");
 const { getAtendeConfig, setAtendeConfig, setTheme, buildAtendeUrl } = require("../services/atende.service");
 const windowManager = require("../window/window.manager");
+const sessionDownloads = require("../services/session-downloads");
 
 /** Limite aproximado do header Cookie (bytes). Acima disso o servidor pode retornar 400. */
 const COOKIE_HEADER_LIMIT = 3500;
@@ -73,6 +75,7 @@ async function openSystemContent(sistemaId, url, setup) {
   windowManager.setProcessandoTroca(true);
   windowManager.setSistemaIniciado(true);
   windowManager.setCurrentSistema(sistemaId);
+  windowManager.setContentEmbedTopInset(0);
   windowManager.setContentViewVisible(false);
   try {
     await trimCookiesIfNeeded(url);
@@ -121,6 +124,7 @@ function registerIpcHandlers() {
       windowManager.setProcessandoTroca(true);
       windowManager.setSistemaIniciado(true);
       windowManager.setCurrentSistema("captura");
+      windowManager.setContentEmbedTopInset(0);
       windowManager.setContentViewVisible(false);
       try {
         await trimCookiesIfNeeded(url);
@@ -305,6 +309,38 @@ function registerIpcHandlers() {
    * Handler: reload-page
    * Recarrega a view ativa na janela principal (contentView).
    */
+  ipcMain.handle("update-downloaded-pending", () => hasPendingDownloadedUpdate());
+
+  ipcMain.handle("downloads-snapshot", () => sessionDownloads.getDownloadsSnapshot());
+  ipcMain.handle("downloads-panel-snapshot", () => sessionDownloads.getDownloadsPanelSnapshot());
+  ipcMain.handle("downloads-unviewed-count", () => sessionDownloads.getUnviewedCompletedCount());
+  ipcMain.handle("downloads-mark-panel-viewed", () => {
+    sessionDownloads.markDownloadsPanelViewed();
+    return true;
+  });
+  ipcMain.handle("show-download-in-folder", (_, filePath) =>
+    typeof filePath === "string" ? sessionDownloads.showItemInFolder(filePath.slice(0, 4096)) : false
+  );
+  ipcMain.handle("open-download-pdf", (_, filePath) =>
+    typeof filePath === "string" ? windowManager.openPdfInNewWindow(filePath.slice(0, 4096)) : false
+  );
+  ipcMain.handle("open-downloads-folder", () => sessionDownloads.openDownloadsFolder());
+
+  ipcMain.handle("content-view-navigate-url", (_, raw) => {
+    let u = typeof raw === "string" ? raw.trim().slice(0, 4096) : "";
+    if (!u) return { ok: false };
+    if (!/^https?:\/\//i.test(u)) {
+      u = `https://${u}`;
+    }
+    windowManager.loadContentViewUrl(u);
+    return { ok: true };
+  });
+
+  ipcMain.handle("content-embed-set-top-inset", (_, px) => {
+    windowManager.setContentEmbedTopInset(typeof px === "number" ? px : 0);
+    return true;
+  });
+
   ipcMain.handle("reload-page", () => {
     windowManager.reloadActiveView();
   });

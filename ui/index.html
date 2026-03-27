@@ -25,37 +25,6 @@
         vertical-align: middle;
         letter-spacing: 0.5px;
       }
-
-      .update-badge {
-        display: none;
-        align-items: center;
-        gap: 10px;
-        background: rgba(0, 229, 255, 0.12);
-        border: 1px solid rgba(0, 229, 255, 0.4);
-        color: #67e8f9;
-        padding: 10px;
-        border-radius: 8px;
-        font-size: 11px;
-        font-weight: 700;
-        margin-bottom: 15px;
-        cursor: pointer;
-        transition: 0.2s;
-        animation: pulseUpdate 2s infinite ease-in-out;
-      }
-
-      .update-badge:hover {
-        background: rgba(0, 229, 255, 0.2);
-        border-color: #22d3ee;
-        color: #fff;
-      }
-
-      .update-badge i { font-size: 14px; }
-
-      @keyframes pulseUpdate {
-        0% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0.5); }
-        70% { box-shadow: 0 0 0 10px rgba(0, 229, 255, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0); }
-      }
     </style>
   </head>
   <body class="dark-theme">
@@ -159,6 +128,23 @@
                   <button class="btn-cache"><i class="fas fa-broom"></i>Limpar cache</button>
                 </div>
               </div>
+
+              <div class="sidebar-downloads-entry" id="sidebar-downloads-entry">
+                <button type="button" id="content-downloads-btn" class="menu-btn sidebar-downloads-btn" title="PDFs baixados nesta sessão" aria-label="PDFs baixados" aria-expanded="false" aria-haspopup="true">
+                  <span><i class="fas fa-file-pdf" aria-hidden="true"></i><span class="btn-label">PDFs baixados</span></span>
+                  <span id="downloads-toolbar-badge" class="chrome-download-badge sidebar-download-badge hidden" aria-hidden="true">0</span>
+                  <span class="menu-btn-slot-end" aria-hidden="true"></span>
+                </button>
+                <div id="content-downloads-panel" class="sidebar-downloads-panel hidden" role="region" aria-label="PDFs baixados">
+                  <div class="sidebar-downloads-panel-header">
+                    <span>PDFs nesta sessão</span>
+                    <button type="button" id="content-downloads-open-folder" class="chrome-link-btn">Pasta Downloads</button>
+                  </div>
+                  <div id="content-downloads-list" class="chrome-downloads-list"></div>
+                  <p id="content-downloads-empty" class="chrome-downloads-empty">Nenhum PDF novo</p>
+                </div>
+              </div>
+
               <div class="system-item">
                 <button class="menu-btn" id="ponto-valid" title="Ponto Valid">
                   <span><i class="fas fa-user-clock"></i><span class="btn-label">Ponto Valid</span></span>
@@ -185,20 +171,12 @@
           </nav>
 
           <div class="status-box">
-          <div id="update-indicator" class="update-badge" title="Clique para reiniciar e aplicar agora">
-            <i class="fas fa-arrow-up-from-bracket"></i>
-            <span>ATUALIZAÇÃO PRONTA</span>
-          </div>
-
-          <div class="support-card">
-            <div class="support-header">
-              <i class="fas fa-headset"></i>
-              <span class="support-title">Suporte Técnico</span>
-            </div>
-            <div class="support-content">
-              <p>Informe os dados abaixo para nossa equipe.</p>
-            </div>
-          </div>
+          <button type="button" id="update-indicator" class="update-prompt hidden" title="Instalar nova versão">
+            <span class="update-prompt-inner">
+              <i class="fas fa-circle-up" aria-hidden="true"></i>
+              <span class="update-prompt-text">Nova versão disponível</span>
+            </span>
+          </button>
 
           <div class="pc-info">
             <div class="info-item"><i class="fas fa-desktop"></i><div class="text"><strong>Host</strong><span id="hostname">---</span></div></div>
@@ -230,8 +208,8 @@
 
       <div id="update-modal" class="modal-overlay hidden">
         <div class="modal-atende">
-          <h3><i class="fas fa-arrow-up"></i> Atualização Disponível</h3>
-          <p class="modal-desc">Uma nova versão foi baixada e está pronta para instalar. O aplicativo será reiniciado automaticamente.</p>
+          <h3><i class="fas fa-download"></i> Instalar atualização</h3>
+          <p class="modal-desc">O app será fechado e reiniciado automaticamente.</p>
           <div class="modal-buttons">
             <button type="button" id="update-later" class="btn-modal-cancel">Depois</button>
             <button type="button" id="update-confirm" class="btn-modal-save"><i class="fas fa-download"></i> Atualizar Agora</button>
