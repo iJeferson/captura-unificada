@@ -62,6 +62,9 @@ const Controller = {
     const atualizar = (isOnline) => {
       Model.setConectado(isOnline);
       View.mostrarOfflineBanner(!isOnline);
+      if (!isOnline) {
+        View.mostrarPlaceholderComOffline();
+      }
     };
     window.api.onConnectivityChange(atualizar);
     window.addEventListener("online", () => window.api.requestConnectivityCheck());
@@ -93,6 +96,17 @@ const Controller = {
     });
 
     document.getElementById(ELEMENT_IDS.TOGGLE_SIDEBAR)?.addEventListener("click", () => this.onToggleSidebar());
+    document.getElementById(ELEMENT_IDS.UPDATE_INDICATOR)?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.onUpdateClick();
+    });
+    document.getElementById(ELEMENT_IDS.UPDATE_INDICATOR)?.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      e.stopPropagation();
+      this.onUpdateClick();
+    });
     document.getElementById(ELEMENT_IDS.SIDEBAR)?.addEventListener(
       "click",
       (e) => {
@@ -306,6 +320,7 @@ const Controller = {
     }
     e.stopPropagation();
     View.setChromeDownloadsPopoverOpen(false);
+    View.mostrarPlaceholderPadrao();
     void window.api.setContentEmbedTopInset(EMBED_CONTENT_TOP_PX);
     await window.api.abrirPontoRenovaNoNavegador();
   },
@@ -330,6 +345,7 @@ const Controller = {
     }
 
     /* Atende abre em janela separada; estado "janela aberta" vem via onAtendeWindowOpened */
+    View.mostrarPlaceholderPadrao();
   },
 
   /**

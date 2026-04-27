@@ -48,6 +48,7 @@ let intervalId = null;
 let consecutiveOk = 0;
 let consecutiveFail = 0;
 let lastSent = null;
+let lastLoggedConnectivity = null;
 /** Timestamp do primeiro falha da sequência atual (para tempo mínimo offline). */
 let firstFailTime = null;
 /** Timer de offline atrasado (falha de carga): só envia após minOfflineDurationMs. */
@@ -79,6 +80,20 @@ function sendOfflineToRenderer() {
 }
 
 /**
+ * Registra em log apenas transições de conectividade (sem spam por tentativa).
+ * @param {boolean} online
+ */
+function logConnectivityTransition(online) {
+  if (lastLoggedConnectivity === online) return;
+  lastLoggedConnectivity = online;
+  if (online) {
+    logger.logError("INTERNET NORMALIZADA");
+  } else {
+    logger.logError("INTERNET DESCONECTADA");
+  }
+}
+
+/**
  * Envia o estado ao renderer apenas quando estável (N resultados iguais).
  * Offline só é enviado após minOfflineDurationMs sem conexão (evita piscar por cache/navegador).
  * @param {import('electron').WebContents} wc
@@ -105,6 +120,7 @@ function sendIfStable(wc, online) {
     } else if (consecutiveOk >= consecutiveForOnline && lastSent !== true) {
       const wasOffline = lastSent === false;
       lastSent = true;
+      logConnectivityTransition(true);
       wc.send("connectivity-change", true);
       if (wasOffline && onReconnectCallback) {
         try { onReconnectCallback(); } catch (_) {}
@@ -132,6 +148,7 @@ function sendIfStable(wc, online) {
   if (lastSent === null) {
     if (minOfflineMs <= 0 || minElapsed) {
       lastSent = false;
+      logConnectivityTransition(false);
       wc.send("connectivity-change", false);
     }
     return;
@@ -141,6 +158,7 @@ function sendIfStable(wc, online) {
     if (minOfflineMs <= 0 || minElapsed) {
       const wasOnline = lastSent === true;
       lastSent = false;
+      logConnectivityTransition(false);
       wc.send("connectivity-change", false);
       if (wasOnline && onDisconnectCallback) {
         try { onDisconnectCallback(); } catch (_) {}
@@ -187,8 +205,7 @@ function checkByUrl(wc) {
     req.destroy();
     sendIfStable(wc, false);
   });
-  req.on("error", (err) => {
-    logger.logError(err);
+  req.on("error", () => {
     sendIfStable(wc, false);
   });
 }
@@ -233,11 +250,10 @@ function requestCheck() {
  * Evita tratar como offline por instantes de cache/navegador; se a conexão voltar antes, o timer é cancelado.
  */
 function notifyOffline() {
-  if (pendingOfflineTimer) return;
-  pendingOfflineTimer = setTimeout(() => {
-    pendingOfflineTimer = null;
-    sendOfflineToRenderer();
-  }, minOfflineMs);
+  sendOfflineToRenderer();
+  if (lastSent !== null) {
+    logConnectivityTransition(false);
+  }
 }
 
 /**
@@ -260,6 +276,7 @@ function reset() {
   onReconnectCallback = null;
   onDisconnectCallback = null;
   lastSent = null;
+  lastLoggedConnectivity = null;
   consecutiveOk = 0;
   consecutiveFail = 0;
   firstFailTime = null;

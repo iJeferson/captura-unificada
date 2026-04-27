@@ -145,21 +145,21 @@ const appConfig = {
    */
   CONNECTIVITY: {
     /** "url" = requisição HTTP(S) ao checkUrl; "ping" = comando ping ao checkHost */
-    checkMode: "url",
+    checkMode: "ping",
     /** URL usada quando checkMode === "url" */
     checkUrl: "https://www.google.com/generate_204",
     /** Host usado quando checkMode === "ping" (IP ou domínio) */
     checkHost: "8.8.8.8",
     /** Intervalo entre verificações (ms). */
-    intervalMs: 15000,
+    intervalMs: 5000,
     /** Timeout da verificação (ms). */
-    timeoutMs: 10000,
+    timeoutMs: 4000,
     /** Quantas falhas consecutivas para declarar offline. */
     consecutiveNeeded: 4,
     /** Quantos sucessos consecutivos para declarar online de novo. */
-    consecutiveNeededForOnline: 2,
+    consecutiveNeededForOnline: 4,
     /** Tempo mínimo sem conexão (ms) antes de mostrar offline. */
-    minOfflineDurationMs: 30000,
+    minOfflineDurationMs: 0,
   },
 };
 

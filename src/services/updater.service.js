@@ -72,6 +72,16 @@ function initUpdater({ mainWindow, iconPath, getMainWindow }) {
       body: `Nova versão ${versionLabel} disponível. Use o aviso na barra lateral para instalar.`,
       icon: iconPath,
     });
+    notification.on("click", () => {
+      const win = getWin();
+      if (!win || win.isDestroyed()) return;
+      try {
+        if (win.isMinimized()) win.restore();
+        win.show();
+        win.focus();
+      } catch (_) {}
+      sendUpdateReady(getWin);
+    });
     notification.show();
 
     sendUpdateReady(getWin);

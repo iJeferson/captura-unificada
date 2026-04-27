@@ -143,6 +143,40 @@ function ajustarView() {
   contentView.setBounds(bounds);
 }
 
+function showOfflineFallbackUI() {
+  try {
+    if (currentSistema) sistemaAntesDaQueda = currentSistema;
+
+    if (contentView) {
+      contentView.setVisible(false);
+      const b = getContentBounds();
+      if (b) contentView.setBounds({ x: b.x, y: b.y, width: 0, height: 0 });
+    }
+    connectivityService.notifyOffline();
+    resetProcessandoTroca();
+    enviarLoadFinished(null);
+
+    const wc = mainWindow?.webContents;
+    if (wc && !wc.isDestroyed()) {
+      wc.executeJavaScript(`
+        (function() {
+          var pl = document.getElementById('placeholder');
+          var ld = document.getElementById('loading');
+          var off = document.getElementById('placeholder-offline-msg');
+          var bn = document.getElementById('offline-banner');
+          if (pl) { pl.classList.remove('hidden'); pl.style.display = 'flex'; pl.style.visibility = 'visible'; }
+          if (ld) { ld.classList.add('hidden'); ld.style.display = 'none'; }
+          if (off) { off.classList.remove('hidden'); }
+          if (bn) { bn.classList.remove('hidden'); bn.style.display = 'flex'; }
+          document.querySelectorAll('.menu-btn').forEach(function(b){ b.classList.remove('active'); });
+        })();
+      `).catch(() => {});
+    }
+  } catch (err) {
+    logger.logError(err);
+  }
+}
+
 function resetProcessandoTroca() {
   processandoTroca = false;
   if (processandoTrocaTimer) {
@@ -551,17 +585,13 @@ function criarJanela(iconPathParam) {
     wireChildWindowPopups(childWindow);
   });
 
-  let contentLoadFailureHandled = false;
-
   contentView.webContents.on("did-start-loading", () => {
-    contentLoadFailureHandled = false;
     if (mainWindow?.webContents && !mainWindow.webContents.isDestroyed()) {
       mainWindow.webContents.send("content-loading-state", true);
     }
   });
 
   contentView.webContents.on("did-finish-load", () => {
-    contentLoadFailureHandled = true;
     if (mainWindow?.webContents && !mainWindow.webContents.isDestroyed()) {
       mainWindow.webContents.send("content-loading-state", false);
     }
@@ -577,11 +607,8 @@ function criarJanela(iconPathParam) {
    * Outros erros (SSL, timeout HTTP, etc.): apenas desbloqueia a UI sem ativar modo offline. */
   function onContentLoadFailed(_event, errorCode, errorDescription, validatedURL, isMainFrame) {
     if (!isMainFrame) return;
-    if (contentLoadFailureHandled) return;
     if (validatedURL === "about:blank" || (typeof validatedURL === "string" && !validatedURL.trim())) return;
     if (errorCode === -3) return;
-
-    contentLoadFailureHandled = true;
 
     const isNetErr = connectivityService.isNetworkError(errorCode);
 
@@ -593,37 +620,7 @@ function criarJanela(iconPathParam) {
       return;
     }
 
-    const loadErr = new Error(errorDescription || `Load failed (code ${errorCode})`);
-    loadErr.code = String(errorCode);
-    logger.logError(loadErr);
-
-    if (currentSistema) sistemaAntesDaQueda = currentSistema;
-
-    try {
-      if (contentView) {
-        contentView.setVisible(false);
-        const b = getContentBounds();
-        if (b) contentView.setBounds({ x: b.x, y: b.y, width: 0, height: 0 });
-      }
-      connectivityService.notifyOffline();
-      resetProcessandoTroca();
-      enviarLoadFinished(null);
-
-      const wc = mainWindow?.webContents;
-      if (wc && !wc.isDestroyed()) {
-        wc.executeJavaScript(`
-          (function() {
-            var pl = document.getElementById('placeholder');
-            var ld = document.getElementById('loading');
-            if (pl) { pl.classList.remove('hidden'); pl.style.display = 'flex'; pl.style.visibility = 'visible'; }
-            if (ld) { ld.classList.add('hidden'); ld.style.display = 'none'; }
-            document.querySelectorAll('.menu-btn').forEach(function(b){ b.classList.remove('active'); });
-          })();
-        `).catch((err) => logger.logError(err));
-      }
-    } catch (err) {
-      logger.logError(err);
-    }
+    showOfflineFallbackUI();
   }
   contentView.webContents.on("did-fail-provisional-load", onContentLoadFailed);
   contentView.webContents.on("did-fail-load", onContentLoadFailed);
@@ -765,7 +762,20 @@ module.exports = {
   reloadActiveView: () => getActiveWebContents()?.reload(),
   loadContentViewUrl: (url) => {
     lastLoadedUrl = url;
-    contentView?.webContents?.loadURL(url);
+    contentView?.webContents?.loadURL(url).catch((err) => {
+      const msg = String(err?.message || "");
+      const isNetErr =
+        msg.includes("ERR_INTERNET_DISCONNECTED") ||
+        msg.includes("ERR_NAME_NOT_RESOLVED") ||
+        msg.includes("ERR_CONNECTION_REFUSED") ||
+        msg.includes("ERR_CONNECTION_TIMED_OUT") ||
+        msg.includes("ERR_ADDRESS_UNREACHABLE");
+      if (isNetErr) {
+        showOfflineFallbackUI();
+        return;
+      }
+      logger.logError(err);
+    });
   },
   setContentEmbedTopInset,
   openPdfInNewWindow,

@@ -152,6 +152,34 @@ const View = {
   },
 
   /**
+   * Mostra o placeholder padrão (online) para fluxos sem conteúdo embutido.
+   * Evita tela branca quando o sistema abre em janela externa.
+   */
+  mostrarPlaceholderPadrao() {
+    const placeholder = this.elementos.placeholder();
+    const loading = this.elementos.loading();
+    const banner = this.elementos.offlineBanner();
+    const container = this.elementos.placeholderContainer();
+    const offlineMsg = this.elementos.placeholderOfflineMsg();
+
+    if (loading) {
+      loading.classList.add(CSS_CLASSES.HIDDEN);
+      loading.style.display = "none";
+    }
+    if (placeholder) {
+      placeholder.classList.remove(CSS_CLASSES.HIDDEN);
+      placeholder.style.display = "flex";
+      placeholder.style.visibility = "visible";
+    }
+    if (banner) {
+      banner.classList.add(CSS_CLASSES.HIDDEN);
+      banner.style.display = "";
+    }
+    if (container) container.classList.remove("is-offline");
+    if (offlineMsg) offlineMsg.classList.add(CSS_CLASSES.HIDDEN);
+  },
+
+  /**
    * Marca o botão ativo pelo ID do sistema (garante estado correto após load-finished).
    * @param {string} sistemaId - "captura" | "smart" | "doc-avulsos" | "validacao" | "ponto-valid" | "ponto-renova" | "atende"
    */
