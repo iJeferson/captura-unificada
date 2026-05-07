@@ -53,7 +53,16 @@ function isErroEsperado(cmd, err) {
   const msg = ((err.message || "") + " " + (err.stderr || "")).toLowerCase();
   const c = cmd.toLowerCase();
   if (msg.includes("1060") || msg.includes("does not exist") || msg.includes("não existe")) return true;
-  if (c.includes("taskkill") && (msg.includes("foi encontrado") || msg.includes("not found") || err.code === 128)) return true;
+  if (
+    c.includes("taskkill") &&
+    (
+      msg.includes("foi encontrado") ||
+      msg.includes("not found") ||
+      msg.includes("não há ocorrência da tarefa em execução") ||
+      msg.includes("nao ha ocorrencia da tarefa em execucao") ||
+      err.code === 128
+    )
+  ) return true;
   if (c.includes("net stop") && (msg.includes("3521") || msg.includes("não foi iniciado") || msg.includes("not started"))) return true;
   if (c.includes("net start") && (msg.includes("2182") || msg.includes("já foi iniciado") || msg.includes("already been started"))) return true;
   return false;

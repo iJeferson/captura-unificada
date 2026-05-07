@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * Logger de erros em arquivo (um por dia em LOG_DIR). Classifica erros com rótulos legíveis.
+ * Logger em arquivo (um por dia em LOG_DIR), com níveis e códigos de evento.
  * LOG_DIR vem do config (AppData); fallback para tmpdir — não exige administrador.
  * @module utils/logger
  */
@@ -38,6 +38,22 @@ function classifyError(err) {
 }
 
 /**
+ * Corrige artefatos comuns de encoding (CP-1252/UTF-8) vindos de comandos do Windows.
+ * @param {string} text
+ * @returns {string}
+ */
+function sanitizeText(text) {
+  if (text == null) return "";
+  return String(text)
+    .replaceAll("n�o", "não")
+    .replaceAll("N�o", "Não")
+    .replaceAll("p�de", "pôde")
+    .replaceAll("execu��o", "execução")
+    .replaceAll("ocorr�ncia", "ocorrência")
+    .replaceAll("Raz�o", "Razão");
+}
+
+/**
  * Extrai comando e saída de erro de um Error de exec (child_process).
  * Node.js anexa cmd, stderr e stdout ao Error. Se não existirem, parseia a message.
  * @param {Error} err
@@ -59,7 +75,10 @@ function parseExecError(err) {
     if (parts.length > 1 && !output) output = parts.slice(1).join("\n");
   }
   if (!output && err.stdout) output = String(err.stdout).trim();
-  return { command, output };
+  return {
+    command: command ? sanitizeText(command) : command,
+    output: output ? sanitizeText(output) : output,
+  };
 }
 
 /**
@@ -128,7 +147,7 @@ function timeStr() {
  */
 function formatLogContent(message) {
   const ts = timeStr();
-  const label = classifyError(message);
+  const label = "ERRO";
 
   const parsed = message instanceof Error ? parseExecError(message) : null;
   if (parsed && (parsed.command || parsed.output)) {
@@ -136,16 +155,16 @@ function formatLogContent(message) {
     if (parsed.command) lines.push(`  Comando: ${parsed.command}`);
     if (parsed.output) {
       const outputLines = parsed.output.split(/\r?\n/).filter((l) => l.trim());
-      lines.push(`  Saída: ${outputLines[0] || "(vazio)"}`);
+      lines.push(`  Saída: ${sanitizeText(outputLines[0] || "(vazio)")}`);
       for (let i = 1; i < outputLines.length; i++) {
-        lines.push(`         ${outputLines[i]}`);
+        lines.push(`         ${sanitizeText(outputLines[i])}`);
       }
     }
     return lines.join("\n") + "\n";
   }
 
   if (message instanceof Error) {
-    const lines = [`[${label}] [${ts}] ${message.message}`, ""];
+    const lines = [`[${label}] [${ts}] ${sanitizeText(message.message)}`, ""];
     if (message.stack) {
       const stack = formatStack(message.stack);
       if (stack) lines.push(stack);
@@ -153,7 +172,20 @@ function formatLogContent(message) {
     return lines.join("\n") + "\n";
   }
 
-  return `[${label}] [${ts}] ${String(message)}\n`;
+  return `[${label}] [${ts}] ${sanitizeText(String(message))}\n`;
+}
+
+/**
+ * Formata conteúdo de log com nível/código/mensagem para eventos de aplicação.
+ * @param {{ level: string, eventCode: string, message: string }} entry
+ * @returns {string}
+ */
+function formatStructuredLog(entry) {
+  const ts = timeStr();
+  const level = String(entry.level || "INFO").toUpperCase();
+  const eventCode = String(entry.eventCode || "APP_EVENT").toUpperCase();
+  const msg = sanitizeText(String(entry.message || ""));
+  return `[${level}] [${ts}] [${eventCode}] ${msg}\n`;
 }
 
 /**
@@ -172,6 +204,31 @@ function logError(message) {
 }
 
 /**
+ * Grava um evento estruturado de aplicação.
+ * @param {"DEBUG"|"INFO"|"WARN"|"ERROR"|"CRITICAL"} level
+ * @param {string} eventCode
+ * @param {string} message
+ */
+function logEvent(level, eventCode, message) {
+  ensureDir();
+  const content = formatStructuredLog({ level, eventCode, message });
+  const filePath = getLogFilePath();
+  try {
+    fs.appendFileSync(filePath, content + "\n", "utf8");
+  } catch (err) {
+    console.error("[logger] Falha ao escrever log:", err.message);
+  }
+}
+
+function logInfo(eventCode, message) {
+  logEvent("INFO", eventCode, message);
+}
+
+function logWarn(eventCode, message) {
+  logEvent("WARN", eventCode, message);
+}
+
+/**
  * Inicializa captura global de erros não tratados (main process).
  * Erros vão só para o log; não exibe diálogo nem encerra o processo.
  */
@@ -187,5 +244,8 @@ function initGlobalHandlers() {
 
 module.exports = {
   logError,
+  logEvent,
+  logInfo,
+  logWarn,
   initGlobalHandlers,
 };

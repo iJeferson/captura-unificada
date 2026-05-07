@@ -52,7 +52,10 @@ async function trimCookiesIfNeeded(url) {
       } catch (_) {}
     }
   } catch (err) {
-    logger.logError(err);
+    logger.logWarn(
+      "COOKIE_TRIM_FAILED",
+      `Falha ao avaliar/limpar cookies para a URL: ${String(url || "").slice(0, 256)}`
+    );
   }
 }
 
@@ -132,15 +135,20 @@ function registerIpcHandlers() {
         await aguardarBCCFechar();
         iniciarBCC();
         await aguardarBCCAbrir();
-        await esperar(4000);
+        await esperar(config.DELAYS.bccStartup);
         await matarBCC();
         await aguardarBCCFechar();
         iniciarBCC();
         await aguardarBCCAbrir();
-        await esperar(4000);
+        await esperar(config.DELAYS.bccStartup);
         await matarBCC();
         await aguardarBCCFechar();
-        reiniciarServicoHardware().catch((err) => logger.logError(err));
+        reiniciarServicoHardware().catch((err) =>
+          logger.logWarn(
+            "HARDWARE_SERVICE_RESTART_ASYNC_FAILED",
+            `Falha no reinício assíncrono do serviço de hardware: ${err?.message || "erro desconhecido"}`
+          )
+        );
         windowManager.loadContentViewUrl(url);
         windowManager.ajustarView();
       } catch (err) {
@@ -219,7 +227,10 @@ function registerIpcHandlers() {
         shell.openExternal(url);
       }
     } catch (err) {
-      logger.logError(err);
+      logger.logWarn(
+        "OPEN_EXTERNAL_BROWSER_FALLBACK",
+        `Falha ao abrir Ponto Renova no Chrome; usando navegador padrão: ${err?.message || "erro desconhecido"}`
+      );
       try {
         shell.openExternal(config.URLS.pontoRenova);
       } catch (e2) {

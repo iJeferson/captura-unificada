@@ -16,6 +16,7 @@ const logger = require("../utils/logger");
 const { initUpdater } = require("../services/updater.service");
 const connectivityService = require("../services/connectivity.service");
 const sessionDownloads = require("../services/session-downloads");
+const EXTERNAL_WINDOW_BACKGROUND_COLOR = "#ffffff";
 
 /** Rótulos dos sistemas para o título da janela (id → nome exibido) */
 const SISTEMA_LABELS = {
@@ -48,6 +49,7 @@ let contentEmbedTopInset = 0;
 
 /** Handler reutilizado em pop-ups e na janela de PDF (definido em criarJanela). */
 let popupOpenHandlerRef = null;
+const PRINT_WINDOW_TITLE = "Captura Unificada - Imprimir";
 
 function isAllowedChildWindowUrl(url) {
   if (url === undefined || url === null) return true;
@@ -65,13 +67,32 @@ function isAllowedChildWindowUrl(url) {
 function wireChildWindowPopups(childWindow) {
   if (!childWindow?.webContents) return;
   if (popupOpenHandlerRef) childWindow.webContents.setWindowOpenHandler(popupOpenHandlerRef);
+  const syncPrintTitle = () => {
+    if (childWindow.isDestroyed()) return;
+    const u = String(childWindow.webContents.getURL() || "").toLowerCase();
+    if (u.startsWith("chrome://print")) {
+      childWindow.setTitle(PRINT_WINDOW_TITLE);
+      return true;
+    }
+    return false;
+  };
   const syncTitle = () => {
     if (childWindow.isDestroyed()) return;
+    if (syncPrintTitle()) return;
     const u = childWindow.webContents.getURL();
     if (u && u !== "about:blank") {
       childWindow.setTitle(u.length > 140 ? `${u.slice(0, 137)}…` : u);
     }
   };
+  childWindow.on("page-title-updated", (event, title) => {
+    if (syncPrintTitle()) {
+      event.preventDefault();
+      return;
+    }
+    if (title && !childWindow.isDestroyed()) {
+      childWindow.setTitle(title);
+    }
+  });
   childWindow.webContents.on("did-navigate", syncTitle);
   childWindow.webContents.on("did-navigate-in-page", syncTitle);
 }
@@ -98,7 +119,7 @@ function openPdfInNewWindow(filePath) {
     minHeight: 360,
     autoHideMenuBar: true,
     icon: iconPath || undefined,
-    backgroundColor: config.WINDOW.backgroundColor,
+    backgroundColor: EXTERNAL_WINDOW_BACKGROUND_COLOR,
     title: path.basename(p),
     webPreferences: {
       partition: config.SESSION_PARTITION,
@@ -244,7 +265,7 @@ function openOrFocusAtendeWindow(url) {
     minHeight: 400,
     title: `Captura Unificada v${version} — Atende`,
     icon: iconPath || path.join(__dirname, "..", "..", "icon.png"),
-    backgroundColor: config.WINDOW.backgroundColor,
+    backgroundColor: EXTERNAL_WINDOW_BACKGROUND_COLOR,
     autoHideMenuBar: true,
     webPreferences: {
       partition: config.SESSION_PARTITION_ATENDE,
@@ -334,7 +355,7 @@ function openOrFocusPontoRenovaWindow() {
     minHeight: 600,
     title: `Captura Unificada v${version} — Ponto Renova`,
     icon: iconPath || path.join(__dirname, "..", "..", "icon.png"),
-    backgroundColor: config.WINDOW.backgroundColor,
+    backgroundColor: EXTERNAL_WINDOW_BACKGROUND_COLOR,
     autoHideMenuBar: true,
     webPreferences: {
       partition: config.SESSION_PARTITION_PONTO_RENOVA,
@@ -562,7 +583,7 @@ function criarJanela(iconPathParam) {
           minHeight: 360,
           autoHideMenuBar: true,
           icon: iconPath || undefined,
-          backgroundColor: config.WINDOW.backgroundColor,
+          backgroundColor: EXTERNAL_WINDOW_BACKGROUND_COLOR,
           title: title.length > 120 ? `${title.slice(0, 117)}…` : title,
           webPreferences: {
             partition: config.SESSION_PARTITION,
@@ -752,7 +773,10 @@ module.exports = {
       processandoTrocaTimer = setTimeout(() => {
         processandoTroca = false;
         processandoTrocaTimer = null;
-        logger.logError(new Error("processandoTroca reset por timeout de segurança (60s)"));
+        logger.logWarn(
+          "PROCESSING_SWITCH_TIMEOUT_RESET",
+          "processandoTroca foi resetado por timeout de segurança (60s)."
+        );
       }, 60000);
     }
   },

@@ -87,9 +87,9 @@ function logConnectivityTransition(online) {
   if (lastLoggedConnectivity === online) return;
   lastLoggedConnectivity = online;
   if (online) {
-    logger.logError("INTERNET NORMALIZADA");
+    logger.logInfo("CONNECTIVITY_RESTORED", "Conectividade com a internet restabelecida.");
   } else {
-    logger.logError("INTERNET DESCONECTADA");
+    logger.logWarn("CONNECTIVITY_LOST", "Conectividade com a internet perdida.");
   }
 }
 

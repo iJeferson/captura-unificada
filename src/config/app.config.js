@@ -116,7 +116,7 @@ const appConfig = {
     hardwareSwitch: 500,
     capturaEnv: 400,
     /** Tempo para o BCC inicializar antes de carregar a URL do SMART (CIN). */
-    bccStartup: 1500,
+    bccStartup: 5000,
   },
 
   /**
