@@ -61,6 +61,16 @@ function syncActive() {
   currentEl.textContent = item ? item.nome : "Captura Unificada";
 }
 
+let ignoringMouse = true;
+
+function syncFabClickThrough(overFab) {
+  if (!window.api?.setOverlayIgnoreMouse) return;
+  const ignore = sidebarOpen ? false : !overFab;
+  if (ignore === ignoringMouse) return;
+  ignoringMouse = ignore;
+  window.api.setOverlayIgnoreMouse(ignore);
+}
+
 async function setSidebarOpen(open) {
   const next = !!open;
   if (closeTimer) {
@@ -70,10 +80,12 @@ async function setSidebarOpen(open) {
 
   if (next) {
     await window.api.setOverlayChromeOpen(true);
+    ignoringMouse = false;
     root.classList.add("is-expanded");
     sidebar.classList.remove("is-open");
     await new Promise((resolve) => requestAnimationFrame(resolve));
     sidebarOpen = true;
+    syncFabClickThrough(true);
     sidebar.classList.add("is-open");
     sidebar.setAttribute("aria-hidden", "false");
     backdrop.classList.remove("hidden");
@@ -97,6 +109,8 @@ async function setSidebarOpen(open) {
   closeTimer = setTimeout(() => {
     root.classList.remove("is-expanded");
     void window.api.setOverlayChromeOpen(false);
+    ignoringMouse = true;
+    syncFabClickThrough(!!fab.matches(":hover"));
   }, 180);
 }
 
@@ -139,6 +153,13 @@ async function copyStation(key, btn) {
 fab.addEventListener("click", (e) => {
   e.stopPropagation();
   void setSidebarOpen(!sidebarOpen);
+});
+
+fab.addEventListener("mouseenter", () => syncFabClickThrough(true));
+fab.addEventListener("mouseleave", () => syncFabClickThrough(false));
+document.addEventListener("mousemove", (e) => {
+  if (sidebarOpen) return;
+  syncFabClickThrough(!!e.target.closest?.("#launcher-fab"));
 });
 
 backdrop.addEventListener("click", () => void setSidebarOpen(false));

@@ -53,8 +53,10 @@ let overlayWindow = null;
 let embedFullscreen = false;
 /** Overlay expandido (sidebar + backdrop). Compacto = só o botão flutuante. */
 let overlayChromeExpanded = false;
-const OVERLAY_FAB_INSET = 10;
+/** Faixa esquerda compacta: o FAB fica em `bottom: 300px` (igual ao << da Home). */
+const OVERLAY_FAB_INSET = 8;
 const OVERLAY_FAB_SIZE = 44;
+const OVERLAY_COLLAPSED_WIDTH = OVERLAY_FAB_SIZE + OVERLAY_FAB_INSET * 2;
 
 /** Handler reutilizado em pop-ups e na janela de PDF (definido em criarJanela). */
 let popupOpenHandlerRef = null;
@@ -169,6 +171,17 @@ function notifyEmbedFullscreen() {
   if (ov && !ov.isDestroyed()) ov.send("embed-fullscreen", isEmbedFullscreen());
 }
 
+function applyOverlayClickThrough() {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  try {
+    if (overlayChromeExpanded) {
+      overlayWindow.setIgnoreMouseEvents(false);
+    } else {
+      overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+    }
+  } catch (_) {}
+}
+
 function syncOverlayBounds() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   if (!overlayWindow || overlayWindow.isDestroyed()) return;
@@ -179,10 +192,10 @@ function syncOverlayBounds() {
   }
   overlayWindow.setBounds(
     {
-      x: b.x + OVERLAY_FAB_INSET,
-      y: b.y + OVERLAY_FAB_INSET,
-      width: OVERLAY_FAB_SIZE,
-      height: OVERLAY_FAB_SIZE,
+      x: b.x,
+      y: b.y,
+      width: OVERLAY_COLLAPSED_WIDTH,
+      height: b.height,
     },
     false
   );
@@ -190,9 +203,7 @@ function syncOverlayBounds() {
 
 function setOverlayChromeOpen(open) {
   overlayChromeExpanded = !!open;
-  if (!overlayChromeExpanded && overlayWindow && !overlayWindow.isDestroyed()) {
-    overlayWindow.setIgnoreMouseEvents(false);
-  }
+  applyOverlayClickThrough();
   syncOverlayBounds();
   if (!overlayChromeExpanded && mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.focus();
@@ -201,6 +212,8 @@ function setOverlayChromeOpen(open) {
 
 function showOverlayChrome() {
   if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  overlayChromeExpanded = false;
+  applyOverlayClickThrough();
   syncOverlayBounds();
   if (!overlayWindow.isVisible()) overlayWindow.showInactive();
 }
@@ -279,7 +292,7 @@ function criarOverlayWindow() {
   });
   overlayWindow.setMenuBarVisibility(false);
   overlayWindow.loadFile(path.join(__dirname, "..", "..", "ui", "overlay.html")).catch((err) => logger.logError(err));
-  overlayWindow.setIgnoreMouseEvents(false);
+  applyOverlayClickThrough();
   overlayWindow.on("closed", () => {
     overlayWindow = null;
   });

@@ -21,8 +21,10 @@ body { pointer-events: none; }
 
 .launcher-fab {
   position: fixed;
-  top: 4px;
-  left: 4px;
+  top: auto;
+  /* Mesma altura do .collapse-btn da Home (centro-direita / bottom: 300px). */
+  bottom: 300px;
+  left: 8px;
   z-index: 30;
   width: 40px;
   height: 40px;
@@ -35,7 +37,7 @@ body { pointer-events: none; }
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
-  transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease, left 0.18s ease;
 }
 
 .launcher-fab:hover {
@@ -51,8 +53,16 @@ body { pointer-events: none; }
 }
 
 .overlay-root.is-expanded .launcher-fab {
-  top: 12px;
+  top: auto;
+  bottom: 300px;
   left: 188px;
+}
+
+@media (max-height: 740px) {
+  .launcher-fab,
+  .overlay-root.is-expanded .launcher-fab {
+    bottom: min(280px, 38vh);
+  }
 }
 
 .overlay-backdrop {
