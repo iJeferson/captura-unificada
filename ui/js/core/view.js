@@ -6,14 +6,19 @@
  */
 
 import { ELEMENT_IDS, CSS_CLASSES } from "../config/constants.js";
+import { CATALOG, getCatalogItem } from "../config/catalog.js";
+import { getRecents, getFavorites, isFavorite } from "./recents.js";
 
 /**
  * Seletores dos elementos do DOM.
  * Usa funções para garantir acesso atualizado (DOM pode mudar).
  */
 const elementos = {
+  app: () => document.querySelector(".app"),
   loading: () => document.getElementById(ELEMENT_IDS.LOADING),
-  loaderText: () => document.querySelector(`#${ELEMENT_IDS.LOADING} p`),
+  loaderText: () => document.querySelector(`#${ELEMENT_IDS.LOADING} .loading-title`),
+  loadingTitle: () => document.getElementById(ELEMENT_IDS.LOADING_TITLE),
+  loadingSub: () => document.getElementById(ELEMENT_IDS.LOADING_SUB),
   contentLoadingBar: () => document.getElementById(ELEMENT_IDS.CONTENT_LOADING_BAR),
   contentArea: () => document.querySelector(".content"),
   placeholder: () => document.getElementById(ELEMENT_IDS.PLACEHOLDER),
@@ -32,7 +37,35 @@ const elementos = {
   ipEl: () => document.getElementById(ELEMENT_IDS.IP),
   anydeskEl: () => document.getElementById(ELEMENT_IDS.ANYDESK),
   dropdowns: () => document.querySelectorAll(`.${CSS_CLASSES.DROPDOWN}`),
+  commandPalette: () => document.getElementById(ELEMENT_IDS.COMMAND_PALETTE),
+  commandInput: () => document.getElementById(ELEMENT_IDS.COMMAND_INPUT),
+  commandList: () => document.getElementById(ELEMENT_IDS.COMMAND_LIST),
+  systemError: () => document.getElementById(ELEMENT_IDS.SYSTEM_ERROR),
 };
+
+let cmdkIndex = 0;
+let cmdkItems = [];
+
+function greetingText() {
+  const h = new Date().getHours();
+  if (h < 12) return "Bom dia";
+  if (h < 18) return "Boa tarde";
+  return "Boa noite";
+}
+
+function iconEl(name) {
+  const i = document.createElement("i");
+  i.className = `fas ${name}`;
+  i.setAttribute("aria-hidden", "true");
+  return i;
+}
+
+function emptyHint(text) {
+  const p = document.createElement("p");
+  p.className = "home-empty";
+  p.textContent = text;
+  return p;
+}
 
 const View = {
   elementos,
@@ -44,16 +77,17 @@ const View = {
    */
   mostrarLoading(mostrar, nomeSistema = "") {
     const loader = this.elementos.loading();
-    const loaderText = this.elementos.loaderText();
+    const title = this.elementos.loadingTitle() || this.elementos.loaderText();
+    const sub = this.elementos.loadingSub();
     const contentArea = this.elementos.contentArea();
 
     if (loader) {
       if (mostrar) {
+        this.ocultarErroSistema();
         loader.classList.remove(CSS_CLASSES.HIDDEN);
         loader.style.display = "";
-        if (loaderText && nomeSistema) {
-          loaderText.innerText = `Iniciando ${nomeSistema}`;
-        }
+        if (title) title.textContent = nomeSistema || "Sistema";
+        if (sub) sub.textContent = nomeSistema ? `Preparando ${nomeSistema}…` : "Preparando ambiente…";
         contentArea?.classList.remove("fade-in-view");
       } else {
         loader.classList.add(CSS_CLASSES.HIDDEN);
@@ -94,8 +128,15 @@ const View = {
   setMenuAtivo(btn) {
     this.elementos.menuBtns().forEach((b) => b.classList.remove(CSS_CLASSES.ACTIVE));
     btn?.classList.add(CSS_CLASSES.ACTIVE);
-    this.elementos.placeholder()?.classList.add(CSS_CLASSES.HIDDEN);
-    this.elementos.placeholderOfflineMsg()?.classList.add(CSS_CLASSES.HIDDEN);
+    const isHome = !btn || btn.id === ELEMENT_IDS.SIDEBAR_HOME;
+    const placeholder = this.elementos.placeholder();
+    if (isHome) {
+      placeholder?.classList.remove(CSS_CLASSES.HIDDEN);
+      this.elementos.placeholderOfflineMsg()?.classList.add(CSS_CLASSES.HIDDEN);
+    } else {
+      placeholder?.classList.add(CSS_CLASSES.HIDDEN);
+      this.elementos.placeholderOfflineMsg()?.classList.add(CSS_CLASSES.HIDDEN);
+    }
   },
 
   /**
@@ -206,6 +247,7 @@ const View = {
       const texto = isCollapsed ? "Expandir menu" : "Recolher menu";
       toggleBtn.setAttribute("title", texto);
       toggleBtn.setAttribute("aria-label", texto);
+      toggleBtn.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
     }
 
     return isCollapsed ?? false;
@@ -419,6 +461,222 @@ const View = {
     return input?.value?.trim() || "";
   },
 
+  setEmbedMode(on) {
+    const app = this.elementos.app();
+    app?.classList.toggle(CSS_CLASSES.EMBED, !!on);
+  },
+
+  setHomeActive() {
+    const homeBtn = document.getElementById(ELEMENT_IDS.SIDEBAR_HOME);
+    this.setMenuAtivo(homeBtn);
+    this.setEmbedMode(false);
+    this.ocultarErroSistema();
+    this.mostrarPlaceholderPadrao();
+    this.renderHome();
+  },
+
+  atualizarSaudacao() {
+    const el = document.getElementById(ELEMENT_IDS.HOME_GREETING);
+    if (el) el.textContent = greetingText();
+  },
+
+  atualizarStatusLauncher() {
+    const el = document.getElementById(ELEMENT_IDS.LAUNCHER_STATUS);
+    if (!el) return;
+    const n = CATALOG.length;
+    el.textContent = n === 1 ? "1 sistema disponível" : `${n} sistemas disponíveis`;
+  },
+
+  makeSystemTile(item, { recent = false } = {}) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "home-tile";
+    btn.dataset.systemId = item.id;
+    btn.setAttribute("aria-label", `Abrir ${item.nome}`);
+
+    const icon = iconEl(item.icon);
+    const copy = document.createElement("span");
+    copy.className = "home-tile-copy";
+    const name = document.createElement("strong");
+    name.textContent = item.nome;
+    const meta = document.createElement("span");
+    meta.textContent = recent ? "Recente" : item.descricao || item.grupo;
+    copy.append(name, meta);
+
+    const action = document.createElement("span");
+    action.className = "home-tile-action";
+    action.textContent = item.janelaExterna ? "Janela" : "Abrir";
+
+    btn.append(icon, copy, action);
+    return btn;
+  },
+
+  renderHome() {
+    this.atualizarSaudacao();
+    this.atualizarStatusLauncher();
+
+    const recentsEl = document.getElementById(ELEMENT_IDS.HOME_RECENTS);
+    const favsEl = document.getElementById(ELEMENT_IDS.HOME_FAVORITES);
+    const allEl = document.getElementById(ELEMENT_IDS.HOME_ALL);
+    const actionsEl = document.getElementById(ELEMENT_IDS.HOME_ACTIONS);
+    if (!recentsEl || !favsEl || !allEl || !actionsEl) return;
+
+    recentsEl.replaceChildren();
+    const recents = getRecents().map(getCatalogItem).filter(Boolean);
+    if (!recents.length) recentsEl.appendChild(emptyHint("Nenhum acesso recente nesta estação."));
+    else recents.forEach((item) => recentsEl.appendChild(this.makeSystemTile(item, { recent: true })));
+
+    favsEl.replaceChildren();
+    const favs = getFavorites().map(getCatalogItem).filter(Boolean);
+    if (!favs.length) favsEl.appendChild(emptyHint("Marque sistemas usados com frequência."));
+    else favs.forEach((item) => favsEl.appendChild(this.makeSystemTile(item)));
+
+    allEl.replaceChildren();
+    CATALOG.forEach((item) => {
+      const tile = this.makeSystemTile(item);
+      if (isFavorite(item.id)) tile.classList.add("is-favorite");
+      allEl.appendChild(tile);
+    });
+
+    actionsEl.replaceChildren();
+    const actions = [
+      { id: "copy-hostname", icon: "fa-desktop", label: "Copiar hostname" },
+      { id: "copy-ip", icon: "fa-network-wired", label: "Copiar IP" },
+      { id: "copy-anydesk", icon: "fa-id-card-clip", label: "Copiar AnyDesk" },
+      { id: "open-downloads", icon: "fa-folder-open", label: "Abrir pasta de PDFs" },
+    ];
+    for (const a of actions) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "home-action";
+      b.dataset.actionId = a.id;
+      b.append(iconEl(a.icon), document.createTextNode(a.label));
+      actionsEl.appendChild(b);
+    }
+  },
+
+  isCommandPaletteOpen() {
+    const pal = this.elementos.commandPalette();
+    return !!(pal && !pal.classList.contains(CSS_CLASSES.HIDDEN));
+  },
+
+  filterCatalog(query) {
+    const q = String(query || "").trim().toLowerCase();
+    const recents = getRecents();
+    const items = [];
+    if (!q && recents.length) {
+      recents.forEach((id) => {
+        const item = getCatalogItem(id);
+        if (item) items.push({ ...item, group: "Recentes" });
+      });
+    }
+    CATALOG.forEach((item) => {
+      const hay = `${item.nome} ${item.descricao} ${item.grupo}`.toLowerCase();
+      if (!q || hay.includes(q)) {
+        if (!items.some((x) => x.id === item.id && x.group === "Recentes")) {
+          items.push({ ...item, group: item.grupo });
+        }
+      }
+    });
+    return items;
+  },
+
+  renderCommandList(query = "") {
+    const list = this.elementos.commandList();
+    if (!list) return;
+    cmdkItems = this.filterCatalog(query);
+    cmdkIndex = cmdkItems.length ? 0 : -1;
+    list.replaceChildren();
+    let lastGroup = "";
+    cmdkItems.forEach((item, idx) => {
+      if (item.group !== lastGroup) {
+        lastGroup = item.group;
+        const g = document.createElement("div");
+        g.className = "cmdk-group";
+        g.textContent = lastGroup;
+        list.appendChild(g);
+      }
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "cmdk-item";
+      row.dataset.index = String(idx);
+      row.dataset.id = item.id;
+      row.setAttribute("role", "option");
+      row.setAttribute("aria-selected", idx === cmdkIndex ? "true" : "false");
+      const copy = document.createElement("span");
+      copy.className = "cmdk-item-copy";
+      const name = document.createElement("strong");
+      name.textContent = item.nome;
+      const desc = document.createElement("span");
+      desc.textContent = item.descricao;
+      copy.append(name, desc);
+      row.append(iconEl(item.icon), copy);
+      if (idx === cmdkIndex) row.classList.add("is-active");
+      list.appendChild(row);
+    });
+    if (!cmdkItems.length) {
+      list.appendChild(emptyHint("Nenhum sistema encontrado."));
+    }
+  },
+
+  cmdkMove(delta) {
+    if (!cmdkItems.length) return;
+    cmdkIndex = (cmdkIndex + delta + cmdkItems.length) % cmdkItems.length;
+    const list = this.elementos.commandList();
+    list?.querySelectorAll(".cmdk-item").forEach((el) => {
+      const active = Number(el.dataset.index) === cmdkIndex;
+      el.classList.toggle("is-active", active);
+      el.setAttribute("aria-selected", active ? "true" : "false");
+      if (active) el.scrollIntoView({ block: "nearest" });
+    });
+  },
+
+  cmdkSelectedId() {
+    return cmdkItems[cmdkIndex]?.id || null;
+  },
+
+  setCommandPaletteOpen(open) {
+    const pal = this.elementos.commandPalette();
+    const input = this.elementos.commandInput();
+    if (!pal) return;
+    if (open) {
+      pal.classList.remove(CSS_CLASSES.HIDDEN);
+      this.renderCommandList("");
+      if (input) {
+        input.value = "";
+        requestAnimationFrame(() => input.focus());
+      }
+    } else {
+      pal.classList.add(CSS_CLASSES.HIDDEN);
+    }
+  },
+
+  mostrarErroSistema(sistemaId) {
+    const box = this.elementos.systemError();
+    const title = document.getElementById(ELEMENT_IDS.SYSTEM_ERROR_TITLE);
+    const item = getCatalogItem(sistemaId);
+    const nome = item?.nome || "sistema";
+    if (title) title.textContent = `Não foi possível iniciar o ${nome}`;
+    box?.classList.remove(CSS_CLASSES.HIDDEN);
+    this.elementos.placeholder()?.classList.add(CSS_CLASSES.HIDDEN);
+  },
+
+  ocultarErroSistema() {
+    this.elementos.systemError()?.classList.add(CSS_CLASSES.HIDDEN);
+  },
+
+  marcarCopiado(btn) {
+    if (!btn) return;
+    btn.classList.add(CSS_CLASSES.COPIED);
+    btn.title = "Copiado";
+    const ico = btn.querySelector(".copy-ico");
+    if (ico) ico.className = "fas fa-check copy-ico";
+    setTimeout(() => {
+      btn.classList.remove(CSS_CLASSES.COPIED);
+      btn.title = "Copiar";
+      if (ico) ico.className = "fas fa-copy copy-ico";
+    }, 1200);
+  },
 };
 
 export default View;

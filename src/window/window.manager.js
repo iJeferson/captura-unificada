@@ -47,6 +47,14 @@ let lastLoadedUrl = null;
 let sistemaAntesDaQueda = null;
 /** Distância do topo da área cliente até o WebContentsView (reservado para HTML sobre o embed, se necessário). */
 let contentEmbedTopInset = 0;
+/** Overlay do launcher (FAB + sidebar) sobre o WebContentsView — janela transparente do host. */
+let overlayWindow = null;
+/** Sistema embutido em tela cheia (sem coluna reservada para a sidebar). */
+let embedFullscreen = false;
+/** Overlay expandido (sidebar + backdrop). Compacto = só o botão flutuante. */
+let overlayChromeExpanded = false;
+const OVERLAY_FAB_INSET = 10;
+const OVERLAY_FAB_SIZE = 44;
 
 /** Handler reutilizado em pop-ups e na janela de PDF (definido em criarJanela). */
 let popupOpenHandlerRef = null;
@@ -136,16 +144,145 @@ function openPdfInNewWindow(filePath) {
   return true;
 }
 
+function isEmbedFullscreen() {
+  return !!embedFullscreen;
+}
+
 function getContentBounds() {
   if (!mainWindow) return null;
   const { width, height } = mainWindow.getContentBounds();
-  const top = contentEmbedTopInset;
+  const full = isEmbedFullscreen();
+  const left = full ? 0 : currentSidebarWidth;
+  const top = full ? 0 : contentEmbedTopInset;
   return {
-    x: currentSidebarWidth,
+    x: left,
     y: top,
-    width: Math.max(0, width - currentSidebarWidth),
+    width: Math.max(0, width - left),
     height: Math.max(0, height - top),
   };
+}
+
+function notifyEmbedFullscreen() {
+  const wc = mainWindow?.webContents;
+  if (wc && !wc.isDestroyed()) wc.send("embed-fullscreen", isEmbedFullscreen());
+  const ov = overlayWindow?.webContents;
+  if (ov && !ov.isDestroyed()) ov.send("embed-fullscreen", isEmbedFullscreen());
+}
+
+function syncOverlayBounds() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  const b = mainWindow.getContentBounds();
+  if (overlayChromeExpanded) {
+    overlayWindow.setBounds({ x: b.x, y: b.y, width: b.width, height: b.height }, false);
+    return;
+  }
+  overlayWindow.setBounds(
+    {
+      x: b.x + OVERLAY_FAB_INSET,
+      y: b.y + OVERLAY_FAB_INSET,
+      width: OVERLAY_FAB_SIZE,
+      height: OVERLAY_FAB_SIZE,
+    },
+    false
+  );
+}
+
+function setOverlayChromeOpen(open) {
+  overlayChromeExpanded = !!open;
+  if (!overlayChromeExpanded && overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.setIgnoreMouseEvents(false);
+  }
+  syncOverlayBounds();
+  if (!overlayChromeExpanded && mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.focus();
+  }
+}
+
+function showOverlayChrome() {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  syncOverlayBounds();
+  if (!overlayWindow.isVisible()) overlayWindow.showInactive();
+}
+
+function hideOverlayChrome() {
+  overlayChromeExpanded = false;
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  overlayWindow.hide();
+}
+
+function setEmbedFullscreen(on) {
+  embedFullscreen = !!on;
+  if (embedFullscreen) {
+    currentSidebarWidth = 0;
+    overlayChromeExpanded = false;
+  } else {
+    currentSidebarWidth = config.SIDEBAR_WIDTH_EXPANDED;
+  }
+  ajustarView();
+  if (embedFullscreen) showOverlayChrome();
+  else hideOverlayChrome();
+  notifyEmbedFullscreen();
+}
+
+function voltarHome() {
+  embedFullscreen = false;
+  overlayChromeExpanded = false;
+  currentSistema = null;
+  sistemaIniciado = false;
+  currentSidebarWidth = config.SIDEBAR_WIDTH_EXPANDED;
+  if (contentView) {
+    contentView.setVisible(false);
+    const b = mainWindow && !mainWindow.isDestroyed() ? mainWindow.getContentBounds() : null;
+    if (b) contentView.setBounds({ x: 0, y: 0, width: 0, height: 0 });
+  }
+  hideOverlayChrome();
+  resetProcessandoTroca();
+  updateMainWindowTitle();
+  notifyEmbedFullscreen();
+  const wc = mainWindow?.webContents;
+  if (wc && !wc.isDestroyed()) wc.send("load-finished", null);
+  const ov = overlayWindow?.webContents;
+  if (ov && !ov.isDestroyed()) ov.send("load-finished", null);
+}
+
+function setOverlayIgnoreMouse(ignore) {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  try {
+    overlayWindow.setIgnoreMouseEvents(!!ignore, { forward: true });
+  } catch (_) {}
+}
+
+function criarOverlayWindow() {
+  if (!mainWindow || overlayWindow) return;
+  overlayWindow = new BrowserWindow({
+    parent: mainWindow,
+    modal: false,
+    show: false,
+    frame: false,
+    transparent: true,
+    backgroundColor: "#00000000",
+    hasShadow: false,
+    skipTaskbar: true,
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    fullscreenable: false,
+    autoHideMenuBar: true,
+    focusable: true,
+    webPreferences: {
+      preload: path.join(__dirname, "..", "..", "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  overlayWindow.setMenuBarVisibility(false);
+  overlayWindow.loadFile(path.join(__dirname, "..", "..", "ui", "overlay.html")).catch((err) => logger.logError(err));
+  overlayWindow.setIgnoreMouseEvents(false);
+  overlayWindow.on("closed", () => {
+    overlayWindow = null;
+  });
 }
 
 /**
@@ -159,7 +296,9 @@ function setContentEmbedTopInset(px) {
 }
 
 function ajustarView() {
-  if (!mainWindow || !sistemaIniciado) return;
+  if (!mainWindow) return;
+  syncOverlayBounds();
+  if (!sistemaIniciado) return;
   const bounds = getContentBounds();
   if (!bounds || !contentView) return;
   contentView.setBounds(bounds);
@@ -175,6 +314,7 @@ function showOfflineFallbackUI() {
       if (b) contentView.setBounds({ x: b.x, y: b.y, width: 0, height: 0 });
     }
     connectivityService.notifyOffline();
+    setEmbedFullscreen(false);
     resetProcessandoTroca();
     enviarLoadFinished(null);
 
@@ -212,8 +352,12 @@ function enviarLoadFinished(sistema) {
   if (sistema) sistemaAntesDaQueda = null;
   resetProcessandoTroca();
   updateMainWindowTitle();
+  if (sistema && sistema !== "atende") setEmbedFullscreen(true);
   if (mainWindow?.webContents) {
     mainWindow.webContents.send("load-finished", sistema);
+  }
+  if (overlayWindow?.webContents && !overlayWindow.webContents.isDestroyed()) {
+    overlayWindow.webContents.send("load-finished", sistema);
   }
 }
 
@@ -322,6 +466,7 @@ function notificarDesconexao() {
     if (b) contentView.setBounds({ x: b.x, y: b.y, width: 0, height: 0 });
   }
 
+  setEmbedFullscreen(false);
   resetProcessandoTroca();
   enviarLoadFinished(null);
 
@@ -396,6 +541,10 @@ function criarJanela(iconPathParam) {
   );
 
   mainWindow.on("closed", () => {
+    if (overlayWindow && !overlayWindow.isDestroyed()) {
+      overlayWindow.destroy();
+    }
+    overlayWindow = null;
     mainWindow = null;
     contentView = null;
     connectivityService.reset();
@@ -555,8 +704,15 @@ function criarJanela(iconPathParam) {
     const isNetErr = connectivityService.isNetworkError(errorCode);
 
     if (!isNetErr) {
+      const failedSistema = currentSistema;
+      setEmbedFullscreen(false);
+      if (contentView) {
+        contentView.setVisible(false);
+        contentView.setBounds({ x: 0, y: 0, width: 0, height: 0 });
+      }
       resetProcessandoTroca();
       if (mainWindow?.webContents && !mainWindow.webContents.isDestroyed()) {
+        mainWindow.webContents.send("system-load-error", failedSistema);
         mainWindow.webContents.send("load-finished", null);
       }
       return;
@@ -613,7 +769,11 @@ function criarJanela(iconPathParam) {
 
   mainWindow.contentView.addChildView(contentView);
   contentView.setVisible(false);
+  criarOverlayWindow();
   mainWindow.on("resize", ajustarView);
+  mainWindow.on("move", syncOverlayBounds);
+  mainWindow.on("maximize", syncOverlayBounds);
+  mainWindow.on("unmaximize", syncOverlayBounds);
 
   mainWindow.once("ready-to-show", () => {
     const b = bounds();
@@ -695,7 +855,14 @@ module.exports = {
       }, 60000);
     }
   },
-  setCurrentSidebarWidth: (w) => (currentSidebarWidth = w),
+  setCurrentSidebarWidth: (w) => {
+    if (isEmbedFullscreen()) return;
+    currentSidebarWidth = w;
+  },
+  setEmbedFullscreen,
+  voltarHome,
+  setOverlayIgnoreMouse,
+  setOverlayChromeOpen,
   setContentViewVisible: (v) => contentView && (contentView.setVisible(v)),
   reloadContentView: () => contentView?.webContents?.reload(),
   reloadActiveView: () => getActiveWebContents()?.reload(),

@@ -77,6 +77,7 @@ async function openSystemContent(sistemaId, url, setup) {
   windowManager.setProcessandoTroca(true);
   windowManager.setSistemaIniciado(true);
   windowManager.setCurrentSistema(sistemaId);
+  windowManager.setEmbedFullscreen(true);
   windowManager.setContentEmbedTopInset(0);
   windowManager.setContentViewVisible(false);
   try {
@@ -111,6 +112,62 @@ function registerIpcHandlers() {
     }
   });
 
+  ipcMain.on("overlay-ignore-mouse", (_, ignore) => {
+    windowManager.setOverlayIgnoreMouse(!!ignore);
+  });
+
+  ipcMain.handle("overlay-chrome-open", (_, open) => {
+    try {
+      windowManager.setOverlayChromeOpen(!!open);
+      return true;
+    } catch (err) {
+      logger.logError(err);
+      return false;
+    }
+  });
+
+  ipcMain.handle("voltar-home", () => {
+    try {
+      windowManager.voltarHome();
+      return true;
+    } catch (err) {
+      logger.logError(err);
+      return false;
+    }
+  });
+
+  ipcMain.handle("set-embed-fullscreen", (_, on) => {
+    try {
+      windowManager.setEmbedFullscreen(!!on);
+      return true;
+    } catch (err) {
+      logger.logError(err);
+      return false;
+    }
+  });
+
+  ipcMain.on("request-atende-config", () => {
+    try {
+      const win = windowManager.getMainWindow();
+      if (win?.webContents && !win.webContents.isDestroyed()) {
+        win.webContents.send("request-atende-config");
+      }
+    } catch (err) {
+      logger.logError(err);
+    }
+  });
+
+  ipcMain.handle("copy-text", (_, text) => {
+    try {
+      const { clipboard } = require("electron");
+      clipboard.writeText(String(text || "").slice(0, 1024));
+      return true;
+    } catch (err) {
+      logger.logError(err);
+      return false;
+    }
+  });
+
   ipcMain.on("connectivity-request-initial", () => windowManager.requestConnectivityCheck());
 
   ipcMain.handle("captura", async () => {
@@ -126,6 +183,7 @@ function registerIpcHandlers() {
       windowManager.setProcessandoTroca(true);
       windowManager.setSistemaIniciado(true);
       windowManager.setCurrentSistema("captura");
+      windowManager.setEmbedFullscreen(true);
       windowManager.setContentEmbedTopInset(0);
       windowManager.setContentViewVisible(false);
       try {

@@ -63,6 +63,28 @@ contextBridge.exposeInMainWorld("api", {
     const safe = ALLOWED_SIDEBAR_STATES.has(state) ? state : "expanded";
     ipcRenderer.send("resize-sidebar", safe);
   },
+  setEmbedFullscreen: (on) => ipcRenderer.invoke("set-embed-fullscreen", !!on),
+  voltarHome: () => ipcRenderer.invoke("voltar-home"),
+  setOverlayIgnoreMouse: (ignore) => ipcRenderer.send("overlay-ignore-mouse", !!ignore),
+  setOverlayChromeOpen: (open) => ipcRenderer.invoke("overlay-chrome-open", !!open),
+  requestAtendeConfig: () => ipcRenderer.send("request-atende-config"),
+  copyText: (text) => ipcRenderer.invoke("copy-text", sanitizeString(String(text || ""), 1024)),
+  onSystemLoadError: (callback) => {
+    if (typeof callback !== "function") return;
+    ipcRenderer.on("system-load-error", (_, sistema) => callback(sistema || null));
+  },
+  onEmbedFullscreen: (callback) => {
+    if (typeof callback !== "function") return;
+    ipcRenderer.on("embed-fullscreen", (_, on) => callback(!!on));
+  },
+  onRequestAtendeConfig: (callback) => {
+    if (typeof callback !== "function") return;
+    ipcRenderer.on("request-atende-config", () => callback());
+  },
+  onOverlayState: (callback) => {
+    if (typeof callback !== "function") return;
+    ipcRenderer.on("overlay-state", (_, payload) => callback(payload || {}));
+  },
 
   onLoadFinished: (callback) => {
     if (typeof callback !== "function") return;

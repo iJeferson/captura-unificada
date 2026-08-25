@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; script-src 'self';" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="vendor/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="vendor/fontawesome/css/solid.min.css" />
+    <link rel="stylesheet" href="overlay.css" />
+    <title>Launcher overlay</title>
+  </head>
+  <body>
+    <div id="overlay-root" class="overlay-root">
+      <button type="button" id="launcher-fab" class="launcher-fab hit" title="Abrir menu do Launcher" aria-label="Abrir menu do Launcher" aria-expanded="false">
+        <i class="fas fa-indent" id="fab-icon" aria-hidden="true"></i>
+      </button>
+
+      <div id="overlay-backdrop" class="overlay-backdrop hit hidden" aria-hidden="true"></div>
+
+      <aside id="overlay-sidebar" class="overlay-sidebar hit" aria-label="Launcher" aria-hidden="true">
+        <div class="ov-header">
+          <button type="button" id="ov-home" class="ov-home hit" title="Início">
+            <i class="fas fa-house" aria-hidden="true"></i>
+            <span>Início</span>
+          </button>
+          <div class="ov-brand">
+            <strong>Captura Unificada</strong>
+            <span id="ov-version"></span>
+          </div>
+        </div>
+        <p class="ov-kicker" id="ov-current">Sistema</p>
+        <nav class="ov-nav" id="ov-nav"></nav>
+      </aside>
+    </div>
+    <script type="module" src="js/overlay.js"></script>
+  </body>
+</html>

@@ -18,8 +18,16 @@
       <div class="sidebar-wrapper" id="sidebar-wrapper">
         <aside class="sidebar" id="sidebar">
           <div class="logo">
-            <h2>Captura Unificada<span id="app-version" class="version-tag"></span></h2>
-            <span class="logo-sub">Launcher</span>
+            <button type="button" class="logo-btn" id="nav-home" title="Início" aria-label="Início">
+              <span class="logo-mark" aria-hidden="true">CU</span>
+              <span class="logo-copy">
+                <h2>Captura Unificada<span id="app-version" class="version-tag"></span></h2>
+                <span class="logo-sub">Launcher</span>
+              </span>
+            </button>
+            <button type="button" class="collapse-btn" id="toggle-sidebar" title="Recolher menu" aria-label="Recolher ou expandir barra lateral" aria-expanded="true">
+              <i class="fas fa-angles-left" id="toggle-icon" aria-hidden="true"></i>
+            </button>
           </div>
 
           <div class="theme-section" title="Alternar entre tema escuro e claro">
@@ -39,6 +47,12 @@
           </div>
 
           <nav class="menu">
+            <section class="menu-group">
+              <button type="button" class="menu-btn nav-home-item" id="sidebar-home" title="Início">
+                <span><i class="fas fa-house"></i><span class="btn-label">Início</span></span>
+                <span class="menu-btn-slot-end" aria-hidden="true"></span>
+              </button>
+            </section>
             <section class="menu-group">
               <h3 class="menu-group-title">Sistemas Integrados</h3>
               <div class="system-item">
@@ -164,20 +178,31 @@
             </span>
           </button>
 
-          <div class="pc-info">
-            <div class="info-item"><i class="fas fa-desktop"></i><div class="text"><strong>Host</strong><span id="hostname">---</span></div></div>
-            <div class="info-item"><i class="fas fa-network-wired"></i><div class="text"><strong>IP</strong><span id="ip">---</span></div></div>
-            <div class="info-item"><i class="fas fa-id-card-clip"></i><div class="text"><strong>AnyDesk</strong><span id="anydesk" class="anydesk-id">---</span></div></div>
+          <div class="pc-info station-card" id="station-card">
+            <h3 class="station-title">Estação de trabalho</h3>
+            <button type="button" class="info-item copyable" data-copy-target="hostname" title="Copiar">
+              <i class="fas fa-desktop"></i>
+              <div class="text"><strong>Host</strong><span id="hostname">---</span></div>
+              <i class="fas fa-copy copy-ico" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="info-item copyable" data-copy-target="ip" title="Copiar">
+              <i class="fas fa-network-wired"></i>
+              <div class="text"><strong>IP</strong><span id="ip">---</span></div>
+              <i class="fas fa-copy copy-ico" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="info-item copyable" data-copy-target="anydesk" title="Copiar">
+              <i class="fas fa-id-card-clip"></i>
+              <div class="text"><strong>AnyDesk</strong><span id="anydesk" class="anydesk-id">---</span></div>
+              <i class="fas fa-copy copy-ico" aria-hidden="true"></i>
+            </button>
           </div>
 
           <div class="sidebar-footer">
+            <p class="launcher-status" id="launcher-status">Sistemas disponíveis</p>
             <div class="copyright-entity">@ Consórcio Bahia Digital - 2026</div>
           </div>
         </div>
       </aside>
-        <button type="button" class="collapse-btn" id="toggle-sidebar" title="Recolher menu" aria-label="Recolher ou expandir barra lateral">
-          <i class="fas fa-angles-left" id="toggle-icon" aria-hidden="true"></i>
-        </button>
       </div>
 
       <div id="atende-modal" class="modal-overlay hidden">
@@ -211,10 +236,35 @@
         </div>
         <div id="placeholder" class="placeholder">
           <div class="placeholder-container" id="placeholder-container">
-            <i class="fas fa-display" aria-hidden="true"></i>
-            <div class="placeholder-when-online">
-              <h2>Nenhum sistema aberto</h2>
-              <p>Escolha um item na barra lateral para iniciar.</p>
+            <div class="placeholder-when-online home-workspace">
+              <header class="home-header">
+                <div>
+                  <p class="home-kicker" id="home-greeting">Bem-vindo</p>
+                  <h2>Captura Unificada</h2>
+                  <p class="home-lead">Encontre um sistema e abra com um clique, ou use Ctrl+K.</p>
+                </div>
+                <button type="button" id="home-search-btn" class="home-search">
+                  <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                  <span>Buscar sistemas, ferramentas ou ações…</span>
+                  <kbd>Ctrl K</kbd>
+                </button>
+              </header>
+              <section class="home-section" aria-label="Acessados recentemente">
+                <h3>Acessados recentemente</h3>
+                <div id="home-recents" class="home-row"></div>
+              </section>
+              <section class="home-section" aria-label="Favoritos">
+                <h3>Favoritos</h3>
+                <div id="home-favorites" class="home-row"></div>
+              </section>
+              <section class="home-section" aria-label="Todos os sistemas">
+                <h3>Todos os sistemas</h3>
+                <div id="home-all" class="home-grid"></div>
+              </section>
+              <section class="home-section" aria-label="Ações rápidas">
+                <h3>Ações rápidas</h3>
+                <div id="home-actions" class="home-row"></div>
+              </section>
             </div>
             <div id="placeholder-offline-msg" class="placeholder-when-offline hidden">
               <h2>Sem conexão no momento</h2>
@@ -224,10 +274,36 @@
         </div>
 
         <div id="loading" class="hidden">
-          <div class="spinner"></div>
-          <p>Trocando sistema...</p>
+          <div class="loading-copy">
+            <div class="spinner" aria-hidden="true"></div>
+            <p class="loading-kicker">Inicializando</p>
+            <p class="loading-title" id="loading-title">Sistema</p>
+            <p class="loading-sub" id="loading-sub">Preparando ambiente…</p>
+          </div>
+        </div>
+        <div id="system-error" class="system-error hidden" role="alert">
+          <div class="system-error-copy">
+            <p class="home-kicker">Falha ao iniciar</p>
+            <h2 id="system-error-title">Não foi possível iniciar o sistema</h2>
+            <p>Verifique a conexão com o sistema e tente novamente.</p>
+            <div class="system-error-actions">
+              <button type="button" id="system-error-retry" class="btn-modal-save">Tentar novamente</button>
+              <button type="button" id="system-error-home" class="btn-modal-cancel">Voltar ao Launcher</button>
+            </div>
+          </div>
         </div>
       </main>
+    </div>
+
+    <div id="command-palette" class="cmdk hidden" role="dialog" aria-modal="true" aria-label="Buscar sistemas">
+      <div class="cmdk-scrim" id="command-scrim"></div>
+      <div class="cmdk-panel">
+        <div class="cmdk-input-wrap">
+          <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+          <input id="command-input" type="search" placeholder="Buscar sistemas…" autocomplete="off" />
+        </div>
+        <div id="command-list" class="cmdk-list" role="listbox"></div>
+      </div>
     </div>
     <script type="module" src="app.js"></script>
   </body>
