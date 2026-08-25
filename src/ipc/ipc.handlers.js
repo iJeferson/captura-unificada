@@ -6,8 +6,7 @@
  * @module ipc/ipc.handlers
  */
 
-const { ipcMain, session, shell } = require("electron");
-const fs = require("fs");
+const { ipcMain, session } = require("electron");
 const { exec, spawn } = require("child_process");
 const { promisify } = require("util");
 const { autoUpdater } = require("electron-updater");
@@ -204,38 +203,11 @@ function registerIpcHandlers() {
       logger.logError(err);
     }
   });
-  ipcMain.handle("ponto-renova", () => {
+  ipcMain.handle("ponto-renova", async () => {
     try {
-      windowManager.openOrFocusPontoRenovaWindow();
+      return await openSystemContent("ponto-renova", config.URLS.pontoRenova);
     } catch (err) {
       logger.logError(err);
-    }
-  });
-
-  ipcMain.handle("ponto-renova-abrir-navegador", () => {
-    try {
-      const url = config.URLS.pontoRenova;
-      const chromePaths = [
-        process.env.LOCALAPPDATA + "\\Google\\Chrome\\Application\\chrome.exe",
-        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-        "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
-      ];
-      const chromePath = chromePaths.find((p) => p && fs.existsSync(p));
-      if (chromePath) {
-        spawn(chromePath, [url], { detached: true, stdio: "ignore" }).unref();
-      } else {
-        shell.openExternal(url);
-      }
-    } catch (err) {
-      logger.logWarn(
-        "OPEN_EXTERNAL_BROWSER_FALLBACK",
-        `Falha ao abrir Ponto Renova no Chrome; usando navegador padrão: ${err?.message || "erro desconhecido"}`
-      );
-      try {
-        shell.openExternal(config.URLS.pontoRenova);
-      } catch (e2) {
-        logger.logError(e2);
-      }
     }
   });
 
@@ -264,10 +236,6 @@ function registerIpcHandlers() {
 
   ipcMain.handle("reload-atende-window", () => {
     windowManager.reloadAtendeWindow();
-  });
-
-  ipcMain.handle("reload-ponto-renova-window", () => {
-    windowManager.reloadPontoRenovaWindow();
   });
 
   ipcMain.handle("atende-window-open-state", () => windowManager.isAtendeWindowOpen());
@@ -439,23 +407,6 @@ function registerIpcHandlers() {
         windowManager.setContentViewVisible(false);
         windowManager.reloadContentView();
       }
-      return true;
-    } catch (e) {
-      logger.logError(e);
-      return false;
-    }
-  });
-
-  ipcMain.handle("clear-ponto-renova-cache", async () => {
-    try {
-      const ses = session.fromPartition(config.SESSION_PARTITION_PONTO_RENOVA);
-      await ses.clearStorageData({
-        storages: [
-          "appcache", "cookies", "filesystem", "indexdb", "localstorage",
-          "shadercache", "websql", "serviceworkers", "cachestorage",
-        ],
-      });
-      windowManager.reloadPontoRenovaWindow();
       return true;
     } catch (e) {
       logger.logError(e);

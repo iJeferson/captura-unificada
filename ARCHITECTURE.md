@@ -5,7 +5,7 @@
 Aplicação **Electron** (main + preload + renderer) que funciona como **launcher** de vários sistemas web e utilitários Windows (BCC Griaule, serviços Valid, `CapturaWeb.exe` para Validação). A UI do shell segue **MVC** no renderer; a comunicação com o main usa **Context Bridge** (`window.api`) e **IPC** (`invoke` / `on` / `send`).
 
 - **Janela principal**: `BrowserWindow` carrega `ui/index.html`; o site ativo é exibido num **`WebContentsView`** filho (área à direita da sidebar).
-- **Janelas auxiliares**: **Atende** e **Ponto Renova** — cada uma com `BrowserWindow` próprio e **partition** de sessão distinta.
+- **Janelas auxiliares**: **Atende** — `BrowserWindow` próprio e **partition** de sessão distinta.
 - **Dados do usuário**: `app.setPath("userData", …/captura-unificada-data)` — logs, JSON do Atende, etc.
 
 ---
@@ -28,7 +28,7 @@ captura-unificada/
 │   │   ├── connectivity.service.js  # Online/offline, restauração após queda
 │   │   └── session-downloads.js     # Downloads → pasta Downloads, eventos para o renderer
 │   ├── ipc/ipc.handlers.js          # Todos os ipcMain handle/on
-│   ├── window/window.manager.js     # Cria main + contentView + Atende + Ponto Renova; bounds; falhas de load
+│   ├── window/window.manager.js     # Cria main + contentView + Atende; bounds; falhas de load
 │   └── utils/
 │       ├── helpers.js               # esperar(), etc.
 │       └── logger.js                # Log em arquivo, handlers globais
@@ -52,9 +52,8 @@ captura-unificada/
 |-----------|-----|
 | `persist:captura` | `WebContentsView` principal, pop-ups filhos configurados com a mesma partition, PDF aberto a partir de download |
 | `persist:atende` | Janela do Atende (+ handler de downloads registrado para essa sessão) |
-| `persist:ponto-renova` | Janela do Ponto Renova (isolada da sessão principal) |
 
-`clear-cache` (IPC) limpa **apenas** `persist:captura`. Existe handler separado para limpar **apenas** `persist:ponto-renova`.
+`clear-cache` (IPC) limpa **apenas** `persist:captura`.
 
 ---
 
@@ -68,7 +67,7 @@ captura-unificada/
 | **Doc Avulso (antigo)** | `iniciarServicoValid()` em todos os serviços Valid configurados; carrega URL. |
 | **Validação** | `matarBCC()`; carrega URL. O fluxo web pressupõe o cliente **CapturaWeb.exe** quando necessário; reinício explícito via IPC `reiniciar-validacao` (taskkill + spawn do exe em `CAPTURAWEB_VALIDACAO_EXE`). |
 | **Ponto Valid** | Carrega URL direto. |
-| **Ponto Renova** | `openOrFocusPontoRenovaWindow()` — não usa o `WebContentsView` principal. Opcional: abrir URL no Chrome (`ponto-renova-abrir-navegador`). |
+| **Ponto Renova** | Carrega URL direto no `WebContentsView` principal (`https://go.fortime.com.br/login`). |
 | **Atende** | Se não houver IP válido na config, o renderer trata `needsConfig`; senão `openOrFocusAtendeWindow(url)` com template `http://{IP}/guiche.asp?auto=1`. |
 
 Trocas concorrentes são serializadas com `processandoTroca` no `window.manager` + `openSystemContent` no IPC.
@@ -80,8 +79,8 @@ Trocas concorrentes são serializadas com `processandoTroca` no `window.manager`
 | Área | Detalhe |
 |------|---------|
 | **main.js** | `requestSingleInstanceLock`, `second-instance` → foco/restore; `userData`; switches (GPU, cache, desativação de parte de *Private Network Access*; opcional `ignore-certificate-errors` se `ALLOW_INSECURE_CONNECTIONS`); `preconnectUrls` após criar janela |
-| **window.manager** | Bounds do embed (sidebar + `contentEmbedTopInset`); título `Captura Unificada v{versão} — {sistema}`; `did-fail-load` / rede → offline + placeholder; restauração quando conectividade volta; `session.preconnect` para bases usadas; **User-Agent** estilo Chrome e headers em domínios Ponto/Renova; **webRequest** para CORS em rede privada (RFC 1918) e `content-type` em CSS; permissões **geolocation** (pontomais) e **local-network**; menu mínimo (F5/F12 na view embutida); export de `onContentReachUrl` para hook opcional pós-navegação |
-| **ipc.handlers** | Abertura por sistema; Atende/Ponto Renova; cookies; `clear-cache` / `clear-ponto-renova-cache`; downloads snapshot / abrir pasta / PDF; `content-view-navigate-url`; `apply-update-now`; reiniciar validação, serviço hardware, BCC |
+| **window.manager** | Bounds do embed (sidebar + `contentEmbedTopInset`); título `Captura Unificada v{versão} — {sistema}`; `did-fail-load` / rede → offline + placeholder; restauração quando conectividade volta; `session.preconnect` para bases usadas; **User-Agent** estilo Chrome e headers em domínios Fortime/Ponto; **webRequest** para CORS em rede privada (RFC 1918) e `content-type` em CSS; permissões **geolocation** (Fortime/pontomais) e **local-network**; menu mínimo (F5/F12 na view embutida); export de `onContentReachUrl` para hook opcional pós-navegação |
+| **ipc.handlers** | Abertura por sistema; Atende; cookies; `clear-cache`; downloads snapshot / abrir pasta / PDF; `content-view-navigate-url`; `apply-update-now`; reiniciar validação, serviço hardware, BCC |
 | **session-downloads** | `will-download` → salvar em `app.getPath('downloads')`, eventos `download-*` para o launcher |
 | **connectivity** | Intervalos e limiares em `app.config.js` → `connectivity-change` no renderer |
 

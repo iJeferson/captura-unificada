@@ -180,7 +180,7 @@ const Controller = {
         Model.setSistemaAtivo(sistema);
         View.setMenuAtivoPorId(sistema);
       }
-      const embedded = sistema && sistema !== "atende" && sistema !== "ponto-renova";
+      const embedded = sistema && sistema !== "atende";
       if (!embedded) {
         View.setChromeDownloadsPopoverOpen(false);
         void window.api.markDownloadsPanelViewed();
@@ -206,7 +206,7 @@ const Controller = {
     window.api.onAtendeWindowClosed(() => {
       View.setAtendeWindowOpen(false);
       const id = Model.getSistemaAtivo();
-      const embedded = id && id !== "atende" && id !== "ponto-renova";
+      const embedded = id && id !== "atende";
       if (embedded) {
         void this.sincronizarInsetEmbutido();
       }
@@ -306,24 +306,7 @@ const Controller = {
   onDocAvulsosClick(e) { return this.abrirSistema("doc-avulsos", e); },
   onValidacaoClick(e) { return this.abrirSistema("validacao", e); },
   onPontoValidClick(e) { return this.abrirSistema("ponto-valid", e); },
-  onPontoRenovaClick(e) { return this.onPontoRenovaClickHandler(e); },
-
-  /**
-   * Handler: clique no botão Ponto Renova.
-   * Abre no navegador (Chrome) — funciona; API retorna 403 no Electron.
-   */
-  async onPontoRenovaClickHandler(e) {
-    if (Model.getCarregando()) return;
-    if (!Model.getConectado()) {
-      View.mostrarPlaceholderComOffline();
-      return;
-    }
-    e.stopPropagation();
-    View.setChromeDownloadsPopoverOpen(false);
-    View.mostrarPlaceholderPadrao();
-    void window.api.setContentEmbedTopInset(EMBED_CONTENT_TOP_PX);
-    await window.api.abrirPontoRenovaNoNavegador();
-  },
+  onPontoRenovaClick(e) { return this.abrirSistema("ponto-renova", e); },
 
   /**
    * Handler: clique no botão Atende.
@@ -509,10 +492,6 @@ const Controller = {
       window.api.reloadAtendeWindow();
       return;
     }
-    if (target === "ponto-renova") {
-      window.api.reloadPontoRenovaWindow();
-      return;
-    }
 
     if (Model.getCarregando()) return;
 
@@ -524,18 +503,13 @@ const Controller = {
 
   /**
    * Handler: clique em "Limpar cache".
-   * Não afeta o Atende. Se data-cache-target=ponto-renova, limpa só a janela do Ponto Renova.
+   * Não afeta o Atende.
    */
-  async onCacheClick(e) {
+  async onCacheClick() {
     if (Model.getCarregando()) return;
-    const target = e?.target?.closest?.("[data-cache-target]")?.dataset?.cacheTarget;
     Model.setCarregando(true);
     View.mostrarLoading(true, SISTEMAS.CACHE);
-    if (target === "ponto-renova") {
-      await window.api.clearPontoRenovaCache();
-    } else {
-      await window.api.clearCache();
-    }
+    await window.api.clearCache();
     Model.setCarregando(false);
     View.mostrarLoading(false);
   },
@@ -553,8 +527,6 @@ const Controller = {
       "reiniciar-validacao": () => window.api.reiniciarValidacao(),
       "reiniciar-servico-hardware": () => window.api.reiniciarServicoHardware(),
       "reiniciar-bcc": () => window.api.reiniciarBCC(),
-      "abrir-ponto-renova-navegador": () => window.api.abrirPontoRenovaNoNavegador(),
-      "abrir-ponto-renova-janela": () => window.api.abrirPontoRenova(),
     };
     const fn = actions[action];
     if (fn) await fn();

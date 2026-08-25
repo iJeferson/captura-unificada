@@ -8,14 +8,13 @@ Versão atual: veja `version` em `package.json` (ex.: **1.0.36**).
 
 ## Funcionalidades
 
-- **Launcher unificado**: sidebar com todos os sistemas acima; conteúdo embutido na janela principal via `WebContentsView` (exceto Atende e Ponto Renova, em janelas próprias).
+- **Launcher unificado**: sidebar com todos os sistemas acima; conteúdo embutido na janela principal via `WebContentsView` (exceto Atende, em janela própria).
 - **Integração com hardware (Windows)**:
   - **CapturaWeb**: sequência de preparação com ciclos BCC (Griaule) e reinício dos serviços Valid de hardware configurados em `app.config.js`.
   - **SMART (CIN)**: para serviços Valid, garante BCC em execução antes de carregar a URL.
   - **Doc Avulso (antigo)**: inicia os serviços Valid se estiverem parados.
   - **Validação**: encerra BCC antes de carregar a URL; o app externo `CapturaWeb.exe` (Valid) pode ser reiniciado pela UI (`reiniciar-validacao`).
-- **S4IPM** e **Ponto Valid**: carregamento direto da URL na view principal.
-- **Ponto Renova**: janela separada com sessão isolada (`persist:ponto-renova`); opção de abrir no Google Chrome instalado; limpeza de cache só dessa sessão.
+- **S4IPM**, **Ponto Valid** e **Ponto Renova**: carregamento direto da URL na view principal.
 - **Atende**: janela separada; IP (ou URL) em `captura-unificada-atende.json` no diretório de dados do app; tema claro/escuro persistido no mesmo arquivo.
 - **Conectividade**: verificação periódica (URL ou ping, conforme config); banner/modal offline; tentativa de restaurar o sistema ativo após reconexão.
 - **Cookies**: antes de carregar URLs sensíveis, o main process pode truncar cookies do domínio se o header ultrapassar limite (evita erro 400 por cookie grande).

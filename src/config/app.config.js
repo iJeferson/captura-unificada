@@ -62,7 +62,7 @@ const appConfig = {
     docAvulsos: "https://cnhba.si.valid.com.br/CapturaWeb32",
     validacao: "https://cnhba.si.valid.com.br/SiteCaptura/validacao",
     pontoValid: "http://www.adpexpert.com.br",
-    pontoRenova: "https://app2.pontomais.com.br/login",
+    pontoRenova: "https://go.fortime.com.br/login",
   },
 
   /**
@@ -90,9 +90,6 @@ const appConfig = {
 
   /** Partition exclusiva do Atende - mantém cache e estado da página separados */
   SESSION_PARTITION_ATENDE: "persist:atende",
-
-  /** Partition exclusiva do Ponto Renova - janela separada com sessão isolada */
-  SESSION_PARTITION_PONTO_RENOVA: "persist:ponto-renova",
 
   /** Caminhos para leitura do ID do AnyDesk (APPDATA primeiro — não exige admin) */
   ANYDESK_PATHS: [

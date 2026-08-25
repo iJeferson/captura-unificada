@@ -24,7 +24,6 @@ contextBridge.exposeInMainWorld("api", {
   abrirValidacao: () => ipcRenderer.invoke("validacao"),
   abrirPontoValid: () => ipcRenderer.invoke("ponto-valid"),
   abrirPontoRenova: () => ipcRenderer.invoke("ponto-renova"),
-  abrirPontoRenovaNoNavegador: () => ipcRenderer.invoke("ponto-renova-abrir-navegador"),
   abrirAtende: () => ipcRenderer.invoke("atende"),
 
   getAtendeConfig: () => ipcRenderer.invoke("atende-get-config"),
@@ -37,7 +36,6 @@ contextBridge.exposeInMainWorld("api", {
 
   reloadPage: () => ipcRenderer.invoke("reload-page"),
   reloadAtendeWindow: () => ipcRenderer.invoke("reload-atende-window"),
-  reloadPontoRenovaWindow: () => ipcRenderer.invoke("reload-ponto-renova-window"),
 
   onContentLoadingState: (callback) => {
     if (typeof callback !== "function") return;
@@ -54,7 +52,6 @@ contextBridge.exposeInMainWorld("api", {
   isAtendeWindowOpen: () => ipcRenderer.invoke("atende-window-open-state"),
 
   clearCache: () => ipcRenderer.invoke("clear-cache"),
-  clearPontoRenovaCache: () => ipcRenderer.invoke("clear-ponto-renova-cache"),
 
   reiniciarValidacao: () => ipcRenderer.invoke("reiniciar-validacao"),
   reiniciarServicoHardware: () => ipcRenderer.invoke("reiniciar-servico-hardware"),
