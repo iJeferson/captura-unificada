@@ -2,7 +2,7 @@
 
 **Launcher de sistemas integrados** — aplicação desktop (Electron) que centraliza o acesso a CapturaWeb, SMART (CIN), S4IPM, Doc Avulso (antigo), Validação, Ponto Valid, Ponto Renova e Atende.
 
-Versão atual: veja `version` em `package.json` (ex.: **1.0.36**).
+Versão atual: veja `version` em `package.json` (ex.: **1.0.40**).
 
 ---
 
