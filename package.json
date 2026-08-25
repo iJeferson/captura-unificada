@@ -12,6 +12,7 @@
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
     "prebuild": "npm run clean",
     "build": "node --no-deprecation node_modules/electron-builder/out/cli/cli.js --win --x64",
+    "build:local": "node --no-deprecation node_modules/electron-builder/out/cli/cli.js --win --x64 --publish never",
     "postinstall": "node scripts/copy-fontawesome.js"
   },
   "engines": {

@@ -150,6 +150,8 @@ const Controller = {
     document.getElementById(ELEMENT_IDS.CHROME_DOWNLOADS_LIST)?.addEventListener("click", (e) => {
       this.onChromeDownloadsListClick(e);
     });
+
+    document.addEventListener("keydown", (e) => this.onGlobalKeydown(e));
   },
 
   /**
@@ -412,6 +414,22 @@ const Controller = {
   onDocumentClick(e) {
     this.fecharChromeDownloadsPopover(e);
     View.fecharDropdowns();
+  },
+
+  onGlobalKeydown(e) {
+    if (e.key !== "Escape") return;
+    const updateModal = document.getElementById(ELEMENT_IDS.UPDATE_MODAL);
+    if (updateModal && !updateModal.classList.contains(CSS_CLASSES.HIDDEN)) {
+      this.onUpdateLater();
+      return;
+    }
+    const atendeModal = document.getElementById(ELEMENT_IDS.ATENDE_MODAL);
+    if (atendeModal && !atendeModal.classList.contains(CSS_CLASSES.HIDDEN)) {
+      this.onAtendeModalCancel();
+      return;
+    }
+    View.fecharDropdowns();
+    this.fecharChromeDownloadsPopover(e);
   },
 
   fecharChromeDownloadsPopover(e) {

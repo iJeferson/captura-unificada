@@ -12,20 +12,6 @@
     <link rel="stylesheet" href="vendor/fontawesome/css/solid.min.css" />
     <link rel="stylesheet" href="style.css" />
     <title>Captura Unificada</title>
-    <style>
-      body { background-color: #0a0a0d; margin: 0; padding: 0; }
-      .app { display: flex; opacity: 0; animation: fadeIn 0.3s forwards; }
-      @keyframes fadeIn { to { opacity: 1; } }
-
-      .version-tag {
-        font-size: 10px;
-        opacity: 0.5;
-        font-weight: 400;
-        margin-left: 5px;
-        vertical-align: middle;
-        letter-spacing: 0.5px;
-      }
-    </style>
   </head>
   <body class="dark-theme">
     <div class="app">
@@ -59,7 +45,7 @@
                 <button class="menu-btn" id="captura" title="CapturaWeb">
                   <span><i class="fas fa-globe"></i><span class="btn-label">CapturaWeb</span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu1" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
+                  <span class="dots" data-menu="menu1" title="Mais opções" role="button" aria-haspopup="menu" aria-label="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu1">
                   <button class="btn-action btn-action-featured" data-action="reiniciar-servico-hardware"><i class="fas fa-microchip"></i>Reiniciar Serviço</button>
@@ -71,7 +57,7 @@
                 <button class="menu-btn" id="smart" title="SMART (CIN)">
                   <span><i class="fas fa-file-invoice"></i><span class="btn-label">SMART (CIN)</span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu2" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
+                  <span class="dots" data-menu="menu2" title="Mais opções" role="button" aria-haspopup="menu" aria-label="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu2">
                   <button class="btn-action btn-action-featured" data-action="reiniciar-bcc"><i class="fas fa-plug-circle-bolt"></i>Reiniciar BCC</button>
@@ -83,7 +69,7 @@
                 <button class="menu-btn" id="s4ipm" title="S4IPM">
                   <span><i class="fas fa-server"></i><span class="btn-label">S4IPM</span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu-s4ipm" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
+                  <span class="dots" data-menu="menu-s4ipm" title="Mais opções" role="button" aria-haspopup="menu" aria-label="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu-s4ipm">
                   <button class="btn-reload"><i class="fas fa-redo"></i>Reiniciar página</button>
@@ -97,7 +83,7 @@
                 <button class="menu-btn" id="atende" title="Abre em janela separada. Clique de novo para trazer a janela à frente.">
                   <span><i class="fas fa-ticket atende-icon"></i><span class="btn-label">Atende</span></span>
                   <span class="atende-window-tag">ABERTO</span>
-                  <span class="dots" data-menu="menu7" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
+                  <span class="dots" data-menu="menu7" title="Mais opções" role="button" aria-haspopup="menu" aria-label="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu7">
                   <button class="btn-atende-config" id="atende-config-btn"><i class="fas fa-cog"></i>Configurar endereço</button>
@@ -108,7 +94,7 @@
                 <button class="menu-btn" id="validacao" title="Validação">
                   <span><i class="fas fa-fingerprint"></i><span class="btn-label">Validação</span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu4" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
+                  <span class="dots" data-menu="menu4" title="Mais opções" role="button" aria-haspopup="menu" aria-label="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu4">
                   <button class="btn-action btn-action-featured" data-action="reiniciar-validacao"><i class="fas fa-arrows-rotate"></i>Reiniciar Validação</button>
@@ -120,7 +106,7 @@
                 <button class="menu-btn" id="doc-avulsos" title="Doc Avulso (Antigo)">
                   <span><i class="fas fa-archive"></i><span class="btn-label">Doc Avulso<span class="label-suffix"> (Antigo)</span></span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu3" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
+                  <span class="dots" data-menu="menu3" title="Mais opções" role="button" aria-haspopup="menu" aria-label="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu3">
                   <button class="btn-action btn-action-featured" data-action="reiniciar-servico-hardware"><i class="fas fa-microchip"></i>Reiniciar Serviço</button>
@@ -149,7 +135,7 @@
                 <button class="menu-btn" id="ponto-valid" title="Ponto Valid">
                   <span><i class="fas fa-user-clock"></i><span class="btn-label">Ponto Valid</span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu5" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
+                  <span class="dots" data-menu="menu5" title="Mais opções" role="button" aria-haspopup="menu" aria-label="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu5">
                   <button class="btn-reload"><i class="fas fa-redo"></i>Reiniciar página</button>
@@ -160,7 +146,7 @@
                 <button class="menu-btn" id="ponto-renova" title="Ponto Renova">
                   <span><i class="fas fa-clock-rotate-left"></i><span class="btn-label">Ponto Renova</span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu6" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
+                  <span class="dots" data-menu="menu6" title="Mais opções" role="button" aria-haspopup="menu" aria-label="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu6">
                   <button class="btn-reload"><i class="fas fa-redo"></i>Reiniciar página</button>
@@ -198,7 +184,8 @@
         <div class="modal-atende">
           <h3><i class="fas fa-headset"></i> Configurar Atende</h3>
           <p class="modal-desc">Informe o endereço IP (ex: 192.168.1.100) ou URL completa para teste. A configuração é salva na pasta do aplicativo (não é necessário administrador).</p>
-          <input type="text" id="atende-input" placeholder="Ex: 192.168.1.100 ou https://www.google.com" class="modal-input" />
+          <label class="modal-label" for="atende-input">Endereço</label>
+          <input type="text" id="atende-input" placeholder="Ex: 192.168.1.100 ou https://www.google.com" class="modal-input" autocomplete="off" />
           <div class="modal-buttons">
             <button type="button" id="atende-cancel" class="btn-modal-cancel">Cancelar</button>
             <button type="button" id="atende-save" class="btn-modal-save"><i class="fas fa-save"></i> Salvar e Abrir</button>
@@ -226,8 +213,8 @@
           <div class="placeholder-container" id="placeholder-container">
             <i class="fas fa-display" aria-hidden="true"></i>
             <div class="placeholder-when-online">
-              <h2>Aguardando seleção</h2>
-              <p>Escolha um sistema na barra lateral.</p>
+              <h2>Nenhum sistema aberto</h2>
+              <p>Escolha um item na barra lateral para iniciar.</p>
             </div>
             <div id="placeholder-offline-msg" class="placeholder-when-offline hidden">
               <h2>Sem conexão no momento</h2>

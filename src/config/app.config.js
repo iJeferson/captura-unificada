@@ -50,7 +50,7 @@ const appConfig = {
     /** Abaixo disso a sidebar não cabe sem rolagem; a janela não reduz mais. */
     minWidth: 1000,
     minHeight: 720,
-    backgroundColor: "#0a0a0d",
+    backgroundColor: "#111114",
   },
 
   /** URLs dos sistemas integrados */

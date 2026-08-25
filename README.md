@@ -78,6 +78,8 @@ captura-unificada/
 
 ## Instalação e execução
 
+No desktop (Windows), para testar **antes** de publicar release:
+
 ```bash
 npm install
 npm start
@@ -93,11 +95,15 @@ npm run dev
 
 ## Build
 
+Instalador local **sem** publicar no GitHub (use isto para validar o `.exe` no PC):
+
 ```bash
-npm run build
+npm run build:local
 ```
 
 Gera `dist/Captura-Unificada-Setup.exe` (NSIS). O executável e atalhos usam o nome **Captura Unificada**.
+
+Só publique uma release GitHub (`npm run build` com publish, ou o fluxo de release) **depois** de validar o instalador local. O auto-updater dos PCs já instalados lê a latest release.
 
 ---
 
