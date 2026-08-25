@@ -17,6 +17,8 @@ const { initUpdater } = require("../services/updater.service");
 const connectivityService = require("../services/connectivity.service");
 const sessionDownloads = require("../services/session-downloads");
 const EXTERNAL_WINDOW_BACKGROUND_COLOR = "#ffffff";
+const CHROME_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
 /** Rótulos dos sistemas para o título da janela (id → nome exibido) */
 const SISTEMA_LABELS = {
@@ -33,7 +35,6 @@ const SISTEMA_LABELS = {
 let mainWindow = null;
 let contentView = null;
 let atendeWindow = null;
-let pontoRenovaWindow = null;
 let iconPath = null;
 let sistemaIniciado = false;
 let processandoTroca = false;
@@ -46,6 +47,16 @@ let lastLoadedUrl = null;
 let sistemaAntesDaQueda = null;
 /** Distância do topo da área cliente até o WebContentsView (reservado para HTML sobre o embed, se necessário). */
 let contentEmbedTopInset = 0;
+/** Overlay do launcher (FAB + sidebar) sobre o WebContentsView — janela transparente do host. */
+let overlayWindow = null;
+/** Sistema embutido em tela cheia (sem coluna reservada para a sidebar). */
+let embedFullscreen = false;
+/** Overlay expandido (sidebar + backdrop). Compacto = só o botão flutuante. */
+let overlayChromeExpanded = false;
+/** Faixa esquerda compacta: o FAB fica em `bottom: 300px` (igual ao << da Home). */
+const OVERLAY_FAB_INSET = 8;
+const OVERLAY_FAB_SIZE = 44;
+const OVERLAY_COLLAPSED_WIDTH = OVERLAY_FAB_SIZE + OVERLAY_FAB_INSET * 2;
 
 /** Handler reutilizado em pop-ups e na janela de PDF (definido em criarJanela). */
 let popupOpenHandlerRef = null;
@@ -135,16 +146,156 @@ function openPdfInNewWindow(filePath) {
   return true;
 }
 
+function isEmbedFullscreen() {
+  return !!embedFullscreen;
+}
+
 function getContentBounds() {
   if (!mainWindow) return null;
   const { width, height } = mainWindow.getContentBounds();
-  const top = contentEmbedTopInset;
+  const full = isEmbedFullscreen();
+  const left = full ? 0 : currentSidebarWidth;
+  const top = full ? 0 : contentEmbedTopInset;
   return {
-    x: currentSidebarWidth,
+    x: left,
     y: top,
-    width: Math.max(0, width - currentSidebarWidth),
+    width: Math.max(0, width - left),
     height: Math.max(0, height - top),
   };
+}
+
+function notifyEmbedFullscreen() {
+  const wc = mainWindow?.webContents;
+  if (wc && !wc.isDestroyed()) wc.send("embed-fullscreen", isEmbedFullscreen());
+  const ov = overlayWindow?.webContents;
+  if (ov && !ov.isDestroyed()) ov.send("embed-fullscreen", isEmbedFullscreen());
+}
+
+function applyOverlayClickThrough() {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  try {
+    if (overlayChromeExpanded) {
+      overlayWindow.setIgnoreMouseEvents(false);
+    } else {
+      overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+    }
+  } catch (_) {}
+}
+
+function syncOverlayBounds() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  const b = mainWindow.getContentBounds();
+  if (overlayChromeExpanded) {
+    overlayWindow.setBounds({ x: b.x, y: b.y, width: b.width, height: b.height }, false);
+    return;
+  }
+  overlayWindow.setBounds(
+    {
+      x: b.x,
+      y: b.y,
+      width: OVERLAY_COLLAPSED_WIDTH,
+      height: b.height,
+    },
+    false
+  );
+}
+
+function setOverlayChromeOpen(open) {
+  overlayChromeExpanded = !!open;
+  applyOverlayClickThrough();
+  syncOverlayBounds();
+  if (!overlayChromeExpanded && mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.focus();
+  }
+}
+
+function showOverlayChrome() {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  overlayChromeExpanded = false;
+  applyOverlayClickThrough();
+  syncOverlayBounds();
+  if (!overlayWindow.isVisible()) overlayWindow.showInactive();
+}
+
+function hideOverlayChrome() {
+  overlayChromeExpanded = false;
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  overlayWindow.hide();
+}
+
+function setEmbedFullscreen(on) {
+  embedFullscreen = !!on;
+  if (embedFullscreen) {
+    currentSidebarWidth = 0;
+    overlayChromeExpanded = false;
+  } else {
+    currentSidebarWidth = config.SIDEBAR_WIDTH_EXPANDED;
+  }
+  ajustarView();
+  if (embedFullscreen) showOverlayChrome();
+  else hideOverlayChrome();
+  notifyEmbedFullscreen();
+}
+
+function voltarHome() {
+  embedFullscreen = false;
+  overlayChromeExpanded = false;
+  currentSistema = null;
+  sistemaIniciado = false;
+  currentSidebarWidth = config.SIDEBAR_WIDTH_EXPANDED;
+  if (contentView) {
+    contentView.setVisible(false);
+    const b = mainWindow && !mainWindow.isDestroyed() ? mainWindow.getContentBounds() : null;
+    if (b) contentView.setBounds({ x: 0, y: 0, width: 0, height: 0 });
+  }
+  hideOverlayChrome();
+  resetProcessandoTroca();
+  updateMainWindowTitle();
+  notifyEmbedFullscreen();
+  const wc = mainWindow?.webContents;
+  if (wc && !wc.isDestroyed()) wc.send("load-finished", null);
+  const ov = overlayWindow?.webContents;
+  if (ov && !ov.isDestroyed()) ov.send("load-finished", null);
+}
+
+function setOverlayIgnoreMouse(ignore) {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  try {
+    overlayWindow.setIgnoreMouseEvents(!!ignore, { forward: true });
+  } catch (_) {}
+}
+
+function criarOverlayWindow() {
+  if (!mainWindow || overlayWindow) return;
+  overlayWindow = new BrowserWindow({
+    parent: mainWindow,
+    modal: false,
+    show: false,
+    frame: false,
+    transparent: true,
+    backgroundColor: "#00000000",
+    hasShadow: false,
+    skipTaskbar: true,
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    fullscreenable: false,
+    autoHideMenuBar: true,
+    focusable: true,
+    webPreferences: {
+      preload: path.join(__dirname, "..", "..", "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  overlayWindow.setMenuBarVisibility(false);
+  overlayWindow.loadFile(path.join(__dirname, "..", "..", "ui", "overlay.html")).catch((err) => logger.logError(err));
+  applyOverlayClickThrough();
+  overlayWindow.on("closed", () => {
+    overlayWindow = null;
+  });
 }
 
 /**
@@ -158,7 +309,9 @@ function setContentEmbedTopInset(px) {
 }
 
 function ajustarView() {
-  if (!mainWindow || !sistemaIniciado) return;
+  if (!mainWindow) return;
+  syncOverlayBounds();
+  if (!sistemaIniciado) return;
   const bounds = getContentBounds();
   if (!bounds || !contentView) return;
   contentView.setBounds(bounds);
@@ -174,6 +327,7 @@ function showOfflineFallbackUI() {
       if (b) contentView.setBounds({ x: b.x, y: b.y, width: 0, height: 0 });
     }
     connectivityService.notifyOffline();
+    setEmbedFullscreen(false);
     resetProcessandoTroca();
     enviarLoadFinished(null);
 
@@ -211,8 +365,12 @@ function enviarLoadFinished(sistema) {
   if (sistema) sistemaAntesDaQueda = null;
   resetProcessandoTroca();
   updateMainWindowTitle();
+  if (sistema && sistema !== "atende") setEmbedFullscreen(true);
   if (mainWindow?.webContents) {
     mainWindow.webContents.send("load-finished", sistema);
+  }
+  if (overlayWindow?.webContents && !overlayWindow.webContents.isDestroyed()) {
+    overlayWindow.webContents.send("load-finished", sistema);
   }
 }
 
@@ -304,87 +462,6 @@ function openOrFocusAtendeWindow(url) {
   return { alreadyOpen: false };
 }
 
-const CHROME_USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
-
-function configurarSessaoPontoRenova() {
-  const s = session.fromPartition(config.SESSION_PARTITION_PONTO_RENOVA);
-  s.setUserAgent(CHROME_USER_AGENT);
-  s.webRequest.onBeforeSendHeaders(
-    { urls: ["*://*.pontomais.com.br/*", "*://*.renova.net.br/*"] },
-    (details, callback) => {
-      const headers = { ...details.requestHeaders };
-      headers["User-Agent"] = CHROME_USER_AGENT;
-      headers["Sec-Ch-Ua"] = '"Chromium";v="131", "Google Chrome";v="131", "Not_A Brand";v="24"';
-      headers["Sec-Ch-Ua-Mobile"] = "?0";
-      headers["Sec-Ch-Ua-Platform"] = '"Windows"';
-      callback({ requestHeaders: headers });
-    }
-  );
-  s.setPermissionRequestHandler((_wc, permission, callback, details) => {
-    if (permission === "local-network") { callback(true); return; }
-    const url = details?.requestingUrl || "";
-    callback(permission === "geolocation" && url.includes("pontomais.com.br"));
-  });
-  s.setPermissionCheckHandler((wc, permission) => {
-    if (permission === "local-network") return true;
-    return permission === "geolocation" && (wc?.getURL?.() || "").includes("pontomais.com.br");
-  });
-  sessionDownloads.registerSessionDownloadHandler(s, getMainWindowRef);
-}
-
-/**
- * Abre o Ponto Renova em janela separada (sessão isolada, headers Chrome).
- * Evita 403 da API que ocorre no contentView compartilhado.
- */
-function openOrFocusPontoRenovaWindow() {
-  const url = config.URLS.pontoRenova;
-  if (pontoRenovaWindow && !pontoRenovaWindow.isDestroyed()) {
-    pontoRenovaWindow.show();
-    pontoRenovaWindow.focus();
-    const wc = mainWindow?.webContents;
-    if (wc && !wc.isDestroyed()) wc.send("load-finished", "ponto-renova");
-    return;
-  }
-  configurarSessaoPontoRenova();
-  const version = app.getVersion();
-  pontoRenovaWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 800,
-    minHeight: 600,
-    title: `Captura Unificada v${version} — Ponto Renova`,
-    icon: iconPath || path.join(__dirname, "..", "..", "icon.png"),
-    backgroundColor: EXTERNAL_WINDOW_BACKGROUND_COLOR,
-    autoHideMenuBar: true,
-    webPreferences: {
-      partition: config.SESSION_PARTITION_PONTO_RENOVA,
-      backgroundThrottling: false,
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-    },
-  });
-  pontoRenovaWindow.webContents.setWindowOpenHandler(({ url: u }) => {
-    pontoRenovaWindow.loadURL(u);
-    return { action: "deny" };
-  });
-  pontoRenovaWindow.webContents.on("did-finish-load", () => {
-    if (pontoRenovaWindow && !pontoRenovaWindow.isDestroyed()) {
-      pontoRenovaWindow.setTitle(`Captura Unificada v${version} — Ponto Renova`);
-    }
-  });
-  pontoRenovaWindow.loadURL(url).catch((err) => logger.logError(err));
-  pontoRenovaWindow.on("closed", () => {
-    pontoRenovaWindow = null;
-  });
-  pontoRenovaWindow.once("ready-to-show", () => {
-    pontoRenovaWindow.show();
-    const wc = mainWindow?.webContents;
-    if (wc && !wc.isDestroyed()) wc.send("load-finished", "ponto-renova");
-  });
-}
-
 /**
  * Chamado pela verificação periódica quando detecta desconexão.
  * Esconde o contentView e mostra o placeholder com mensagem offline.
@@ -402,6 +479,7 @@ function notificarDesconexao() {
     if (b) contentView.setBounds({ x: b.x, y: b.y, width: 0, height: 0 });
   }
 
+  setEmbedFullscreen(false);
   resetProcessandoTroca();
   enviarLoadFinished(null);
 
@@ -476,6 +554,10 @@ function criarJanela(iconPathParam) {
   );
 
   mainWindow.on("closed", () => {
+    if (overlayWindow && !overlayWindow.isDestroyed()) {
+      overlayWindow.destroy();
+    }
+    overlayWindow = null;
     mainWindow = null;
     contentView = null;
     connectivityService.reset();
@@ -513,11 +595,10 @@ function criarJanela(iconPathParam) {
   });
 
   const capturaSession = session.fromPartition(config.SESSION_PARTITION);
-  const chromeUserAgent =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+  const chromeUserAgent = CHROME_USER_AGENT;
   capturaSession.setUserAgent(chromeUserAgent);
   capturaSession.webRequest.onBeforeSendHeaders(
-    { urls: ["*://*.pontomais.com.br/*", "*://*.renova.net.br/*"] },
+    { urls: ["*://*.fortime.com.br/*", "*://*.pontomais.com.br/*", "*://*.renova.net.br/*"] },
     (details, callback) => {
       const headers = { ...details.requestHeaders };
       headers["User-Agent"] = chromeUserAgent;
@@ -544,7 +625,9 @@ function criarJanela(iconPathParam) {
     callback({ responseHeaders: headers });
   });
 
-  const allowGeolocationFor = (url) => typeof url === "string" && url.includes("pontomais.com.br");
+  const allowGeolocationFor = (url) =>
+    typeof url === "string" &&
+    (url.includes("fortime.com.br") || url.includes("pontomais.com.br"));
   capturaSession.setPermissionRequestHandler((_webContents, permission, callback, details) => {
     if (permission === "geolocation" && allowGeolocationFor(details?.requestingUrl)) {
       callback(true);
@@ -634,8 +717,15 @@ function criarJanela(iconPathParam) {
     const isNetErr = connectivityService.isNetworkError(errorCode);
 
     if (!isNetErr) {
+      const failedSistema = currentSistema;
+      setEmbedFullscreen(false);
+      if (contentView) {
+        contentView.setVisible(false);
+        contentView.setBounds({ x: 0, y: 0, width: 0, height: 0 });
+      }
       resetProcessandoTroca();
       if (mainWindow?.webContents && !mainWindow.webContents.isDestroyed()) {
+        mainWindow.webContents.send("system-load-error", failedSistema);
         mainWindow.webContents.send("load-finished", null);
       }
       return;
@@ -692,7 +782,11 @@ function criarJanela(iconPathParam) {
 
   mainWindow.contentView.addChildView(contentView);
   contentView.setVisible(false);
+  criarOverlayWindow();
   mainWindow.on("resize", ajustarView);
+  mainWindow.on("move", syncOverlayBounds);
+  mainWindow.on("maximize", syncOverlayBounds);
+  mainWindow.on("unmaximize", syncOverlayBounds);
 
   mainWindow.once("ready-to-show", () => {
     const b = bounds();
@@ -742,7 +836,6 @@ module.exports = {
   ajustarView,
   preconnectUrls,
   openOrFocusAtendeWindow,
-  openOrFocusPontoRenovaWindow,
   requestConnectivityCheck: () => connectivityService.requestCheck(),
   getMainWindow: getMainWindowRef,
   getContentView: () => contentView,
@@ -751,11 +844,6 @@ module.exports = {
   reloadAtendeWindow: () => {
     if (atendeWindow && !atendeWindow.isDestroyed() && atendeWindow.webContents) {
       atendeWindow.webContents.reload();
-    }
-  },
-  reloadPontoRenovaWindow: () => {
-    if (pontoRenovaWindow && !pontoRenovaWindow.isDestroyed() && pontoRenovaWindow.webContents) {
-      pontoRenovaWindow.webContents.reload();
     }
   },
   getSistemaIniciado: () => sistemaIniciado,
@@ -780,7 +868,14 @@ module.exports = {
       }, 60000);
     }
   },
-  setCurrentSidebarWidth: (w) => (currentSidebarWidth = w),
+  setCurrentSidebarWidth: (w) => {
+    if (isEmbedFullscreen()) return;
+    currentSidebarWidth = w;
+  },
+  setEmbedFullscreen,
+  voltarHome,
+  setOverlayIgnoreMouse,
+  setOverlayChromeOpen,
   setContentViewVisible: (v) => contentView && (contentView.setVisible(v)),
   reloadContentView: () => contentView?.webContents?.reload(),
   reloadActiveView: () => getActiveWebContents()?.reload(),

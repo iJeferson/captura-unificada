@@ -12,28 +12,16 @@
     <link rel="stylesheet" href="vendor/fontawesome/css/solid.min.css" />
     <link rel="stylesheet" href="style.css" />
     <title>Captura Unificada</title>
-    <style>
-      body { background-color: #0a0a0d; margin: 0; padding: 0; }
-      .app { display: flex; opacity: 0; animation: fadeIn 0.3s forwards; }
-      @keyframes fadeIn { to { opacity: 1; } }
-
-      .version-tag {
-        font-size: 10px;
-        opacity: 0.5;
-        font-weight: 400;
-        margin-left: 5px;
-        vertical-align: middle;
-        letter-spacing: 0.5px;
-      }
-    </style>
   </head>
   <body class="dark-theme">
     <div class="app">
       <div class="sidebar-wrapper" id="sidebar-wrapper">
         <aside class="sidebar" id="sidebar">
           <div class="logo">
-            <h2>Captura Unificada<span id="app-version" class="version-tag"></span></h2>
-            <span class="logo-sub">Launcher</span>
+            <button type="button" class="logo-btn" id="nav-home" title="Início" aria-label="Voltar ao início">
+              <h2>Captura Unificada<span id="app-version" class="version-tag"></span></h2>
+              <span class="logo-sub">Launcher</span>
+            </button>
           </div>
 
           <div class="theme-section" title="Alternar entre tema escuro e claro">
@@ -59,7 +47,7 @@
                 <button class="menu-btn" id="captura" title="CapturaWeb">
                   <span><i class="fas fa-globe"></i><span class="btn-label">CapturaWeb</span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu1" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
+                  <span class="dots" data-menu="menu1" title="Mais opções" role="button" aria-haspopup="menu" aria-label="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu1">
                   <button class="btn-action btn-action-featured" data-action="reiniciar-servico-hardware"><i class="fas fa-microchip"></i>Reiniciar Serviço</button>
@@ -71,7 +59,7 @@
                 <button class="menu-btn" id="smart" title="SMART (CIN)">
                   <span><i class="fas fa-file-invoice"></i><span class="btn-label">SMART (CIN)</span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu2" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
+                  <span class="dots" data-menu="menu2" title="Mais opções" role="button" aria-haspopup="menu" aria-label="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu2">
                   <button class="btn-action btn-action-featured" data-action="reiniciar-bcc"><i class="fas fa-plug-circle-bolt"></i>Reiniciar BCC</button>
@@ -83,7 +71,7 @@
                 <button class="menu-btn" id="s4ipm" title="S4IPM">
                   <span><i class="fas fa-server"></i><span class="btn-label">S4IPM</span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu-s4ipm" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
+                  <span class="dots" data-menu="menu-s4ipm" title="Mais opções" role="button" aria-haspopup="menu" aria-label="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu-s4ipm">
                   <button class="btn-reload"><i class="fas fa-redo"></i>Reiniciar página</button>
@@ -97,7 +85,7 @@
                 <button class="menu-btn" id="atende" title="Abre em janela separada. Clique de novo para trazer a janela à frente.">
                   <span><i class="fas fa-ticket atende-icon"></i><span class="btn-label">Atende</span></span>
                   <span class="atende-window-tag">ABERTO</span>
-                  <span class="dots" data-menu="menu7" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
+                  <span class="dots" data-menu="menu7" title="Mais opções" role="button" aria-haspopup="menu" aria-label="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu7">
                   <button class="btn-atende-config" id="atende-config-btn"><i class="fas fa-cog"></i>Configurar endereço</button>
@@ -108,7 +96,7 @@
                 <button class="menu-btn" id="validacao" title="Validação">
                   <span><i class="fas fa-fingerprint"></i><span class="btn-label">Validação</span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu4" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
+                  <span class="dots" data-menu="menu4" title="Mais opções" role="button" aria-haspopup="menu" aria-label="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu4">
                   <button class="btn-action btn-action-featured" data-action="reiniciar-validacao"><i class="fas fa-arrows-rotate"></i>Reiniciar Validação</button>
@@ -120,7 +108,7 @@
                 <button class="menu-btn" id="doc-avulsos" title="Doc Avulso (Antigo)">
                   <span><i class="fas fa-archive"></i><span class="btn-label">Doc Avulso<span class="label-suffix"> (Antigo)</span></span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu3" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
+                  <span class="dots" data-menu="menu3" title="Mais opções" role="button" aria-haspopup="menu" aria-label="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu3">
                   <button class="btn-action btn-action-featured" data-action="reiniciar-servico-hardware"><i class="fas fa-microchip"></i>Reiniciar Serviço</button>
@@ -149,7 +137,7 @@
                 <button class="menu-btn" id="ponto-valid" title="Ponto Valid">
                   <span><i class="fas fa-user-clock"></i><span class="btn-label">Ponto Valid</span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu5" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
+                  <span class="dots" data-menu="menu5" title="Mais opções" role="button" aria-haspopup="menu" aria-label="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu5">
                   <button class="btn-reload"><i class="fas fa-redo"></i>Reiniciar página</button>
@@ -157,14 +145,14 @@
                 </div>
               </div>
               <div class="system-item">
-                <button class="menu-btn" id="ponto-renova" title="Ponto Renova (abre no Chrome/navegador)">
+                <button class="menu-btn" id="ponto-renova" title="Ponto Renova">
                   <span><i class="fas fa-clock-rotate-left"></i><span class="btn-label">Ponto Renova</span></span>
                   <span class="active-tag">ATIVO</span>
-                  <span class="dots" data-menu="menu6" title="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
+                  <span class="dots" data-menu="menu6" title="Mais opções" role="button" aria-haspopup="menu" aria-label="Mais opções"><i class="fas fa-ellipsis-vertical" aria-hidden="true"></i></span>
                 </button>
                 <div class="dropdown" id="menu6">
-                  <button class="btn-action btn-action-featured" data-action="abrir-ponto-renova-navegador"><i class="fas fa-external-link-alt"></i>Abrir no navegador</button>
-                  <button class="btn-action" data-action="abrir-ponto-renova-janela"><i class="fas fa-window-maximize"></i>Abrir em janela do app</button>
+                  <button class="btn-reload"><i class="fas fa-redo"></i>Reiniciar página</button>
+                  <button class="btn-cache"><i class="fas fa-broom"></i>Limpar cache</button>
                 </div>
               </div>
             </section>
@@ -178,10 +166,22 @@
             </span>
           </button>
 
-          <div class="pc-info">
-            <div class="info-item"><i class="fas fa-desktop"></i><div class="text"><strong>Host</strong><span id="hostname">---</span></div></div>
-            <div class="info-item"><i class="fas fa-network-wired"></i><div class="text"><strong>IP</strong><span id="ip">---</span></div></div>
-            <div class="info-item"><i class="fas fa-id-card-clip"></i><div class="text"><strong>AnyDesk</strong><span id="anydesk" class="anydesk-id">---</span></div></div>
+          <div class="pc-info station-card" id="station-card">
+            <button type="button" class="info-item copyable" data-copy-target="hostname" title="Copiar">
+              <i class="fas fa-desktop"></i>
+              <div class="text"><strong>Host</strong><span id="hostname">---</span></div>
+              <i class="fas fa-copy copy-ico" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="info-item copyable" data-copy-target="ip" title="Copiar">
+              <i class="fas fa-network-wired"></i>
+              <div class="text"><strong>IP</strong><span id="ip">---</span></div>
+              <i class="fas fa-copy copy-ico" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="info-item copyable" data-copy-target="anydesk" title="Copiar">
+              <i class="fas fa-id-card-clip"></i>
+              <div class="text"><strong>AnyDesk</strong><span id="anydesk" class="anydesk-id">---</span></div>
+              <i class="fas fa-copy copy-ico" aria-hidden="true"></i>
+            </button>
           </div>
 
           <div class="sidebar-footer">
@@ -189,7 +189,7 @@
           </div>
         </div>
       </aside>
-        <button type="button" class="collapse-btn" id="toggle-sidebar" title="Recolher menu" aria-label="Recolher ou expandir barra lateral">
+        <button type="button" class="collapse-btn" id="toggle-sidebar" title="Recolher menu" aria-label="Recolher ou expandir barra lateral" aria-expanded="true">
           <i class="fas fa-angles-left" id="toggle-icon" aria-hidden="true"></i>
         </button>
       </div>
@@ -198,7 +198,8 @@
         <div class="modal-atende">
           <h3><i class="fas fa-headset"></i> Configurar Atende</h3>
           <p class="modal-desc">Informe o endereço IP (ex: 192.168.1.100) ou URL completa para teste. A configuração é salva na pasta do aplicativo (não é necessário administrador).</p>
-          <input type="text" id="atende-input" placeholder="Ex: 192.168.1.100 ou https://www.google.com" class="modal-input" />
+          <label class="modal-label" for="atende-input">Endereço</label>
+          <input type="text" id="atende-input" placeholder="Ex: 192.168.1.100 ou https://www.google.com" class="modal-input" autocomplete="off" />
           <div class="modal-buttons">
             <button type="button" id="atende-cancel" class="btn-modal-cancel">Cancelar</button>
             <button type="button" id="atende-save" class="btn-modal-save"><i class="fas fa-save"></i> Salvar e Abrir</button>
@@ -224,10 +225,31 @@
         </div>
         <div id="placeholder" class="placeholder">
           <div class="placeholder-container" id="placeholder-container">
-            <i class="fas fa-display" aria-hidden="true"></i>
-            <div class="placeholder-when-online">
-              <h2>Aguardando seleção</h2>
-              <p>Escolha um sistema na barra lateral.</p>
+            <div class="placeholder-when-online home-workspace">
+              <header class="home-header">
+                <div>
+                  <p class="home-kicker" id="home-greeting">Bem-vindo</p>
+                  <h2>Nenhum sistema aberto</h2>
+                  <p class="home-lead">Escolha um item na barra lateral, ou busque com Ctrl+K.</p>
+                </div>
+                <button type="button" id="home-search-btn" class="home-search">
+                  <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                  <span>Buscar sistemas, ferramentas ou ações…</span>
+                  <kbd>Ctrl K</kbd>
+                </button>
+              </header>
+              <section class="home-section" aria-label="Acessados recentemente">
+                <h3>Acessados recentemente</h3>
+                <div id="home-recents" class="home-row"></div>
+              </section>
+              <section class="home-section" aria-label="Favoritos">
+                <h3>Favoritos</h3>
+                <div id="home-favorites" class="home-row"></div>
+              </section>
+              <section class="home-section" aria-label="Ações rápidas">
+                <h3>Ações rápidas</h3>
+                <div id="home-actions" class="home-row"></div>
+              </section>
             </div>
             <div id="placeholder-offline-msg" class="placeholder-when-offline hidden">
               <h2>Sem conexão no momento</h2>
@@ -237,10 +259,36 @@
         </div>
 
         <div id="loading" class="hidden">
-          <div class="spinner"></div>
-          <p>Trocando sistema...</p>
+          <div class="loading-copy">
+            <div class="spinner" aria-hidden="true"></div>
+            <p class="loading-kicker">Inicializando</p>
+            <p class="loading-title" id="loading-title">Sistema</p>
+            <p class="loading-sub" id="loading-sub">Preparando ambiente…</p>
+          </div>
+        </div>
+        <div id="system-error" class="system-error hidden" role="alert">
+          <div class="system-error-copy">
+            <p class="home-kicker">Falha ao iniciar</p>
+            <h2 id="system-error-title">Não foi possível iniciar o sistema</h2>
+            <p>Verifique a conexão com o sistema e tente novamente.</p>
+            <div class="system-error-actions">
+              <button type="button" id="system-error-retry" class="btn-modal-save">Tentar novamente</button>
+              <button type="button" id="system-error-home" class="btn-modal-cancel">Voltar ao Launcher</button>
+            </div>
+          </div>
         </div>
       </main>
+    </div>
+
+    <div id="command-palette" class="cmdk hidden" role="dialog" aria-modal="true" aria-label="Buscar sistemas">
+      <div class="cmdk-scrim" id="command-scrim"></div>
+      <div class="cmdk-panel">
+        <div class="cmdk-input-wrap">
+          <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+          <input id="command-input" type="search" placeholder="Buscar sistemas…" autocomplete="off" />
+        </div>
+        <div id="command-list" class="cmdk-list" role="listbox"></div>
+      </div>
     </div>
     <script type="module" src="app.js"></script>
   </body>

@@ -40,8 +40,8 @@ const appConfig = {
   /** Largura da sidebar expandida (px) */
   SIDEBAR_WIDTH_EXPANDED: 240,
 
-  /** Largura da sidebar colapsada (px) */
-  SIDEBAR_WIDTH_COLLAPSED: 32,
+  /** Largura da sidebar colapsada — trilho de ícones (px) */
+  SIDEBAR_WIDTH_COLLAPSED: 56,
 
   /** Dimensões padrão da janela principal */
   WINDOW: {
@@ -50,7 +50,7 @@ const appConfig = {
     /** Abaixo disso a sidebar não cabe sem rolagem; a janela não reduz mais. */
     minWidth: 1000,
     minHeight: 720,
-    backgroundColor: "#0a0a0d",
+    backgroundColor: "#111114",
   },
 
   /** URLs dos sistemas integrados */
@@ -62,7 +62,7 @@ const appConfig = {
     docAvulsos: "https://cnhba.si.valid.com.br/CapturaWeb32",
     validacao: "https://cnhba.si.valid.com.br/SiteCaptura/validacao",
     pontoValid: "http://www.adpexpert.com.br",
-    pontoRenova: "https://app2.pontomais.com.br/login",
+    pontoRenova: "https://go.fortime.com.br/login",
   },
 
   /**
@@ -90,9 +90,6 @@ const appConfig = {
 
   /** Partition exclusiva do Atende - mantém cache e estado da página separados */
   SESSION_PARTITION_ATENDE: "persist:atende",
-
-  /** Partition exclusiva do Ponto Renova - janela separada com sessão isolada */
-  SESSION_PARTITION_PONTO_RENOVA: "persist:ponto-renova",
 
   /** Caminhos para leitura do ID do AnyDesk (APPDATA primeiro — não exige admin) */
   ANYDESK_PATHS: [

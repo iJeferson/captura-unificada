@@ -10,6 +10,7 @@
 import Model from "./model.js";
 import View from "./view.js";
 import { ELEMENT_IDS, CSS_CLASSES, SISTEMAS, EMBED_CONTENT_TOP_PX } from "../config/constants.js";
+import { pushRecent } from "./recents.js";
 
 /** Mapa sistemaId → { abrir: () => Promise<void>, nome: string } para fluxo único de abertura */
 const SISTEMAS_ABERTURA = Object.freeze({
@@ -37,6 +38,7 @@ const Controller = {
     void this.sincronizarUpdatePendente();
     void this.atualizarBadgeDownloads();
     void this.sincronizarInsetEmbutido();
+    View.setHomeActive();
   },
 
   /**
@@ -139,7 +141,25 @@ const Controller = {
       btn.addEventListener("click", (e) => this.onActionClick(e));
     });
 
-    document.getElementById(ELEMENT_IDS.THEME_TOGGLE)?.addEventListener("change", (e) => this.onThemeToggle(e));
+    document.getElementById(ELEMENT_IDS.NAV_HOME)?.addEventListener("click", () => this.onHomeClick());
+    document.getElementById(ELEMENT_IDS.HOME_SEARCH_BTN)?.addEventListener("click", () => View.setCommandPaletteOpen(true));
+    document.getElementById(ELEMENT_IDS.COMMAND_SCRIM)?.addEventListener("click", () => View.setCommandPaletteOpen(false));
+    document.getElementById(ELEMENT_IDS.COMMAND_INPUT)?.addEventListener("input", (e) => {
+      View.renderCommandList(e.target.value);
+    });
+    document.getElementById(ELEMENT_IDS.COMMAND_LIST)?.addEventListener("click", (e) => {
+      const row = e.target.closest?.(".cmdk-item");
+      if (!row) return;
+      const id = row.dataset.id;
+      if (id) void this.abrirPorId(id);
+    });
+    document.getElementById(ELEMENT_IDS.SYSTEM_ERROR_RETRY)?.addEventListener("click", () => {
+      const id = Model.getSistemaAtivo();
+      if (id) void this.abrirPorId(id);
+    });
+    document.getElementById(ELEMENT_IDS.SYSTEM_ERROR_HOME)?.addEventListener("click", () => this.onHomeClick());
+    document.getElementById(ELEMENT_IDS.PLACEHOLDER)?.addEventListener("click", (e) => this.onHomeWorkspaceClick(e));
+    document.getElementById(ELEMENT_IDS.STATION_CARD)?.addEventListener("click", (e) => this.onStationCopyClick(e));
 
     document.getElementById(ELEMENT_IDS.CHROME_DOWNLOAD_BTN)?.addEventListener("click", (e) => {
       void this.onChromeDownloadsBtnClick(e);
@@ -150,6 +170,8 @@ const Controller = {
     document.getElementById(ELEMENT_IDS.CHROME_DOWNLOADS_LIST)?.addEventListener("click", (e) => {
       this.onChromeDownloadsListClick(e);
     });
+
+    document.addEventListener("keydown", (e) => this.onGlobalKeydown(e));
   },
 
   /**
@@ -179,8 +201,24 @@ const Controller = {
       if (sistema && sistema !== "atende") {
         Model.setSistemaAtivo(sistema);
         View.setMenuAtivoPorId(sistema);
+        View.setEmbedMode(true);
+        pushRecent(sistema);
+        View.renderHome();
+      } else if (!sistema) {
+        const err = document.getElementById(ELEMENT_IDS.SYSTEM_ERROR);
+        const erroVisivel = err && !err.classList.contains(CSS_CLASSES.HIDDEN);
+        if (erroVisivel) {
+          View.setEmbedMode(false);
+        } else if (!Model.getConectado()) {
+          View.setEmbedMode(false);
+          View.mostrarPlaceholderComOffline();
+        } else {
+          Model.setSistemaAtivo(null);
+          View.setHomeActive();
+          window.api.resizeSidebar(Model.getSidebarColapsada() ? "collapsed" : "expanded");
+        }
       }
-      const embedded = sistema && sistema !== "atende" && sistema !== "ponto-renova";
+      const embedded = sistema && sistema !== "atende";
       if (!embedded) {
         View.setChromeDownloadsPopoverOpen(false);
         void window.api.markDownloadsPanelViewed();
@@ -206,7 +244,7 @@ const Controller = {
     window.api.onAtendeWindowClosed(() => {
       View.setAtendeWindowOpen(false);
       const id = Model.getSistemaAtivo();
-      const embedded = id && id !== "atende" && id !== "ponto-renova";
+      const embedded = id && id !== "atende";
       if (embedded) {
         void this.sincronizarInsetEmbutido();
       }
@@ -231,12 +269,29 @@ const Controller = {
       Model.setConectado(false);
       Model.setCarregando(false);
       View.mostrarLoading(false);
+      View.setEmbedMode(false);
       View.mostrarOfflineBanner(true);
       View.mostrarPlaceholderComOffline();
       View.setChromeDownloadsPopoverOpen(false);
       void window.api.markDownloadsPanelViewed();
       void this.atualizarBadgeDownloads();
       void window.api.setContentEmbedTopInset(EMBED_CONTENT_TOP_PX);
+    });
+
+    window.api.onEmbedFullscreen((on) => {
+      View.setEmbedMode(on);
+    });
+
+    window.api.onRequestAtendeConfig(() => {
+      void this.abrirModalAtendeConfig();
+    });
+
+    window.api.onSystemLoadError((sistemaId) => {
+      Model.setCarregando(false);
+      Model.setSistemaAtivo(sistemaId || Model.getSistemaAtivo());
+      View.mostrarLoading(false);
+      View.setEmbedMode(false);
+      View.mostrarErroSistema(sistemaId || Model.getSistemaAtivo());
     });
 
     window.api.onDownloadProgress(() => {
@@ -281,10 +336,15 @@ const Controller = {
    * @param {Event} e - evento de clique (currentTarget = botão do menu)
    */
   async abrirSistema(sistemaId, e) {
-    const jaAtivo = e.currentTarget.classList.contains(CSS_CLASSES.ACTIVE);
+    const btn =
+      e?.currentTarget instanceof HTMLElement
+        ? e.currentTarget
+        : document.getElementById(sistemaId);
+    const jaAtivo = btn?.classList.contains(CSS_CLASSES.ACTIVE);
     if (jaAtivo) return;
     if (Model.getCarregando()) return;
     if (!Model.getConectado()) {
+      View.setEmbedMode(false);
       View.mostrarPlaceholderComOffline();
       return;
     }
@@ -292,12 +352,80 @@ const Controller = {
     const item = SISTEMAS_ABERTURA[sistemaId];
     if (!item) return;
 
+    View.setCommandPaletteOpen(false);
+    View.ocultarErroSistema();
     Model.setSistemaAtivo(sistemaId);
     Model.setCarregando(true);
-    View.setMenuAtivo(e.currentTarget);
+    View.setMenuAtivo(btn);
+    View.setEmbedMode(true);
+    void window.api.setEmbedFullscreen(true);
     View.mostrarLoading(true, item.nome);
+    pushRecent(sistemaId);
+    View.renderHome();
 
     await item.abrir();
+  },
+
+  async abrirPorId(id) {
+    View.setCommandPaletteOpen(false);
+    if (id === "atende") {
+      return this.onAtendeClick({ currentTarget: document.getElementById(ELEMENT_IDS.ATENDE) });
+    }
+    return this.abrirSistema(id);
+  },
+
+  async onHomeClick() {
+    View.setCommandPaletteOpen(false);
+    Model.setSistemaAtivo(null);
+    Model.setCarregando(false);
+    View.mostrarLoading(false);
+    View.setHomeActive();
+    await window.api.voltarHome();
+    window.api.resizeSidebar(Model.getSidebarColapsada() ? "collapsed" : "expanded");
+  },
+
+  onHomeWorkspaceClick(e) {
+    const tile = e.target.closest?.(".home-tile");
+    if (tile?.dataset?.systemId) {
+      void this.abrirPorId(tile.dataset.systemId);
+      return;
+    }
+    const action = e.target.closest?.(".home-action");
+    if (action?.dataset?.actionId) {
+      void this.onQuickAction(action.dataset.actionId, action);
+    }
+  },
+
+  async onQuickAction(actionId, btn) {
+    const info = Model.getInfoSistema();
+    if (actionId === "copy-hostname") return this.copiarTexto(info.hostname, btn);
+    if (actionId === "copy-ip") return this.copiarTexto(info.ip, btn);
+    if (actionId === "copy-anydesk") return this.copiarTexto(info.anydesk, btn);
+    if (actionId === "open-downloads") {
+      await window.api.openDownloadsFolder();
+    }
+  },
+
+  async onStationCopyClick(e) {
+    const btn = e.target.closest?.("[data-copy-target]");
+    if (!btn) return;
+    const id = btn.dataset.copyTarget;
+    const el = document.getElementById(id);
+    await this.copiarTexto(el?.textContent, btn);
+  },
+
+  async copiarTexto(text, btn) {
+    const value = String(text || "").trim();
+    if (!value || value === "---") return;
+    const ok = await window.api.copyText(value);
+    if (ok) View.marcarCopiado(btn);
+  },
+
+  async abrirModalAtendeConfig() {
+    View.setHomeActive();
+    View.fecharDropdowns();
+    const config = await window.api.getAtendeConfig();
+    View.mostrarModalAtendeConfig(config?.ip || "");
   },
 
   onCapturaClick(e) { return this.abrirSistema("captura", e); },
@@ -306,24 +434,7 @@ const Controller = {
   onDocAvulsosClick(e) { return this.abrirSistema("doc-avulsos", e); },
   onValidacaoClick(e) { return this.abrirSistema("validacao", e); },
   onPontoValidClick(e) { return this.abrirSistema("ponto-valid", e); },
-  onPontoRenovaClick(e) { return this.onPontoRenovaClickHandler(e); },
-
-  /**
-   * Handler: clique no botão Ponto Renova.
-   * Abre no navegador (Chrome) — funciona; API retorna 403 no Electron.
-   */
-  async onPontoRenovaClickHandler(e) {
-    if (Model.getCarregando()) return;
-    if (!Model.getConectado()) {
-      View.mostrarPlaceholderComOffline();
-      return;
-    }
-    e.stopPropagation();
-    View.setChromeDownloadsPopoverOpen(false);
-    View.mostrarPlaceholderPadrao();
-    void window.api.setContentEmbedTopInset(EMBED_CONTENT_TOP_PX);
-    await window.api.abrirPontoRenovaNoNavegador();
-  },
+  onPontoRenovaClick(e) { return this.abrirSistema("ponto-renova", e); },
 
   /**
    * Handler: clique no botão Atende.
@@ -345,7 +456,7 @@ const Controller = {
     }
 
     /* Atende abre em janela separada; estado "janela aberta" vem via onAtendeWindowOpened */
-    View.mostrarPlaceholderPadrao();
+    if (!Model.getSistemaAtivo()) View.mostrarPlaceholderPadrao();
   },
 
   /**
@@ -431,6 +542,50 @@ const Controller = {
     View.fecharDropdowns();
   },
 
+  onGlobalKeydown(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      View.setCommandPaletteOpen(!View.isCommandPaletteOpen());
+      return;
+    }
+    if (View.isCommandPaletteOpen()) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        View.setCommandPaletteOpen(false);
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        View.cmdkMove(1);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        View.cmdkMove(-1);
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const id = View.cmdkSelectedId();
+        if (id) void this.abrirPorId(id);
+        return;
+      }
+    }
+    if (e.key !== "Escape") return;
+    const updateModal = document.getElementById(ELEMENT_IDS.UPDATE_MODAL);
+    if (updateModal && !updateModal.classList.contains(CSS_CLASSES.HIDDEN)) {
+      this.onUpdateLater();
+      return;
+    }
+    const atendeModal = document.getElementById(ELEMENT_IDS.ATENDE_MODAL);
+    if (atendeModal && !atendeModal.classList.contains(CSS_CLASSES.HIDDEN)) {
+      this.onAtendeModalCancel();
+      return;
+    }
+    View.fecharDropdowns();
+    this.fecharChromeDownloadsPopover(e);
+  },
+
   fecharChromeDownloadsPopover(e) {
     const sidebarDl = document.getElementById(ELEMENT_IDS.SIDEBAR_DOWNLOADS_ENTRY);
     if (sidebarDl && e?.target && typeof e.target.closest === "function" && sidebarDl.contains(e.target)) {
@@ -509,10 +664,6 @@ const Controller = {
       window.api.reloadAtendeWindow();
       return;
     }
-    if (target === "ponto-renova") {
-      window.api.reloadPontoRenovaWindow();
-      return;
-    }
 
     if (Model.getCarregando()) return;
 
@@ -524,18 +675,13 @@ const Controller = {
 
   /**
    * Handler: clique em "Limpar cache".
-   * Não afeta o Atende. Se data-cache-target=ponto-renova, limpa só a janela do Ponto Renova.
+   * Não afeta o Atende.
    */
-  async onCacheClick(e) {
+  async onCacheClick() {
     if (Model.getCarregando()) return;
-    const target = e?.target?.closest?.("[data-cache-target]")?.dataset?.cacheTarget;
     Model.setCarregando(true);
     View.mostrarLoading(true, SISTEMAS.CACHE);
-    if (target === "ponto-renova") {
-      await window.api.clearPontoRenovaCache();
-    } else {
-      await window.api.clearCache();
-    }
+    await window.api.clearCache();
     Model.setCarregando(false);
     View.mostrarLoading(false);
   },
@@ -553,8 +699,6 @@ const Controller = {
       "reiniciar-validacao": () => window.api.reiniciarValidacao(),
       "reiniciar-servico-hardware": () => window.api.reiniciarServicoHardware(),
       "reiniciar-bcc": () => window.api.reiniciarBCC(),
-      "abrir-ponto-renova-navegador": () => window.api.abrirPontoRenovaNoNavegador(),
-      "abrir-ponto-renova-janela": () => window.api.abrirPontoRenova(),
     };
     const fn = actions[action];
     if (fn) await fn();

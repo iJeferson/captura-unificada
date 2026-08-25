@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; script-src 'self';" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="vendor/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="vendor/fontawesome/css/solid.min.css" />
+    <link rel="stylesheet" href="overlay.css" />
+    <title>Launcher overlay</title>
+  </head>
+  <body>
+    <div id="overlay-root" class="overlay-root">
+      <button type="button" id="launcher-fab" class="launcher-fab hit" title="Abrir menu do Launcher" aria-label="Abrir menu do Launcher" aria-expanded="false">
+        <i class="fas fa-angles-right" id="fab-icon" aria-hidden="true"></i>
+      </button>
+
+      <div id="overlay-backdrop" class="overlay-backdrop hit hidden" aria-hidden="true"></div>
+
+      <aside id="overlay-sidebar" class="overlay-sidebar hit" aria-label="Launcher" aria-hidden="true">
+        <button type="button" id="ov-home" class="ov-logo hit" title="Início" aria-label="Voltar ao início">
+          <h2>Captura Unificada<span id="ov-version" class="ov-version"></span></h2>
+          <span class="ov-sub">Launcher</span>
+        </button>
+        <p class="ov-kicker" id="ov-current">Sistema</p>
+        <nav class="ov-nav" id="ov-nav"></nav>
+        <div class="ov-station" id="ov-station">
+          <button type="button" class="ov-info hit" data-copy="hostname" title="Copiar">
+            <i class="fas fa-desktop" aria-hidden="true"></i>
+            <span><strong>Host</strong><span id="ov-hostname">---</span></span>
+          </button>
+          <button type="button" class="ov-info hit" data-copy="ip" title="Copiar">
+            <i class="fas fa-network-wired" aria-hidden="true"></i>
+            <span><strong>IP</strong><span id="ov-ip">---</span></span>
+          </button>
+          <button type="button" class="ov-info hit" data-copy="anydesk" title="Copiar">
+            <i class="fas fa-id-card-clip" aria-hidden="true"></i>
+            <span><strong>AnyDesk</strong><span id="ov-anydesk">---</span></span>
+          </button>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="js/overlay.js"></script>
+  </body>
+</html>

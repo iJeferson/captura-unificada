@@ -24,7 +24,6 @@ contextBridge.exposeInMainWorld("api", {
   abrirValidacao: () => ipcRenderer.invoke("validacao"),
   abrirPontoValid: () => ipcRenderer.invoke("ponto-valid"),
   abrirPontoRenova: () => ipcRenderer.invoke("ponto-renova"),
-  abrirPontoRenovaNoNavegador: () => ipcRenderer.invoke("ponto-renova-abrir-navegador"),
   abrirAtende: () => ipcRenderer.invoke("atende"),
 
   getAtendeConfig: () => ipcRenderer.invoke("atende-get-config"),
@@ -37,7 +36,6 @@ contextBridge.exposeInMainWorld("api", {
 
   reloadPage: () => ipcRenderer.invoke("reload-page"),
   reloadAtendeWindow: () => ipcRenderer.invoke("reload-atende-window"),
-  reloadPontoRenovaWindow: () => ipcRenderer.invoke("reload-ponto-renova-window"),
 
   onContentLoadingState: (callback) => {
     if (typeof callback !== "function") return;
@@ -54,7 +52,6 @@ contextBridge.exposeInMainWorld("api", {
   isAtendeWindowOpen: () => ipcRenderer.invoke("atende-window-open-state"),
 
   clearCache: () => ipcRenderer.invoke("clear-cache"),
-  clearPontoRenovaCache: () => ipcRenderer.invoke("clear-ponto-renova-cache"),
 
   reiniciarValidacao: () => ipcRenderer.invoke("reiniciar-validacao"),
   reiniciarServicoHardware: () => ipcRenderer.invoke("reiniciar-servico-hardware"),
@@ -65,6 +62,28 @@ contextBridge.exposeInMainWorld("api", {
   resizeSidebar: (state) => {
     const safe = ALLOWED_SIDEBAR_STATES.has(state) ? state : "expanded";
     ipcRenderer.send("resize-sidebar", safe);
+  },
+  setEmbedFullscreen: (on) => ipcRenderer.invoke("set-embed-fullscreen", !!on),
+  voltarHome: () => ipcRenderer.invoke("voltar-home"),
+  setOverlayIgnoreMouse: (ignore) => ipcRenderer.send("overlay-ignore-mouse", !!ignore),
+  setOverlayChromeOpen: (open) => ipcRenderer.invoke("overlay-chrome-open", !!open),
+  requestAtendeConfig: () => ipcRenderer.send("request-atende-config"),
+  copyText: (text) => ipcRenderer.invoke("copy-text", sanitizeString(String(text || ""), 1024)),
+  onSystemLoadError: (callback) => {
+    if (typeof callback !== "function") return;
+    ipcRenderer.on("system-load-error", (_, sistema) => callback(sistema || null));
+  },
+  onEmbedFullscreen: (callback) => {
+    if (typeof callback !== "function") return;
+    ipcRenderer.on("embed-fullscreen", (_, on) => callback(!!on));
+  },
+  onRequestAtendeConfig: (callback) => {
+    if (typeof callback !== "function") return;
+    ipcRenderer.on("request-atende-config", () => callback());
+  },
+  onOverlayState: (callback) => {
+    if (typeof callback !== "function") return;
+    ipcRenderer.on("overlay-state", (_, payload) => callback(payload || {}));
   },
 
   onLoadFinished: (callback) => {
