@@ -38,7 +38,7 @@ const appConfig = {
   ALLOW_INSECURE_CONNECTIONS: true,
 
   /** Largura da sidebar expandida (px) */
-  SIDEBAR_WIDTH_EXPANDED: 252,
+  SIDEBAR_WIDTH_EXPANDED: 240,
 
   /** Largura da sidebar colapsada — trilho de ícones (px) */
   SIDEBAR_WIDTH_COLLAPSED: 56,

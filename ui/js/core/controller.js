@@ -142,7 +142,6 @@ const Controller = {
     });
 
     document.getElementById(ELEMENT_IDS.NAV_HOME)?.addEventListener("click", () => this.onHomeClick());
-    document.getElementById(ELEMENT_IDS.SIDEBAR_HOME)?.addEventListener("click", () => this.onHomeClick());
     document.getElementById(ELEMENT_IDS.HOME_SEARCH_BTN)?.addEventListener("click", () => View.setCommandPaletteOpen(true));
     document.getElementById(ELEMENT_IDS.COMMAND_SCRIM)?.addEventListener("click", () => View.setCommandPaletteOpen(false));
     document.getElementById(ELEMENT_IDS.COMMAND_INPUT)?.addEventListener("input", (e) => {

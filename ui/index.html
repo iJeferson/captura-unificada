@@ -18,15 +18,9 @@
       <div class="sidebar-wrapper" id="sidebar-wrapper">
         <aside class="sidebar" id="sidebar">
           <div class="logo">
-            <button type="button" class="logo-btn" id="nav-home" title="Início" aria-label="Início">
-              <span class="logo-mark" aria-hidden="true">CU</span>
-              <span class="logo-copy">
-                <h2>Captura Unificada<span id="app-version" class="version-tag"></span></h2>
-                <span class="logo-sub">Launcher</span>
-              </span>
-            </button>
-            <button type="button" class="collapse-btn" id="toggle-sidebar" title="Recolher menu" aria-label="Recolher ou expandir barra lateral" aria-expanded="true">
-              <i class="fas fa-angles-left" id="toggle-icon" aria-hidden="true"></i>
+            <button type="button" class="logo-btn" id="nav-home" title="Início" aria-label="Voltar ao início">
+              <h2>Captura Unificada<span id="app-version" class="version-tag"></span></h2>
+              <span class="logo-sub">Launcher</span>
             </button>
           </div>
 
@@ -47,12 +41,6 @@
           </div>
 
           <nav class="menu">
-            <section class="menu-group">
-              <button type="button" class="menu-btn nav-home-item" id="sidebar-home" title="Início">
-                <span><i class="fas fa-house"></i><span class="btn-label">Início</span></span>
-                <span class="menu-btn-slot-end" aria-hidden="true"></span>
-              </button>
-            </section>
             <section class="menu-group">
               <h3 class="menu-group-title">Sistemas Integrados</h3>
               <div class="system-item">
@@ -179,7 +167,6 @@
           </button>
 
           <div class="pc-info station-card" id="station-card">
-            <h3 class="station-title">Estação de trabalho</h3>
             <button type="button" class="info-item copyable" data-copy-target="hostname" title="Copiar">
               <i class="fas fa-desktop"></i>
               <div class="text"><strong>Host</strong><span id="hostname">---</span></div>
@@ -198,11 +185,13 @@
           </div>
 
           <div class="sidebar-footer">
-            <p class="launcher-status" id="launcher-status">Sistemas disponíveis</p>
             <div class="copyright-entity">@ Consórcio Bahia Digital - 2026</div>
           </div>
         </div>
       </aside>
+        <button type="button" class="collapse-btn" id="toggle-sidebar" title="Recolher menu" aria-label="Recolher ou expandir barra lateral" aria-expanded="true">
+          <i class="fas fa-angles-left" id="toggle-icon" aria-hidden="true"></i>
+        </button>
       </div>
 
       <div id="atende-modal" class="modal-overlay hidden">
@@ -240,8 +229,8 @@
               <header class="home-header">
                 <div>
                   <p class="home-kicker" id="home-greeting">Bem-vindo</p>
-                  <h2>Captura Unificada</h2>
-                  <p class="home-lead">Encontre um sistema e abra com um clique, ou use Ctrl+K.</p>
+                  <h2>Nenhum sistema aberto</h2>
+                  <p class="home-lead">Escolha um item na barra lateral, ou busque com Ctrl+K.</p>
                 </div>
                 <button type="button" id="home-search-btn" class="home-search">
                   <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
@@ -256,10 +245,6 @@
               <section class="home-section" aria-label="Favoritos">
                 <h3>Favoritos</h3>
                 <div id="home-favorites" class="home-row"></div>
-              </section>
-              <section class="home-section" aria-label="Todos os sistemas">
-                <h3>Todos os sistemas</h3>
-                <div id="home-all" class="home-grid"></div>
               </section>
               <section class="home-section" aria-label="Ações rápidas">
                 <h3>Ações rápidas</h3>

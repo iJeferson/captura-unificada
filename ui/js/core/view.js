@@ -7,7 +7,7 @@
 
 import { ELEMENT_IDS, CSS_CLASSES } from "../config/constants.js";
 import { CATALOG, getCatalogItem } from "../config/catalog.js";
-import { getRecents, getFavorites, isFavorite } from "./recents.js";
+import { getRecents, getFavorites } from "./recents.js";
 
 /**
  * Seletores dos elementos do DOM.
@@ -128,7 +128,7 @@ const View = {
   setMenuAtivo(btn) {
     this.elementos.menuBtns().forEach((b) => b.classList.remove(CSS_CLASSES.ACTIVE));
     btn?.classList.add(CSS_CLASSES.ACTIVE);
-    const isHome = !btn || btn.id === ELEMENT_IDS.SIDEBAR_HOME;
+    const isHome = !btn || btn.id === ELEMENT_IDS.NAV_HOME;
     const placeholder = this.elementos.placeholder();
     if (isHome) {
       placeholder?.classList.remove(CSS_CLASSES.HIDDEN);
@@ -467,8 +467,7 @@ const View = {
   },
 
   setHomeActive() {
-    const homeBtn = document.getElementById(ELEMENT_IDS.SIDEBAR_HOME);
-    this.setMenuAtivo(homeBtn);
+    this.setMenuAtivo(null);
     this.setEmbedMode(false);
     this.ocultarErroSistema();
     this.mostrarPlaceholderPadrao();
@@ -517,9 +516,8 @@ const View = {
 
     const recentsEl = document.getElementById(ELEMENT_IDS.HOME_RECENTS);
     const favsEl = document.getElementById(ELEMENT_IDS.HOME_FAVORITES);
-    const allEl = document.getElementById(ELEMENT_IDS.HOME_ALL);
     const actionsEl = document.getElementById(ELEMENT_IDS.HOME_ACTIONS);
-    if (!recentsEl || !favsEl || !allEl || !actionsEl) return;
+    if (!recentsEl || !favsEl || !actionsEl) return;
 
     recentsEl.replaceChildren();
     const recents = getRecents().map(getCatalogItem).filter(Boolean);
@@ -530,13 +528,6 @@ const View = {
     const favs = getFavorites().map(getCatalogItem).filter(Boolean);
     if (!favs.length) favsEl.appendChild(emptyHint("Marque sistemas usados com frequência."));
     else favs.forEach((item) => favsEl.appendChild(this.makeSystemTile(item)));
-
-    allEl.replaceChildren();
-    CATALOG.forEach((item) => {
-      const tile = this.makeSystemTile(item);
-      if (isFavorite(item.id)) tile.classList.add("is-favorite");
-      allEl.appendChild(tile);
-    });
 
     actionsEl.replaceChildren();
     const actions = [
