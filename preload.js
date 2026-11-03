@@ -62,9 +62,21 @@ contextBridge.exposeInMainWorld("api", {
 
   getSystemInfo: () => ipcRenderer.invoke("system-info"),
 
-  resizeSidebar: (state) => {
+  resizeSidebar: (state, theme) => {
     const safe = ALLOWED_SIDEBAR_STATES.has(state) ? state : "expanded";
-    ipcRenderer.send("resize-sidebar", safe);
+    const safeTheme = ALLOWED_THEMES.has(theme) ? theme : "dark";
+    ipcRenderer.send("resize-sidebar", safe, safeTheme);
+  },
+  requestSidebarExpand: () => ipcRenderer.send("sidebar-request-expand"),
+  onSidebarExpandRequest: (callback) => {
+    if (typeof callback !== "function") return;
+    ipcRenderer.on("sidebar-expand-request", () => callback());
+  },
+  onSidebarToggleTheme: (callback) => {
+    if (typeof callback !== "function") return;
+    ipcRenderer.on("sidebar-toggle-theme", (_, theme) => {
+      callback(ALLOWED_THEMES.has(theme) ? theme : "dark");
+    });
   },
 
   onLoadFinished: (callback) => {
