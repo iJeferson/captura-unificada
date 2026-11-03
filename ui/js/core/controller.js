@@ -51,6 +51,7 @@ const Controller = {
         View.aplicarTema(isDark);
       }
     } catch (_) {}
+    this.sincronizarChromeLateral();
   },
 
   /**
@@ -173,6 +174,11 @@ const Controller = {
   },
 
   registrarListenersIPC() {
+    window.api.onSidebarExpandRequest(() => {
+      if (!Model.getSidebarColapsada()) return;
+      this.onToggleSidebar();
+    });
+
     window.api.onLoadFinished((sistema) => {
       Model.setCarregando(false);
       View.mostrarLoading(false);
@@ -276,7 +282,7 @@ const Controller = {
 
   /**
    * Abre um sistema da barra lateral (fluxo único: offline check, loading, IPC).
-   * Captura: sempre executa o fluxo BCC (mesmo se já ativo), para garantir consistência.
+   * Sistema já ativo não é aberto de novo. CapturaWeb só espera o BCC se ele existir.
    * @param {string} sistemaId - "captura" | "smart" | "doc-avulsos" | "validacao" | "ponto-valid" | "ponto-renova"
    * @param {Event} e - evento de clique (currentTarget = botão do menu)
    */
@@ -385,10 +391,17 @@ const Controller = {
   /**
    * Handler: clique no botão de colapsar/expandir sidebar.
    */
+  sincronizarChromeLateral() {
+    window.api.resizeSidebar(
+      Model.getSidebarColapsada() ? "collapsed" : "expanded",
+      Model.getTemaEscuro() ? "dark" : "light"
+    );
+  },
+
   onToggleSidebar() {
     const isCollapsed = View.toggleSidebar();
     Model.setSidebarColapsada(isCollapsed);
-    window.api.resizeSidebar(isCollapsed ? "collapsed" : "expanded");
+    this.sincronizarChromeLateral();
   },
 
   /**
@@ -569,6 +582,7 @@ const Controller = {
     Model.setTemaEscuro(isDark);
     View.aplicarTema(isDark);
     window.api.setTheme(isDark ? "dark" : "light");
+    this.sincronizarChromeLateral();
   },
 };
 

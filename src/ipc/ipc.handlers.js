@@ -18,11 +18,8 @@ const { esperar } = require("../utils/helpers");
 const execAsync = promisify(exec);
 const {
   configurarAmbienteSmart,
-  aguardarBCCAbrir,
-  aguardarBCCFechar,
+  prepararAmbienteCaptura,
   matarBCC,
-  pararServicoValid,
-  iniciarBCC,
   iniciarServicoValid,
   reiniciarServicoHardware,
   reiniciarBCC,
@@ -99,14 +96,24 @@ async function openSystemContent(sistemaId, url, setup) {
  * Registra todos os handlers IPC. Deve ser chamado após a janela estar criada.
  */
 function registerIpcHandlers() {
-  ipcMain.on("resize-sidebar", (_, state) => {
+  ipcMain.on("resize-sidebar", (_, state, theme) => {
     try {
-      const width =
-        state === "collapsed"
-          ? config.SIDEBAR_WIDTH_COLLAPSED
-          : config.SIDEBAR_WIDTH_EXPANDED;
+      const collapsed = state === "collapsed";
+      const width = collapsed ? config.SIDEBAR_WIDTH_COLLAPSED : config.SIDEBAR_WIDTH_EXPANDED;
       windowManager.setCurrentSidebarWidth(width);
       windowManager.ajustarView();
+      windowManager.syncSidebarToggleOverlay(collapsed, theme === "light" ? "light" : "dark");
+    } catch (err) {
+      logger.logError(err);
+    }
+  });
+
+  ipcMain.on("sidebar-request-expand", () => {
+    try {
+      const win = windowManager.getMainWindow();
+      if (win?.webContents && !win.webContents.isDestroyed()) {
+        win.webContents.send("sidebar-expand-request");
+      }
     } catch (err) {
       logger.logError(err);
     }
@@ -116,50 +123,7 @@ function registerIpcHandlers() {
 
   ipcMain.handle("captura", async () => {
     try {
-      const url = config.URLS.capturaWeb;
-      if (windowManager.getProcessandoTroca()) {
-        try {
-          const win = windowManager.getMainWindow();
-          if (win?.webContents && !win.webContents.isDestroyed()) win.webContents.send("load-finished", null);
-        } catch (_) {}
-        return;
-      }
-      windowManager.setProcessandoTroca(true);
-      windowManager.setSistemaIniciado(true);
-      windowManager.setCurrentSistema("captura");
-      windowManager.setContentEmbedTopInset(0);
-      windowManager.setContentViewVisible(false);
-      try {
-        await trimCookiesIfNeeded(url);
-        await matarBCC();
-        await aguardarBCCFechar();
-        iniciarBCC();
-        await aguardarBCCAbrir();
-        await esperar(config.DELAYS.bccStartup);
-        await matarBCC();
-        await aguardarBCCFechar();
-        iniciarBCC();
-        await aguardarBCCAbrir();
-        await esperar(config.DELAYS.bccStartup);
-        await matarBCC();
-        await aguardarBCCFechar();
-        reiniciarServicoHardware().catch((err) =>
-          logger.logWarn(
-            "HARDWARE_SERVICE_RESTART_ASYNC_FAILED",
-            `Falha no reinício assíncrono do serviço de hardware: ${err?.message || "erro desconhecido"}`
-          )
-        );
-        windowManager.loadContentViewUrl(url);
-        windowManager.ajustarView();
-      } catch (err) {
-        logger.logError(err);
-        windowManager.setProcessandoTroca(false);
-        try {
-          const win = windowManager.getMainWindow();
-          if (win?.webContents && !win.webContents.isDestroyed())
-            win.webContents.send("load-finished", null);
-        } catch (_) {}
-      }
+      return await openSystemContent("captura", config.URLS.capturaWeb, prepararAmbienteCaptura);
     } catch (err) {
       logger.logError(err);
     }

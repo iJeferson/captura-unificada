@@ -39,6 +39,16 @@ let sistemaIniciado = false;
 let processandoTroca = false;
 let processandoTrocaTimer = null;
 let currentSidebarWidth = config.SIDEBAR_WIDTH_EXPANDED;
+/**
+ * Botão de expandir. O site embutido cobre o HTML da janela, então o botão
+ * vive numa WebContentsView irmã, por cima do conteúdo, sem reservar faixa.
+ */
+let sidebarToggleView = null;
+let sidebarToggleReady = false;
+let sidebarToggleWanted = false;
+let sidebarTheme = "dark";
+const SIDEBAR_TOGGLE_SIZE = 40;
+const SIDEBAR_TOGGLE_MARGIN = 12;
 let currentSistema = null;
 /** URL da última página carregada no contentView (para restauração após queda de rede). */
 let lastLoadedUrl = null;
@@ -476,6 +486,9 @@ function criarJanela(iconPathParam) {
   );
 
   mainWindow.on("closed", () => {
+    sidebarToggleView = null;
+    sidebarToggleReady = false;
+    sidebarToggleWanted = false;
     mainWindow = null;
     contentView = null;
     connectivityService.reset();
@@ -692,7 +705,13 @@ function criarJanela(iconPathParam) {
 
   mainWindow.contentView.addChildView(contentView);
   contentView.setVisible(false);
-  mainWindow.on("resize", ajustarView);
+  const relayout = () => {
+    ajustarView();
+    if (sidebarToggleWanted) positionSidebarToggleView();
+  };
+  mainWindow.on("resize", relayout);
+  mainWindow.on("maximize", relayout);
+  mainWindow.on("unmaximize", relayout);
 
   mainWindow.once("ready-to-show", () => {
     const b = bounds();
@@ -735,6 +754,86 @@ function preconnectUrls() {
 
 function getActiveWebContents() {
   return contentView?.webContents;
+}
+
+function hideSidebarToggle() {
+  if (!sidebarToggleView) return;
+  sidebarToggleView.setVisible(false);
+  sidebarToggleView.setBounds({ x: 0, y: 0, width: 0, height: 0 });
+}
+
+function positionSidebarToggleView() {
+  if (!sidebarToggleView || !mainWindow || mainWindow.isDestroyed()) return;
+  const { height } = mainWindow.getContentBounds();
+  const y = Math.round(Math.max(SIDEBAR_TOGGLE_MARGIN, (height - SIDEBAR_TOGGLE_SIZE) / 2));
+  sidebarToggleView.setBounds({
+    x: SIDEBAR_TOGGLE_MARGIN,
+    y,
+    width: SIDEBAR_TOGGLE_SIZE,
+    height: SIDEBAR_TOGGLE_SIZE,
+  });
+}
+
+function ensureSidebarToggleView() {
+  if (sidebarToggleView || !mainWindow || mainWindow.isDestroyed()) return sidebarToggleView;
+  const view = new WebContentsView({
+    webPreferences: {
+      preload: path.join(__dirname, "..", "..", "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  view.setBackgroundColor("#00000000");
+  view.webContents.on("did-finish-load", () => {
+    sidebarToggleReady = true;
+    if (sidebarToggleWanted) revealSidebarToggle();
+  });
+  view.webContents.on("did-fail-load", (_event, errorCode, errorDescription, _url, isMainFrame) => {
+    if (!isMainFrame || errorCode === -3) return;
+    logger.logWarn(
+      "SIDEBAR_TOGGLE_FAILED",
+      `Botão flutuante não carregou (${errorCode} ${errorDescription || ""}). Menu expandido de novo.`
+    );
+    sidebarToggleWanted = false;
+    hideSidebarToggle();
+    currentSidebarWidth = config.SIDEBAR_WIDTH_EXPANDED;
+    ajustarView();
+    const win = mainWindow;
+    if (win?.webContents && !win.webContents.isDestroyed()) win.webContents.send("sidebar-expand-request");
+  });
+  view.webContents.loadFile(path.join(__dirname, "..", "..", "ui", "sidebar-toggle.html"));
+  mainWindow.contentView.addChildView(view);
+  view.setVisible(false);
+  sidebarToggleView = view;
+  return view;
+}
+
+function revealSidebarToggle() {
+  if (!sidebarToggleWanted || !sidebarToggleReady || !mainWindow || mainWindow.isDestroyed()) return;
+  const view = sidebarToggleView;
+  if (!view) return;
+  mainWindow.contentView.addChildView(view);
+  positionSidebarToggleView();
+  if (!view.webContents.isDestroyed()) view.webContents.send("sidebar-toggle-theme", sidebarTheme);
+  view.setVisible(true);
+}
+
+/**
+ * Mostra ou esconde o botão flutuante de expandir.
+ * Com a sidebar recolhida a view embutida ocupa x=0; o botão fica por cima do site.
+ * @param {boolean} collapsed
+ * @param {"dark"|"light"} [theme]
+ */
+function syncSidebarToggleOverlay(collapsed, theme) {
+  sidebarToggleWanted = Boolean(collapsed);
+  if (theme === "light" || theme === "dark") sidebarTheme = theme;
+  if (!sidebarToggleWanted) {
+    hideSidebarToggle();
+    return;
+  }
+  ensureSidebarToggleView();
+  revealSidebarToggle();
 }
 
 module.exports = {
@@ -781,6 +880,7 @@ module.exports = {
     }
   },
   setCurrentSidebarWidth: (w) => (currentSidebarWidth = w),
+  syncSidebarToggleOverlay,
   setContentViewVisible: (v) => contentView && (contentView.setVisible(v)),
   reloadContentView: () => contentView?.webContents?.reload(),
   reloadActiveView: () => getActiveWebContents()?.reload(),
