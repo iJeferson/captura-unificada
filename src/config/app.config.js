@@ -127,8 +127,8 @@ const appConfig = {
     bccStartup: 5000,
     /** Teto para o processo BCC nascer, só se o exe existe. */
     bccOpenTimeout: 10000,
-    /** Teto para o taskkill /F concluir. */
-    bccCloseTimeout: 3000,
+    /** Teto de parede para o BCC.exe sair da lista depois do taskkill. */
+    bccCloseTimeout: 6000,
     /** sc query. Serviço inexistente responde bem antes disso. */
     serviceQuery: 2000,
     /**
