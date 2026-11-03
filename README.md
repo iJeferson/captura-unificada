@@ -11,8 +11,8 @@ Versão atual: veja `version` em `package.json` (ex.: **1.0.36**).
 - **Launcher unificado**: sidebar com todos os sistemas acima; conteúdo embutido na janela principal via `WebContentsView` (exceto Atende e Ponto Renova, em janelas próprias).
 - **Integração com hardware (Windows)**:
   - **CapturaWeb**: se o BCC estiver instalado, dois ciclos de abrir/fechar liberam o leitor; se não estiver, a URL abre na hora. O reinício dos serviços Valid existentes segue em segundo plano.
-  - **SMART (CIN)**: para só os serviços Valid que existem e inicia o BCC apenas se o executável estiver no disco.
-  - **Doc Avulso (antigo)**: inicia os serviços Valid que existem e estão parados; serviço ausente não segura a abertura.
+  - **SMART (CIN)**: para o serviço Valid que está rodando e inicia o BCC se o executável estiver no disco, esperando o processo subir antes da URL.
+  - **Doc Avulso (antigo)**: encerra o BCC se estiver aberto e inicia o serviço Valid parado. Se a lista de serviços não puder ser lida, tenta iniciar mesmo assim.
   - **Validação**: encerra BCC antes de carregar a URL; o app externo `CapturaWeb.exe` (Valid) pode ser reiniciado pela UI (`reiniciar-validacao`).
 - **S4IPM** e **Ponto Valid**: carregamento direto da URL na view principal.
 - **Ponto Renova**: janela separada com sessão isolada (`persist:ponto-renova`); opção de abrir no Google Chrome instalado; limpeza de cache só dessa sessão.

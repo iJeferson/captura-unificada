@@ -42,23 +42,64 @@ function planoLiberacaoBCC({ instalado, rodando }) {
 }
 
 /**
- * `sc.exe` no Windows em português devolve UTF-16. Sem essa conversão,
- * "ESTADO" não aparece e um serviço instalado parece ausente.
+ * Tira acento, NUL de UTF-16 mal lido e caracteres que o code page troca.
+ * Rótulos do `sc.exe` em português sobrevivem como NOME_DO_SERVI / ESTADO.
+ * @param {string} valor
+ * @returns {string}
+ */
+function foldRotulo(valor) {
+  return String(valor || "")
+    .replace(/\u0000/g, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\x20-\x7E]/g, "")
+    .toUpperCase()
+    .trim();
+}
+
+function pontuarTextoServico(texto) {
+  const f = foldRotulo(texto);
+  let nota = 0;
+  if (f.includes("SERVICE_NAME") || f.includes("NOME_DO_SERVI")) nota += 5;
+  if (f.includes("RUNNING") || f.includes("STOPPED")) nota += 3;
+  if (f.includes("ESTADO") || f.includes("STATE") || f.includes("DISPLAY_NAME") || f.includes("EXIB")) nota += 1;
+  return nota;
+}
+
+/**
+ * `sc.exe` no Windows em português pode devolver UTF-16 ou o code page OEM.
+ * Escolhe a leitura em que RUNNING/STOPPED e o nome do serviço continuam visíveis.
  * @param {Buffer|string|null|undefined} data
  * @returns {string}
  */
 function decodificarSaidaWindows(data) {
   if (data == null) return "";
   const buf = Buffer.isBuffer(data) ? data : Buffer.from(String(data), "latin1");
+  if (buf.length === 0) return "";
+  const candidatos = [];
   if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe) {
-    return buf.slice(2).toString("utf16le");
+    candidatos.push(buf.slice(2).toString("utf16le"));
   }
   if (buf.length >= 4 && buf[1] === 0 && buf[3] === 0) {
-    return buf.toString("utf16le").replace(/^\uFEFF/, "");
+    candidatos.push(buf.toString("utf16le"));
   }
-  const texto = buf.toString("utf8");
-  if (!texto.includes("\u0000")) return texto;
-  return Buffer.from(texto, "latin1").toString("utf16le").replace(/^\uFEFF/, "");
+  const utf8 = buf.toString("utf8");
+  candidatos.push(utf8);
+  candidatos.push(buf.toString("latin1"));
+  if (utf8.includes("\u0000")) {
+    candidatos.push(Buffer.from(utf8, "latin1").toString("utf16le"));
+  }
+  let melhor = candidatos[0].replace(/^\uFEFF/, "");
+  let melhorNota = -1;
+  for (const candidato of candidatos) {
+    const texto = candidato.replace(/^\uFEFF/, "");
+    const nota = pontuarTextoServico(texto);
+    if (nota > melhorNota) {
+      melhor = texto;
+      melhorNota = nota;
+    }
+  }
+  return melhor;
 }
 
 function normalizarNomeServico(valor) {
@@ -77,20 +118,38 @@ function normalizarNomeServico(valor) {
  * @param {number|null|undefined} code
  * @returns {{ existe: boolean, rodando: boolean, confirmadoAusente: boolean }}
  */
-function classificarConsultaServico(stdout, stderr, code) {
-  const out = String(stdout || "");
-  const blob = `${out}\n${stderr || ""}`;
-  const codeNum = typeof code === "number" ? code : null;
-  const ausente =
-    codeNum === 1060 ||
-    /1060|does not exist|não existe|nao existe/i.test(blob);
-  if (ausente) return { existe: false, rodando: false, confirmadoAusente: true };
-  const estado = out.match(/(?:STATE|ESTADO)\s*:\s*(\d+)/i);
-  const cabecalho = /SERVICE_NAME|DISPLAY_NAME|NOME_DO_SERVI|NOME_PARA_EXIBI/i.test(out);
-  if (codeNum === 0 && (estado || cabecalho)) {
-    return { existe: true, rodando: Boolean(estado && estado[1] === "4"), confirmadoAusente: false };
+/**
+ * Acha RUNNING/STOPPED numa linha. Esses nomes ficam em inglês mesmo no Windows em português.
+ * @param {string} stdout
+ * @returns {{ codigo: string, nome: string } | null}
+ */
+function lerEstadoServico(stdout) {
+  const linhas = String(stdout || "").replace(/\u0000/g, "").split(/\r?\n/);
+  for (const linha of linhas) {
+    const f = foldRotulo(linha);
+    const m = f.match(/\b([0-9]+)\s+(RUNNING|STOPPED|START_PENDING|STOP_PENDING|CONTINUE_PENDING|PAUSE_PENDING|PAUSED)\b/);
+    if (m) return { codigo: m[1], nome: m[2] };
   }
-  return { existe: false, rodando: false, confirmadoAusente: false };
+  return null;
+}
+
+function classificarConsultaServico(stdout, stderr, code) {
+  const out = String(stdout || "").replace(/\u0000/g, "");
+  const err = String(stderr || "").replace(/\u0000/g, "");
+  const blob = foldRotulo(`${out}\n${err}`);
+  const codeNum = typeof code === "number" ? code : null;
+  const ausente = codeNum === 1060 || /1060|DOES NOT EXIST|NAO EXISTE/.test(blob);
+  if (ausente) return { existe: false, rodando: false, confirmadoAusente: true, incerto: false };
+  const estado = lerEstadoServico(out);
+  const cabecalho = /SERVICE_NAME|NOME_DO_SERVI/.test(blob);
+  if (estado || (codeNum === 0 && cabecalho)) {
+    const rodando = Boolean(estado && (estado.codigo === "4" || estado.nome === "RUNNING"));
+    return { existe: true, rodando, confirmadoAusente: false, incerto: !estado };
+  }
+  if (codeNum === 0 && blob.trim()) {
+    return { existe: true, rodando: false, confirmadoAusente: false, incerto: true };
+  }
+  return { existe: false, rodando: false, confirmadoAusente: false, incerto: true };
 }
 
 /**
@@ -98,22 +157,57 @@ function classificarConsultaServico(stdout, stderr, code) {
  * @param {string} stdout
  * @returns {{ nome: string, exibicao: string, rodando: boolean }[]}
  */
+/**
+ * Quebra a lista de `sc query`. Não depende do acento de NOME_DO_SERVIÇO / NOME_PARA_EXIBIÇÃO:
+ * no code page OEM esses rótulos chegam corrompidos e a lista parecia vazia.
+ * @param {string} stdout
+ * @returns {{ nome: string, exibicao: string, rodando: boolean }[]}
+ */
 function listarServicosSc(stdout) {
-  const texto = String(stdout || "").replace(/\r/g, "");
-  const blocos = texto.split(/\n(?=(?:SERVICE_NAME|NOME_DO_SERVI))/i);
+  const texto = String(stdout || "").replace(/\u0000/g, "").replace(/\r/g, "");
   const lista = [];
-  for (const bloco of blocos) {
-    const nome = bloco.match(/(?:SERVICE_NAME|NOME_DO_SERVI[CÇ]?O)\s*:\s*(.+)/i);
-    const exibicao = bloco.match(/(?:DISPLAY_NAME|NOME_PARA_EXIBI[CÇ][AÃ]O)\s*:\s*(.+)/i);
-    const estado = bloco.match(/(?:STATE|ESTADO)\s*:\s*(\d+)/i);
-    if (!nome) continue;
-    lista.push({
-      nome: nome[1].trim(),
-      exibicao: exibicao ? exibicao[1].trim() : "",
-      rodando: Boolean(estado && estado[1] === "4"),
-    });
+  let atual = null;
+  const fechar = () => {
+    if (atual?.nome) lista.push(atual);
+    atual = null;
+  };
+  for (const linha of texto.split("\n")) {
+    if (!linha.trim()) continue;
+    const m = linha.match(/^(\s*)([^:]+):\s*(.*)$/);
+    if (!m) continue;
+    const indentado = m[1].length > 0;
+    const rotulo = foldRotulo(m[2]);
+    const valor = m[3].replace(/\u0000/g, "").trim();
+    const ehNome =
+      rotulo.includes("SERVICE_NAME") ||
+      (rotulo.includes("NOME_DO_SERVI") && !rotulo.includes("EXIB"));
+    const ehExibicao = rotulo.includes("DISPLAY_NAME") || rotulo.includes("EXIB");
+    if (!indentado && ehNome) {
+      fechar();
+      atual = { nome: valor, exibicao: "", rodando: false };
+      continue;
+    }
+    if (!atual) continue;
+    if (ehExibicao && !atual.exibicao) {
+      atual.exibicao = valor;
+      continue;
+    }
+    const estado = foldRotulo(valor).match(/^([0-9]+)\s+(RUNNING|STOPPED|START_PENDING|STOP_PENDING|CONTINUE_PENDING|PAUSE_PENDING|PAUSED)\b/);
+    if (estado) atual.rodando = estado[1] === "4" || estado[2] === "RUNNING";
   }
+  fechar();
   return lista;
+}
+
+/**
+ * `sc query` sem bufsize grande devolve erro de buffer e zero serviços.
+ * @param {string} stdout
+ * @param {string} stderr
+ * @returns {boolean}
+ */
+function listaScTruncada(stdout, stderr) {
+  const blob = foldRotulo(`${stdout || ""}\n${stderr || ""}`);
+  return /MORE_DATA|MORE DATA|MAIS DADOS|ENUMQUERYSERVICESSTATUS|NEED [0-9]+ BYTES|PRECISA DE [0-9]+/.test(blob);
 }
 
 function pareceHardwareValid(item) {
@@ -146,11 +240,25 @@ function selecionarServicosValid(lista, configurados) {
 }
 
 function devePararServico(info) {
-  return Boolean(info?.existe && info?.rodando);
+  if (!info?.existe) return false;
+  if (info.incerto) return true;
+  return Boolean(info.rodando);
 }
 
 function deveIniciarServico(info) {
-  return Boolean(info?.existe && !info?.rodando);
+  if (!info?.existe) return false;
+  if (info.incerto) return true;
+  return !info.rodando;
+}
+
+/**
+ * Quando a lista não pôde ser lida, não dá para afirmar que o serviço está rodando.
+ * Assumir `rodando: true` fazia o Doc Avulso pular o `net start` depois que o SMART tinha parado o hardware.
+ * @param {string} nome
+ * @returns {{ nome: string, existe: boolean, rodando: boolean, incerto: boolean }}
+ */
+function servicoEstadoIncerto(nome) {
+  return { nome, existe: true, rodando: false, incerto: true };
 }
 
 function bccEstaInstalado() {
@@ -227,7 +335,25 @@ async function processoEstaRodando(imagem) {
     config.DELAYS.processQuery
   );
   if (r.timedOut) return false;
-  return r.stdout.toLowerCase().includes(String(imagem).toLowerCase());
+  return r.stdout.replace(/\u0000/g, "").toLowerCase().includes(String(imagem).toLowerCase());
+}
+
+/**
+ * @returns {Promise<string[]>}
+ */
+async function listarPidsBCC() {
+  const r = await execFileBounded(
+    "tasklist",
+    ["/FI", `IMAGENAME eq ${BCC_IMAGEM}`, "/FO", "CSV", "/NH"],
+    config.DELAYS.processQuery
+  );
+  if (r.timedOut) return [];
+  const pids = [];
+  for (const linha of r.stdout.replace(/\u0000/g, "").split(/\r?\n/)) {
+    const m = linha.match(/"BCC\.exe"\s*[,;]\s*"(\d+)"/i);
+    if (m) pids.push(m[1]);
+  }
+  return pids;
 }
 
 /**
@@ -235,19 +361,138 @@ async function processoEstaRodando(imagem) {
  * @returns {Promise<{ existe: boolean, rodando: boolean }>}
  */
 async function consultarServico(nome) {
-  if (process.platform !== "win32") return { existe: false, rodando: false, confirmadoAusente: true };
+  if (process.platform !== "win32") return { existe: false, rodando: false, confirmadoAusente: true, incerto: false };
   const r = await execFileBounded("sc.exe", ["query", nome], config.DELAYS.serviceQuery);
   if (r.timedOut) {
     logger.logWarn("SERVICE_QUERY_TIMEOUT", `Consulta do serviço excedeu o tempo: ${nome}`);
-    return { existe: false, rodando: false, confirmadoAusente: false };
+    return { existe: true, rodando: false, confirmadoAusente: false, incerto: true };
   }
   return classificarConsultaServico(r.stdout, r.stderr, r.code);
 }
 
 /**
- * Lê todos os serviços e fica com o da Valid pelo nome interno ou pelo nome de exibição.
- * Se a lista não vier, não marca como ausente: tenta os nomes do config.
- * @returns {Promise<{ nome: string, existe: boolean, rodando: boolean }[]>}
+ * `sc getkeyname` resolve o nome de exibição para o nome interno, que é o que `net start` precisa.
+ * @param {string} exibicao
+ * @returns {Promise<string>}
+ */
+async function chavePorNomeExibicao(exibicao) {
+  const r = await execFileBounded("sc.exe", ["getkeyname", exibicao], config.DELAYS.serviceQuery);
+  if (r.timedOut) return "";
+  const texto = `${r.stdout || ""}\n${r.stderr || ""}`.replace(/\u0000/g, "");
+  if (foldRotulo(texto).includes("1060")) return "";
+  for (const linha of texto.split(/\r?\n/)) {
+    const pedacos = linha.split(/[:=]/);
+    if (pedacos.length < 2) continue;
+    const rotulo = foldRotulo(pedacos[0]);
+    const ehNome =
+      rotulo === "NAME" ||
+      rotulo === "NOME" ||
+      (rotulo.includes("NOME_DO_SERVI") && !rotulo.includes("EXIB"));
+    if (!ehNome) continue;
+    const valor = pedacos.slice(1).join(":").trim();
+    if (valor) return valor;
+  }
+  return "";
+}
+
+/**
+ * O buffer padrão do `sc query` (1024 bytes) estoura em qualquer máquina com vários serviços
+ * e a saída vem sem nenhum NOME_DO_SERVIÇO — era o SERVICE_QUERY_UNPARSED.
+ * @returns {Promise<{ lista: { nome: string, exibicao: string, rodando: boolean }[], truncada: boolean, falha: boolean }>}
+ */
+async function enumerarServicosSc() {
+  const r = await execFileBounded(
+    "sc.exe",
+    ["query", "type=", "service", "state=", "all", "bufsize=", "65536"],
+    config.DELAYS.serviceCommand
+  );
+  const lista = listarServicosSc(r.stdout);
+  const truncada = listaScTruncada(r.stdout, r.stderr);
+  return {
+    lista,
+    truncada,
+    falha: Boolean(r.timedOut) || (lista.length === 0 && !truncada),
+  };
+}
+
+/**
+ * @param {string} stdout
+ * @returns {{ nome: string, exibicao: string, rodando: boolean }[]}
+ */
+function listarServicosPowerShell(stdout) {
+  const lista = [];
+  for (const linha of String(stdout || "").replace(/\u0000/g, "").split(/\r?\n/)) {
+    const partes = linha.split("\t");
+    if (partes.length < 3) continue;
+    const nome = partes[0].trim();
+    const status = foldRotulo(partes[partes.length - 1]);
+    const exibicao = partes.slice(1, -1).join("\t").trim();
+    if (!nome || (status !== "RUNNING" && status !== "STOPPED")) continue;
+    lista.push({ nome, exibicao, rodando: status === "RUNNING" });
+  }
+  return lista;
+}
+
+async function enumerarViaPowerShell() {
+  const script = 'Get-Service | ForEach-Object { $_.Name + "`t" + $_.DisplayName + "`t" + $_.Status }';
+  const r = await execFileBounded(
+    "powershell.exe",
+    ["-NoProfile", "-NonInteractive", "-Command", script],
+    config.DELAYS.serviceCommand
+  );
+  if (r.timedOut) return null;
+  const lista = listarServicosPowerShell(r.stdout);
+  return lista.length > 0 ? lista : null;
+}
+
+/**
+ * Consulta cada nome do config. Nome de exibição passa por `sc getkeyname`.
+ * @returns {Promise<{ nome: string, exibicao: string, rodando: boolean, incerto?: boolean }[]>}
+ */
+async function consultarNomesConfigurados() {
+  const achados = [];
+  const vistos = new Set();
+  for (const nome of SERVICOS_VALID) {
+    let info = await consultarServico(nome);
+    let nomeReal = nome;
+    if (!info.existe) {
+      const chave = await chavePorNomeExibicao(nome);
+      if (chave) {
+        info = await consultarServico(chave);
+        nomeReal = chave;
+      }
+    }
+    if (!info.existe) continue;
+    const id = String(nomeReal).toLowerCase();
+    if (vistos.has(id)) continue;
+    vistos.add(id);
+    achados.push({
+      nome: nomeReal,
+      exibicao: nome,
+      rodando: Boolean(info.rodando) && !info.incerto,
+      incerto: Boolean(info.incerto),
+    });
+  }
+  return achados;
+}
+
+function publicarServicos(itens) {
+  logSkipOnce(
+    "HARDWARE_ENCONTRADO",
+    `Serviço Valid encontrado: ${itens.map((s) => s.nome).join(", ")}`
+  );
+  return itens.map((s) => ({
+    nome: s.nome,
+    existe: true,
+    rodando: Boolean(s.rodando) && !s.incerto,
+    incerto: Boolean(s.incerto),
+  }));
+}
+
+/**
+ * Lê os serviços e fica com o da Valid pelo nome interno ou pelo nome de exibição.
+ * Se a lista não vier, não assume que está rodando: o Doc Avulso precisa poder dar `net start`.
+ * @returns {Promise<{ nome: string, existe: boolean, rodando: boolean, incerto?: boolean }[]>}
  */
 async function servicosInstalados() {
   if (process.platform !== "win32") {
@@ -258,34 +503,48 @@ async function servicosInstalados() {
     return [];
   }
 
-  const r = await execFileBounded(
-    "sc.exe",
-    ["query", "type=", "service", "state=", "all"],
-    config.DELAYS.serviceCommand
-  );
-  if (!r.timedOut) {
-    const encontrados = selecionarServicosValid(listarServicosSc(r.stdout), SERVICOS_VALID);
-    if (encontrados.length > 0) {
-      logSkipOnce(
-        "HARDWARE_ENCONTRADO",
-        `Serviço Valid encontrado: ${encontrados.map((s) => s.nome).join(", ")}`
-      );
-      return encontrados.map((s) => ({ nome: s.nome, existe: true, rodando: s.rodando }));
-    }
-    if (listarServicosSc(r.stdout).length > 0) {
-      logSkipOnce(
-        "HARDWARE_AUSENTE",
-        "Nenhum serviço Valid de hardware instalado. A etapa foi ignorada e a página segue."
-      );
-      return [];
+  const sc = await enumerarServicosSc();
+  let escolhidos = selecionarServicosValid(sc.lista, SERVICOS_VALID);
+  const listaConfiavel = sc.lista.length > 0 && !sc.truncada && !sc.falha;
+
+  if (escolhidos.length === 0 && !listaConfiavel) {
+    escolhidos = await consultarNomesConfigurados();
+  }
+
+  if (escolhidos.length === 0 && !listaConfiavel) {
+    const viaPs = await enumerarViaPowerShell();
+    if (viaPs) {
+      const daLista = selecionarServicosValid(viaPs, SERVICOS_VALID);
+      if (daLista.length > 0) {
+        escolhidos = daLista;
+      } else {
+        logSkipOnce(
+          "HARDWARE_AUSENTE",
+          "Nenhum serviço Valid de hardware instalado. A etapa foi ignorada e a página segue."
+        );
+        return [];
+      }
     }
   }
 
-  logger.logWarn(
-    "SERVICE_QUERY_UNPARSED",
-    "Não foi possível ler a lista de serviços. Os nomes configurados serão tentados mesmo assim."
-  );
-  return SERVICOS_VALID.map((nome) => ({ nome, existe: true, rodando: true }));
+  if (escolhidos.length > 0) return publicarServicos(escolhidos);
+
+  if (listaConfiavel) {
+    logSkipOnce(
+      "HARDWARE_AUSENTE",
+      "Nenhum serviço Valid de hardware instalado. A etapa foi ignorada e a página segue."
+    );
+    return [];
+  }
+
+  if (!skipLog.has("SERVICE_QUERY_UNPARSED")) {
+    skipLog.add("SERVICE_QUERY_UNPARSED");
+    logger.logWarn(
+      "SERVICE_QUERY_UNPARSED",
+      "Não foi possível ler a lista de serviços. Os nomes configurados serão tentados mesmo assim."
+    );
+  }
+  return SERVICOS_VALID.map(servicoEstadoIncerto);
 }
 
 async function pararServicoConhecido(nome) {
@@ -323,30 +582,31 @@ async function iniciarServicoConhecido(nome) {
 async function aguardarBCCAbrir() {
   if (!bccEstaInstalado()) return false;
   const maxMs = config.DELAYS.bccOpenTimeout;
-  const intervalo = 200;
-  let esperado = 0;
-  while (esperado < maxMs) {
+  const inicio = Date.now();
+  while (Date.now() - inicio < maxMs) {
     if (await processoEstaRodando(BCC_IMAGEM)) return true;
-    await esperar(intervalo);
-    esperado += intervalo;
+    const restante = maxMs - (Date.now() - inicio);
+    if (restante <= 0) break;
+    await esperar(Math.min(200, restante));
   }
-  return false;
+  return processoEstaRodando(BCC_IMAGEM);
 }
 
 /**
  * Aguarda o BCC.exe sair da lista de processos.
+ * O tempo de parede inclui o tasklist, para o teto não estourar em silêncio.
  * @returns {Promise<boolean>}
  */
 async function aguardarBCCFechar() {
   const maxMs = config.DELAYS.bccCloseTimeout;
-  const intervalo = 200;
-  let esperado = 0;
-  while (esperado < maxMs) {
+  const inicio = Date.now();
+  while (Date.now() - inicio < maxMs) {
     if (!(await processoEstaRodando(BCC_IMAGEM))) return true;
-    await esperar(intervalo);
-    esperado += intervalo;
+    const restante = maxMs - (Date.now() - inicio);
+    if (restante <= 0) break;
+    await esperar(Math.min(200, restante));
   }
-  return false;
+  return !(await processoEstaRodando(BCC_IMAGEM));
 }
 
 /**
@@ -384,7 +644,7 @@ async function reiniciarBCC() {
 
 /**
  * SMART: solta o hardware Valid (se existir) e sobe o BCC (se estiver instalado).
- * Não bloqueia a URL esperando serviço ou processo que não existe.
+ * Espera o processo aparecer antes da URL. Sem o exe, não espera.
  */
 async function configurarAmbienteSmart() {
   try {
@@ -392,11 +652,20 @@ async function configurarAmbienteSmart() {
     for (const svc of lista) {
       if (devePararServico(svc)) await pararServicoConhecido(svc.nome);
     }
-    if (!bccEstaInstalado()) {
+    const instalado = bccEstaInstalado();
+    const rodando = await processoEstaRodando(BCC_IMAGEM);
+    if (!instalado && !rodando) {
       logSkipOnce("BCC_IGNORADO", "BCC não instalado. SMART abre sem iniciar o BCC.");
       return;
     }
-    if (!(await processoEstaRodando(BCC_IMAGEM))) iniciarBCC();
+    if (rodando) return;
+    if (!iniciarBCC()) return;
+    const abriu = await aguardarBCCAbrir();
+    if (!abriu) {
+      logger.logWarn("BCC_OPEN_TIMEOUT", "BCC não apareceu a tempo. SMART abre mesmo assim.");
+      return;
+    }
+    await esperar(config.DELAYS.bccStartup);
   } catch (err) {
     logger.logWarn("SMART_ENV_FAILED", `Preparação do SMART seguiu mesmo com falha: ${err?.message || "erro desconhecido"}`);
   }
@@ -439,7 +708,39 @@ async function pararServicoValid() {
 }
 
 /**
+ * Encerra o BCC.exe. O `/T` sozinho falha com "Acesso negado" num filho e pode
+ * deixar o processo pai vivo; por isso a imagem é encerrada antes da árvore.
+ * @returns {Promise<boolean>} true se o BCC.exe não está mais na lista
+ */
+async function encerrarImagemBCC() {
+  if (!(await processoEstaRodando(BCC_IMAGEM))) return true;
+
+  const tentativas = [
+    ["/F", "/IM", BCC_IMAGEM],
+    ["/F", "/IM", BCC_IMAGEM, "/T"],
+  ];
+  let ultimo = null;
+  for (const args of tentativas) {
+    ultimo = await execFileBounded("taskkill", args, config.DELAYS.serviceCommand);
+    if (ultimo.timedOut) logger.logWarn("BCC_KILL_TIMEOUT", "taskkill do BCC excedeu o tempo.");
+    if (!(await processoEstaRodando(BCC_IMAGEM))) return true;
+  }
+
+  for (const pid of await listarPidsBCC()) {
+    ultimo = await execFileBounded("taskkill", ["/F", "/PID", pid], config.DELAYS.serviceCommand);
+    if (!(await processoEstaRodando(BCC_IMAGEM))) return true;
+  }
+
+  logger.logWarn(
+    "BCC_KILL_FAILED",
+    (ultimo?.stderr || ultimo?.stdout || "BCC.exe continua em execução.").trim()
+  );
+  return false;
+}
+
+/**
  * Encerra serviços Griaule configurados e o processo BCC, se estiver rodando.
+ * @returns {Promise<boolean>}
  */
 async function matarBCC() {
   const servicos = config.SERVICOS_GRIAULE_PARAR || [];
@@ -447,24 +748,7 @@ async function matarBCC() {
     const info = await consultarServico(nome);
     if (devePararServico(info)) await pararServicoConhecido(nome);
   }
-  if (!(await processoEstaRodando(BCC_IMAGEM))) return;
-  const r = await execFileBounded("taskkill", ["/F", "/IM", BCC_IMAGEM, "/T"], config.DELAYS.serviceCommand);
-  if (r.timedOut) {
-    logger.logWarn("BCC_KILL_TIMEOUT", "taskkill do BCC excedeu o tempo.");
-    return;
-  }
-  if (r.code && r.code !== 128) {
-    const msg = saidaComando(r);
-    const ausente =
-      msg.includes("não foi encontrado") ||
-      msg.includes("nao foi encontrado") ||
-      msg.includes("not found") ||
-      msg.includes("não há ocorrência") ||
-      msg.includes("nao ha ocorrencia");
-    if (!ausente) {
-      logger.logWarn("BCC_KILL_FAILED", (r.stderr || r.stdout || "falha ao encerrar BCC").trim());
-    }
-  }
+  return encerrarImagemBCC();
 }
 
 /**
@@ -479,6 +763,33 @@ async function iniciarServicoValid() {
     }
   } catch (err) {
     logger.logWarn("HARDWARE_START_FAILED", err?.message || "falha ao iniciar serviço Valid");
+  }
+}
+
+/**
+ * Doc Avulso: o SMART deixa o BCC com o leitor e o serviço Valid parado.
+ * Solta o BCC e sobe o serviço antes da URL. Sem os dois, não espera.
+ */
+async function prepararAmbienteDocAvulso() {
+  try {
+    if (await processoEstaRodando(BCC_IMAGEM)) {
+      const morreu = await matarBCC();
+      if (!morreu) {
+        const fechou = await aguardarBCCFechar();
+        if (!fechou) {
+          logger.logWarn(
+            "BCC_CLOSE_TIMEOUT",
+            "BCC não encerrou a tempo. Doc Avulso tenta o serviço mesmo assim."
+          );
+        }
+      }
+    }
+    await iniciarServicoValid();
+  } catch (err) {
+    logger.logWarn(
+      "DOC_AVULSO_ENV_FAILED",
+      `Preparação do Doc Avulso seguiu mesmo com falha: ${err?.message || "erro desconhecido"}`
+    );
   }
 }
 
@@ -499,10 +810,12 @@ async function prepararAmbienteCaptura() {
       );
     } else {
       if (plano.encerrar && rodando) {
-        await matarBCC();
-        const fechou = await aguardarBCCFechar();
-        if (!fechou) {
-          logger.logWarn("BCC_CLOSE_TIMEOUT", "BCC não encerrou a tempo. CapturaWeb segue mesmo assim.");
+        const morreu = await matarBCC();
+        if (!morreu) {
+          const fechou = await aguardarBCCFechar();
+          if (!fechou) {
+            logger.logWarn("BCC_CLOSE_TIMEOUT", "BCC não encerrou a tempo. CapturaWeb segue mesmo assim.");
+          }
         }
       }
 
@@ -514,7 +827,8 @@ async function prepararAmbienteCaptura() {
           break;
         }
         await esperar(config.DELAYS.bccStartup);
-        await matarBCC();
+        const morreu = await matarBCC();
+        if (morreu) continue;
         const fechou = await aguardarBCCFechar();
         if (!fechou) {
           logger.logWarn("BCC_CLOSE_TIMEOUT", "BCC não encerrou a tempo. Ciclos restantes foram ignorados.");
@@ -545,11 +859,15 @@ module.exports = {
   reiniciarServicoHardware,
   reiniciarBCC,
   prepararAmbienteCaptura,
+  prepararAmbienteDocAvulso,
   planoLiberacaoBCC,
   classificarConsultaServico,
   decodificarSaidaWindows,
   listarServicosSc,
+  listarServicosPowerShell,
+  listaScTruncada,
   selecionarServicosValid,
+  servicoEstadoIncerto,
   deveIniciarServico,
   devePararServico,
 };

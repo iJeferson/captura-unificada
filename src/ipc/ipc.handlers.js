@@ -19,8 +19,8 @@ const execAsync = promisify(exec);
 const {
   configurarAmbienteSmart,
   prepararAmbienteCaptura,
+  prepararAmbienteDocAvulso,
   matarBCC,
-  iniciarServicoValid,
   reiniciarServicoHardware,
   reiniciarBCC,
 } = require("../services/hardware.service");
@@ -144,8 +144,7 @@ function registerIpcHandlers() {
   });
   ipcMain.handle("doc-avulsos", async () => {
     try {
-      await iniciarServicoValid();
-      return await openSystemContent("doc-avulsos", config.URLS.docAvulsos);
+      return await openSystemContent("doc-avulsos", config.URLS.docAvulsos, prepararAmbienteDocAvulso);
     } catch (err) {
       logger.logError(err);
     }

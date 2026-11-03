@@ -62,10 +62,10 @@ captura-unificada/
 
 | Sistema | Preparação / observação |
 |---------|-------------------------|
-| **CapturaWeb** | `prepararAmbienteCaptura`: sem `BCC.exe` e sem processo, não espera. Com BCC instalado, dois ciclos (abrir, esperar init, encerrar). `reiniciarServicoHardware()` só nos serviços que `sc query` encontra, em background. `trimCookiesIfNeeded` antes da URL. |
-| **SMART (CIN)** | Para serviços Valid que existem e estão rodando; inicia BCC só se o exe existir e o processo não estiver ativo (`configurarAmbienteSmart`). |
+| **CapturaWeb** | `prepararAmbienteCaptura`: sem `BCC.exe` e sem processo, não espera. Com BCC instalado, dois ciclos (abrir, esperar init, encerrar). O `taskkill` tenta a imagem sem árvore antes do `/T`, porque um filho com acesso negado deixava o `BCC.exe` vivo. `reiniciarServicoHardware()` só nos serviços Valid encontrados, em background. `trimCookiesIfNeeded` antes da URL. |
+| **SMART (CIN)** | Para o serviço Valid que está rodando (ou cujo estado não deu para ler) e só então inicia o BCC, se o exe existir e o processo não estiver ativo. Espera o `BCC.exe` aparecer e o tempo de `bccStartup` antes de carregar a URL (`configurarAmbienteSmart`). |
 | **S4IPM** | Apenas carrega a URL (sem passo de hardware). |
-| **Doc Avulso (antigo)** | `iniciarServicoValid()` só nos serviços Valid instalados e parados; carrega URL. |
+| **Doc Avulso (antigo)** | Encerra o BCC se estiver em execução e sobe o serviço Valid que estiver parado. Se a lista de serviços não puder ser lida, tenta `net start` mesmo assim, em vez de assumir que já está rodando. |
 | **Validação** | `matarBCC()`; carrega URL. O fluxo web pressupõe o cliente **CapturaWeb.exe** quando necessário; reinício explícito via IPC `reiniciar-validacao` (taskkill + spawn do exe em `CAPTURAWEB_VALIDACAO_EXE`). |
 | **Ponto Valid** | Carrega URL direto. |
 | **Ponto Renova** | `openOrFocusPontoRenovaWindow()` — não usa o `WebContentsView` principal. Opcional: abrir URL no Chrome (`ponto-renova-abrir-navegador`). |
