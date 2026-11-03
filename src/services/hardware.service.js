@@ -42,25 +42,107 @@ function planoLiberacaoBCC({ instalado, rodando }) {
 }
 
 /**
- * Interpreta a saída de `sc query`. Serviço inexistente não deve ir para net start/stop.
+ * `sc.exe` no Windows em português devolve UTF-16. Sem essa conversão,
+ * "ESTADO" não aparece e um serviço instalado parece ausente.
+ * @param {Buffer|string|null|undefined} data
+ * @returns {string}
+ */
+function decodificarSaidaWindows(data) {
+  if (data == null) return "";
+  const buf = Buffer.isBuffer(data) ? data : Buffer.from(String(data), "latin1");
+  if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe) {
+    return buf.slice(2).toString("utf16le");
+  }
+  if (buf.length >= 4 && buf[1] === 0 && buf[3] === 0) {
+    return buf.toString("utf16le").replace(/^\uFEFF/, "");
+  }
+  const texto = buf.toString("utf8");
+  if (!texto.includes("\u0000")) return texto;
+  return Buffer.from(texto, "latin1").toString("utf16le").replace(/^\uFEFF/, "");
+}
+
+function normalizarNomeServico(valor) {
+  return String(valor || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Interpreta a saída de `sc query`. Aceita rótulos em inglês (STATE) e português (ESTADO).
  * @param {string} stdout
  * @param {string} stderr
  * @param {number|null|undefined} code
- * @returns {{ existe: boolean, rodando: boolean }}
+ * @returns {{ existe: boolean, rodando: boolean, confirmadoAusente: boolean }}
  */
 function classificarConsultaServico(stdout, stderr, code) {
   const out = String(stdout || "");
   const blob = `${out}\n${stderr || ""}`;
   const codeNum = typeof code === "number" ? code : null;
-  if (
+  const ausente =
     codeNum === 1060 ||
-    /1060|does not exist|não existe|nao existe/i.test(blob)
-  ) {
-    return { existe: false, rodando: false };
+    /1060|does not exist|não existe|nao existe/i.test(blob);
+  if (ausente) return { existe: false, rodando: false, confirmadoAusente: true };
+  const estado = out.match(/(?:STATE|ESTADO)\s*:\s*(\d+)/i);
+  const cabecalho = /SERVICE_NAME|DISPLAY_NAME|NOME_DO_SERVI|NOME_PARA_EXIBI/i.test(out);
+  if (codeNum === 0 && (estado || cabecalho)) {
+    return { existe: true, rodando: Boolean(estado && estado[1] === "4"), confirmadoAusente: false };
   }
-  const existe = codeNum === 0 && /STATE\s*:/i.test(out);
-  if (!existe) return { existe: false, rodando: false };
-  return { existe: true, rodando: /STATE\s*:\s*4\b/.test(out) };
+  return { existe: false, rodando: false, confirmadoAusente: false };
+}
+
+/**
+ * Quebra a lista de `sc query type= service state= all`.
+ * @param {string} stdout
+ * @returns {{ nome: string, exibicao: string, rodando: boolean }[]}
+ */
+function listarServicosSc(stdout) {
+  const texto = String(stdout || "").replace(/\r/g, "");
+  const blocos = texto.split(/\n(?=(?:SERVICE_NAME|NOME_DO_SERVI))/i);
+  const lista = [];
+  for (const bloco of blocos) {
+    const nome = bloco.match(/(?:SERVICE_NAME|NOME_DO_SERVI[CÇ]?O)\s*:\s*(.+)/i);
+    const exibicao = bloco.match(/(?:DISPLAY_NAME|NOME_PARA_EXIBI[CÇ][AÃ]O)\s*:\s*(.+)/i);
+    const estado = bloco.match(/(?:STATE|ESTADO)\s*:\s*(\d+)/i);
+    if (!nome) continue;
+    lista.push({
+      nome: nome[1].trim(),
+      exibicao: exibicao ? exibicao[1].trim() : "",
+      rodando: Boolean(estado && estado[1] === "4"),
+    });
+  }
+  return lista;
+}
+
+function pareceHardwareValid(item) {
+  const texto = normalizarNomeServico(`${item?.nome || ""} ${item?.exibicao || ""}`);
+  if (!texto.includes("valid")) return false;
+  return texto.includes("hardware") || texto.includes("integracao");
+}
+
+/**
+ * Casa o que está no config com o nome interno ou com o nome de exibição.
+ * No Windows, `sc query` só acha o nome interno; `net start` aceita os dois.
+ * @param {{ nome: string, exibicao: string, rodando: boolean }[]} lista
+ * @param {string[]} configurados
+ */
+function selecionarServicosValid(lista, configurados) {
+  const alvos = new Set((configurados || []).map(normalizarNomeServico));
+  const vistos = new Set();
+  const escolhidos = [];
+  for (const item of lista || []) {
+    const bateConfig =
+      alvos.has(normalizarNomeServico(item.nome)) ||
+      alvos.has(normalizarNomeServico(item.exibicao));
+    if (!bateConfig && !pareceHardwareValid(item)) continue;
+    const chave = String(item.nome || "").toLowerCase();
+    if (!chave || vistos.has(chave)) continue;
+    vistos.add(chave);
+    escolhidos.push({ nome: item.nome, exibicao: item.exibicao, rodando: Boolean(item.rodando) });
+  }
+  return escolhidos;
 }
 
 function devePararServico(info) {
@@ -85,12 +167,12 @@ function execFileBounded(file, args, timeoutMs) {
     execFile(
       file,
       args,
-      { timeout: timeoutMs, windowsHide: true, maxBuffer: 256 * 1024 },
+      { timeout: timeoutMs, windowsHide: true, maxBuffer: 1024 * 1024, encoding: "buffer" },
       (err, stdout, stderr) => {
         resolve({
           code: err ? (typeof err.code === "number" ? err.code : null) : 0,
-          stdout: String(stdout || ""),
-          stderr: String(stderr || ""),
+          stdout: decodificarSaidaWindows(stdout),
+          stderr: decodificarSaidaWindows(stderr),
           timedOut: Boolean(err && err.killed),
         });
       }
@@ -153,27 +235,57 @@ async function processoEstaRodando(imagem) {
  * @returns {Promise<{ existe: boolean, rodando: boolean }>}
  */
 async function consultarServico(nome) {
-  if (process.platform !== "win32") return { existe: false, rodando: false };
-  const r = await execFileBounded("sc", ["query", nome], config.DELAYS.serviceQuery);
+  if (process.platform !== "win32") return { existe: false, rodando: false, confirmadoAusente: true };
+  const r = await execFileBounded("sc.exe", ["query", nome], config.DELAYS.serviceQuery);
   if (r.timedOut) {
-    logger.logWarn("SERVICE_QUERY_TIMEOUT", `Consulta do serviço excedeu o tempo e foi ignorada: ${nome}`);
-    return { existe: false, rodando: false };
+    logger.logWarn("SERVICE_QUERY_TIMEOUT", `Consulta do serviço excedeu o tempo: ${nome}`);
+    return { existe: false, rodando: false, confirmadoAusente: false };
   }
   return classificarConsultaServico(r.stdout, r.stderr, r.code);
 }
 
+/**
+ * Lê todos os serviços e fica com o da Valid pelo nome interno ou pelo nome de exibição.
+ * Se a lista não vier, não marca como ausente: tenta os nomes do config.
+ * @returns {Promise<{ nome: string, existe: boolean, rodando: boolean }[]>}
+ */
 async function servicosInstalados() {
-  const consultas = await Promise.all(
-    SERVICOS_VALID.map(async (nome) => ({ nome, ...(await consultarServico(nome)) }))
-  );
-  const presentes = consultas.filter((s) => s.existe);
-  if (presentes.length === 0) {
+  if (process.platform !== "win32") {
     logSkipOnce(
       "HARDWARE_AUSENTE",
       "Nenhum serviço Valid de hardware instalado. A etapa foi ignorada e a página segue."
     );
+    return [];
   }
-  return presentes;
+
+  const r = await execFileBounded(
+    "sc.exe",
+    ["query", "type=", "service", "state=", "all"],
+    config.DELAYS.serviceCommand
+  );
+  if (!r.timedOut) {
+    const encontrados = selecionarServicosValid(listarServicosSc(r.stdout), SERVICOS_VALID);
+    if (encontrados.length > 0) {
+      logSkipOnce(
+        "HARDWARE_ENCONTRADO",
+        `Serviço Valid encontrado: ${encontrados.map((s) => s.nome).join(", ")}`
+      );
+      return encontrados.map((s) => ({ nome: s.nome, existe: true, rodando: s.rodando }));
+    }
+    if (listarServicosSc(r.stdout).length > 0) {
+      logSkipOnce(
+        "HARDWARE_AUSENTE",
+        "Nenhum serviço Valid de hardware instalado. A etapa foi ignorada e a página segue."
+      );
+      return [];
+    }
+  }
+
+  logger.logWarn(
+    "SERVICE_QUERY_UNPARSED",
+    "Não foi possível ler a lista de serviços. Os nomes configurados serão tentados mesmo assim."
+  );
+  return SERVICOS_VALID.map((nome) => ({ nome, existe: true, rodando: true }));
 }
 
 async function pararServicoConhecido(nome) {
@@ -435,6 +547,9 @@ module.exports = {
   prepararAmbienteCaptura,
   planoLiberacaoBCC,
   classificarConsultaServico,
+  decodificarSaidaWindows,
+  listarServicosSc,
+  selecionarServicosValid,
   deveIniciarServico,
   devePararServico,
 };
