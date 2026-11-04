@@ -83,7 +83,7 @@ Trocas concorrentes são serializadas com `processandoTroca` no `window.manager`
 | **window.manager** | Bounds do embed (sidebar + `contentEmbedTopInset`). Sidebar recolhida usa largura 0 e um `WebContentsView` transparente com o botão de expandir por cima do site. Título `Captura Unificada v{versão} — {sistema}`; `did-fail-load` / rede → offline + placeholder; restauração quando conectividade volta; `session.preconnect` para bases usadas; **User-Agent** estilo Chrome e headers em domínios Ponto/Renova; **webRequest** para CORS em rede privada (RFC 1918) e `content-type` em CSS; permissões **geolocation** (pontomais) e **local-network**; menu mínimo (F5/F12 na view embutida); export de `onContentReachUrl` para hook opcional pós-navegação |
 | **ipc.handlers** | Abertura por sistema; Atende/Ponto Renova; cookies; `clear-cache` / `clear-ponto-renova-cache`; downloads snapshot / abrir pasta / PDF; `content-view-navigate-url`; `apply-update-now`; reiniciar validação, serviço hardware, BCC |
 | **session-downloads** | `will-download` → salvar em `app.getPath('downloads')`, eventos `download-*` para o launcher |
-| **connectivity** | Intervalos e limiares em `app.config.js` → `connectivity-change` no renderer |
+| **connectivity** | Sonda as origens de `URLS` (sem ping para 8.8.8.8). Offline só se nenhuma responder. Falha de um sistema → aviso daquele endereço, sem bloquear os outros. Intervalos em `app.config.js` → `connectivity-change` no renderer |
 
 ---
 

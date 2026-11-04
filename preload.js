@@ -95,6 +95,10 @@ contextBridge.exposeInMainWorld("api", {
     if (typeof callback !== "function") return;
     ipcRenderer.on("content-load-failed", () => callback());
   },
+  onSistemaIndisponivel: (callback) => {
+    if (typeof callback !== "function") return;
+    ipcRenderer.on("content-sistema-indisponivel", () => callback());
+  },
   requestConnectivityCheck: () => ipcRenderer.send("connectivity-request-initial"),
   onUpdateReady: (callback) => {
     if (typeof callback !== "function") return;

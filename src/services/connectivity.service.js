@@ -2,43 +2,41 @@
 
 /**
  * Serviço de verificação de conectividade (Main Process).
- * Verificação por URL ou ping; histerese para evitar piscar. Não exige administrador.
+ * A rede do posto vale se algum sistema configurado responder.
+ * Não usa ping (ICMP para 8.8.8.8 é bloqueado em várias redes de governo).
+ * Não exige administrador.
  * @module services/connectivity.service
  */
 
 const http = require("http");
 const https = require("https");
-const { exec } = require("child_process");
 const config = require("../config/app.config");
 const logger = require("../utils/logger");
 
 const CONNECTIVITY = config.CONNECTIVITY || {
-  checkMode: "url",
-  checkUrl: "https://www.google.com/generate_204",
-  checkHost: "8.8.8.8",
   intervalMs: 7000,
   timeoutMs: 8000,
   consecutiveNeeded: 2,
   consecutiveNeededForOnline: 2,
   minOfflineDurationMs: 6000,
 };
-const checkMode = CONNECTIVITY.checkMode || "url";
 const consecutiveForOnline = Math.max(1, CONNECTIVITY.consecutiveNeededForOnline ?? 2);
 
 /**
- * Códigos de erro de rede do Chromium (did-fail-load).
- * Quando o contentView falha com um destes códigos, a aplicação:
- * - Oculta a área de conteúdo (evita tela em branco)
- * - Marca estado como offline e envia "content-load-failed" ao renderer
- * - O renderer exibe o banner "Você está offline" e o placeholder com instrução
- *
- * Mapeamento: -2 ERR_FAILED | -6 ERR_INTERNET_DISCONNECTED | -105 ERR_NAME_NOT_RESOLVED
- *             -106 ERR_CONNECTION_REFUSED | -109 ERR_ADDRESS_UNREACHABLE | -118 ERR_CONNECTION_TIMED_OUT
- *
- * O Electron ainda pode imprimir "Failed to load URL" no terminal; o comportamento na UI está tratado.
+ * Queda da rede inteira, não de um endereço.
+ * -106 ERR_INTERNET_DISCONNECTED, -130 ERR_PROXY_CONNECTION_FAILED.
  */
-const NETWORK_ERROR_CODES = Object.freeze([
-  -2, -6, -105, -106, -109, -118,
+const QUEDA_GERAL = new Set([-106, -130]);
+
+/**
+ * O endereço deste sistema não abriu. A rede do posto pode continuar válida.
+ * -2 ERR_FAILED, -21 ERR_NETWORK_CHANGED, -22 ERR_BLOCKED_BY_ADMINISTRATOR,
+ * -100 ERR_CONNECTION_CLOSED, -101 ERR_CONNECTION_RESET, -102 ERR_CONNECTION_REFUSED,
+ * -104 ERR_CONNECTION_FAILED, -105 ERR_NAME_NOT_RESOLVED, -109 ERR_ADDRESS_UNREACHABLE,
+ * -111 ERR_TUNNEL_CONNECTION_FAILED, -118 ERR_CONNECTION_TIMED_OUT, -137 ERR_NAME_RESOLUTION_FAILED.
+ */
+const DESTINO_INALCANCAVEL = new Set([
+  -2, -21, -22, -100, -101, -102, -104, -105, -109, -111, -118, -137,
 ]);
 
 let getMainWindow = null;
@@ -145,84 +143,252 @@ function sendIfStable(wc, online) {
   const elapsed = firstFailTime !== null ? Date.now() - firstFailTime : 0;
   const minElapsed = elapsed >= minOfflineMs;
 
-  if (lastSent === null) {
-    if (minOfflineMs <= 0 || minElapsed) {
-      lastSent = false;
-      logConnectivityTransition(false);
-      wc.send("connectivity-change", false);
-    }
-    return;
-  }
-
   if (consecutiveFail >= CONNECTIVITY.consecutiveNeeded && lastSent !== false) {
     if (minOfflineMs <= 0 || minElapsed) {
-      const wasOnline = lastSent === true;
+      const jaOffline = lastSent === false;
       lastSent = false;
       logConnectivityTransition(false);
       wc.send("connectivity-change", false);
-      if (wasOnline && onDisconnectCallback) {
+      if (!jaOffline && onDisconnectCallback) {
         try { onDisconnectCallback(); } catch (_) {}
       }
     }
   }
 }
 
-/**
- * Verificação por ping (Windows: ping -n 1 <host>).
- * @param {import('electron').WebContents} wc
- */
-function checkByPing(wc) {
-  const host = CONNECTIVITY.checkHost || "8.8.8.8";
-  const timeoutMs = Math.max(1000, CONNECTIVITY.timeoutMs || 5000);
-  const cmd = process.platform === "win32"
-    ? `ping -n 1 -w ${timeoutMs} ${host}`
-    : `ping -c 1 -W ${Math.round(timeoutMs / 1000)} ${host}`;
-
-  exec(cmd, { timeout: timeoutMs + 500 }, (err, _stdout, _stderr) => {
-    sendIfStable(wc, !err);
-  });
-}
+/** Origem que respondeu por último. A próxima verificação começa por ela. */
+let origemAlcance = null;
+/** Sonda em andamento, compartilhada entre o timer e a falha de carga. */
+let sondaAtual = null;
 
 /**
- * Verificação por requisição HTTP(S) à URL configurável.
- * @param {import('electron').WebContents} wc
+ * Origens HTTP(S) dos sistemas configurados, sem repetir host.
+ * Não inclui 8.8.8.8 nem serviços públicos genéricos: em rede de governo
+ * esses destinos são filtrados mesmo com os sistemas do posto liberados.
+ * @param {Record<string, string>|null|undefined} urls
+ * @returns {string[]}
  */
-function checkByUrl(wc) {
-  const url = CONNECTIVITY.checkUrl || "https://www.google.com/generate_204";
-  let parsed;
-  try {
-    parsed = new URL(url);
-  } catch (_) {
-    sendIfStable(wc, false);
-    return;
+function origensDeConectividade(urls) {
+  const lista = [];
+  const vistos = new Set();
+  for (const valor of Object.values(urls || {})) {
+    if (typeof valor !== "string" || !valor.trim()) continue;
+    let parsed;
+    try {
+      parsed = new URL(valor);
+    } catch (_) {
+      continue;
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") continue;
+    if (vistos.has(parsed.origin)) continue;
+    vistos.add(parsed.origin);
+    lista.push(parsed.origin);
   }
-  const isHttps = parsed.protocol === "https:";
-  const lib = isHttps ? https : http;
-  const timeoutMs = CONNECTIVITY.timeoutMs || 5000;
+  return lista;
+}
 
-  const req = lib.get(url, () => sendIfStable(wc, true));
-  req.setTimeout(timeoutMs, () => {
-    req.destroy();
-    sendIfStable(wc, false);
+/**
+ * Resposta, certificado ou recusa da porta indicam que a rede chegou no destino.
+ * Timeout, DNS e "sem internet" não.
+ * @param {Error|string|null|undefined} err
+ * @returns {boolean}
+ */
+function resultadoIndicaAlcance(err) {
+  const bruto = `${err && err.code ? err.code : ""} ${err && err.message ? err.message : err || ""}`.toUpperCase();
+  if (/CERT|SSL|TLS|ECONNREFUSED|CONNECTION_REFUSED|CONNECTION_RESET|EMPTY_RESPONSE/.test(bruto)) return true;
+  return false;
+}
+
+/**
+ * @param {number} errorCode
+ * @returns {boolean}
+ */
+function ehQuedaGeral(errorCode) {
+  return QUEDA_GERAL.has(errorCode);
+}
+
+/**
+ * @param {number} errorCode
+ * @returns {boolean}
+ */
+function ehDestinoInalcancavel(errorCode) {
+  return DESTINO_INALCANCAVEL.has(errorCode) || QUEDA_GERAL.has(errorCode);
+}
+
+function redeElectron() {
+  try {
+    const electron = require("electron");
+    if (electron && electron.net && typeof electron.net.request === "function") return electron.net;
+  } catch (_) {}
+  return null;
+}
+
+/**
+ * @param {string} origem
+ * @returns {Promise<boolean>}
+ */
+function sondarOrigem(origem) {
+  const timeoutMs = Math.max(1000, CONNECTIVITY.timeoutMs || 4000);
+  const net = redeElectron();
+  if (net) return sondarComElectron(net, origem, timeoutMs);
+  return sondarComNode(origem, timeoutMs);
+}
+
+function sondarComElectron(net, origem, timeoutMs) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (ok) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try { req.abort(); } catch (_) {}
+      resolve(ok);
+    };
+    let req;
+    try {
+      req = net.request({ method: "GET", url: origem });
+    } catch (_) {
+      resolve(false);
+      return;
+    }
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    req.on("response", (res) => {
+      res.on("data", () => {});
+      res.on("end", () => {});
+      finish(true);
+    });
+    req.on("error", (err) => finish(resultadoIndicaAlcance(err)));
+    req.end();
   });
-  req.on("error", () => {
-    sendIfStable(wc, false);
+}
+
+function sondarComNode(origem, timeoutMs) {
+  return new Promise((resolve) => {
+    let parsed;
+    try {
+      parsed = new URL(origem);
+    } catch (_) {
+      resolve(false);
+      return;
+    }
+    const lib = parsed.protocol === "https:" ? https : http;
+    const req = lib.request(
+      {
+        method: "GET",
+        hostname: parsed.hostname,
+        port: parsed.port || (parsed.protocol === "https:" ? 443 : 80),
+        path: "/",
+        timeout: timeoutMs,
+        rejectUnauthorized: false,
+      },
+      (res) => {
+        res.resume();
+        resolve(true);
+      }
+    );
+    req.on("timeout", () => {
+      req.destroy();
+      resolve(false);
+    });
+    req.on("error", (err) => resolve(resultadoIndicaAlcance(err)));
+    req.end();
+  });
+}
+
+function lembrarOrigem(origem) {
+  if (!origem || origemAlcance === origem) return;
+  origemAlcance = origem;
+  logger.logInfo("CONNECTIVITY_HOST", `Rede confirmada em ${origem}.`);
+}
+
+/**
+ * @param {string[]} origens
+ * @returns {Promise<string|null>}
+ */
+function primeiraQueAlcanca(origens) {
+  if (!origens.length) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    let pendentes = origens.length;
+    let resolvido = false;
+    const terminar = (origem) => {
+      if (resolvido) return;
+      if (origem) {
+        resolvido = true;
+        resolve(origem);
+        return;
+      }
+      pendentes -= 1;
+      if (pendentes <= 0) {
+        resolvido = true;
+        resolve(null);
+      }
+    };
+    for (const origem of origens) {
+      sondarOrigem(origem).then((ok) => terminar(ok ? origem : null));
+    }
   });
 }
 
 /**
- * Executa uma verificação (URL ou ping, conforme config) e notifica o renderer.
+ * Online se qualquer sistema configurado responder.
+ * @returns {Promise<boolean>}
+ */
+async function algumaOrigemAlcanca() {
+  const origens = origensDeConectividade(config.URLS);
+  if (origens.length === 0) return true;
+  const preferida = origemAlcance && origens.includes(origemAlcance) ? origemAlcance : null;
+  if (preferida && (await sondarOrigem(preferida))) {
+    lembrarOrigem(preferida);
+    return true;
+  }
+  const achou = await primeiraQueAlcanca(origens.filter((origem) => origem !== preferida));
+  if (achou) {
+    lembrarOrigem(achou);
+    return true;
+  }
+  return false;
+}
+
+function obterSonda() {
+  if (!sondaAtual) {
+    const promessa = algumaOrigemAlcanca().finally(() => {
+      if (sondaAtual === promessa) sondaAtual = null;
+    });
+    sondaAtual = promessa;
+  }
+  return sondaAtual;
+}
+
+/**
+ * Executa uma verificação e notifica o renderer.
  */
 function checkAndNotify() {
   const win = typeof getMainWindow === "function" ? getMainWindow() : null;
   const wc = win?.webContents;
   if (!wc || wc.isDestroyed()) return;
 
-  if (checkMode === "ping") {
-    checkByPing(wc);
-  } else {
-    checkByUrl(wc);
-  }
+  obterSonda()
+    .then((online) => {
+      if (wc.isDestroyed()) return;
+      sendIfStable(wc, online);
+    })
+    .catch(() => {
+      if (!wc.isDestroyed()) sendIfStable(wc, false);
+    });
+}
+
+/**
+ * Sonda agora e devolve se a rede do posto responde.
+ * Usado quando um sistema falha com cara de queda geral.
+ * @returns {Promise<boolean>}
+ */
+function confirmarRede() {
+  const win = typeof getMainWindow === "function" ? getMainWindow() : null;
+  const wc = win?.webContents;
+  return obterSonda().then((online) => {
+    if (wc && !wc.isDestroyed()) sendIfStable(wc, online);
+    return online;
+  });
 }
 
 /**
@@ -280,21 +446,28 @@ function reset() {
   consecutiveOk = 0;
   consecutiveFail = 0;
   firstFailTime = null;
+  origemAlcance = null;
+  sondaAtual = null;
 }
 
 /**
- * Retorna true se errorCode é de falha de rede (para did-fail-load).
+ * Retorna true se a falha de carga é de destino ou de rede.
  * @param {number} errorCode
  * @returns {boolean}
  */
 function isNetworkError(errorCode) {
-  return NETWORK_ERROR_CODES.includes(errorCode);
+  return ehDestinoInalcancavel(errorCode);
 }
 
 module.exports = {
   start,
   requestCheck,
+  confirmarRede,
   notifyOffline,
   reset,
   isNetworkError,
+  ehQuedaGeral,
+  ehDestinoInalcancavel,
+  origensDeConectividade,
+  resultadoIndicaAlcance,
 };

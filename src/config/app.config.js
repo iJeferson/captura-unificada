@@ -162,18 +162,14 @@ const appConfig = {
 
   /**
    * Verificação de conectividade (aviso offline).
-   * Defina checkMode e a URL ou host que será validado.
+   * A rede vale se qualquer sistema em URLS responder. Não usa ping:
+   * várias redes de governo bloqueiam ICMP para 8.8.8.8 e isso gerava alerta falso.
+   * Um sistema sem liberação não derruba os outros.
    *
    * Rede estável (ex.: escritório): intervalMs 5000, timeoutMs 5000, consecutiveNeededForOnline 3.
    * Rede instável (ex.: Wi‑Fi fraco, 4G): valores abaixo — menos piscar e mais tolerância a falhas pontuais.
    */
   CONNECTIVITY: {
-    /** "url" = requisição HTTP(S) ao checkUrl; "ping" = comando ping ao checkHost */
-    checkMode: "ping",
-    /** URL usada quando checkMode === "url" */
-    checkUrl: "https://www.google.com/generate_204",
-    /** Host usado quando checkMode === "ping" (IP ou domínio) */
-    checkHost: "8.8.8.8",
     /** Intervalo entre verificações (ms). */
     intervalMs: 5000,
     /** Timeout da verificação (ms). */

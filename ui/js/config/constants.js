@@ -29,6 +29,7 @@ export const ELEMENT_IDS = Object.freeze({
   PLACEHOLDER: "placeholder",
   PLACEHOLDER_CONTAINER: "placeholder-container",
   PLACEHOLDER_OFFLINE_MSG: "placeholder-offline-msg",
+  PLACEHOLDER_SISTEMA_MSG: "placeholder-sistema-msg",
   OFFLINE_BANNER: "offline-banner",
   UPDATE_INDICATOR: "update-indicator",
   UPDATE_MODAL: "update-modal",
