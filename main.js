@@ -66,8 +66,18 @@ if (!gotTheLock) {
     "BlockInsecurePrivateNetworkRequests," +
     "PrivateNetworkAccessForNavigations," +
     "PrivateNetworkAccessPermissionPrompt," +
-    "PrivateNetworkAccessForWorkers"
+    "PrivateNetworkAccessForWorkers," +
+    "LocalNetworkAccessChecks," +
+    "LocalNetworkAccessChecksWebSockets," +
+    "LocalNetworkAccessChecksWebTransport," +
+    "LocalNetworkAccessChecksWebRTC"
   );
+  // NIMBA (HTTPS) fala com o BCC já aberto em 127.0.0.1. Sem estas chaves o
+  // Chromium recusa loopback / certificado local e a página mostra
+  // "Não foi possível conectar com BCC" mesmo com BCC.exe em execução.
+  app.commandLine.appendSwitch("local-network-access-permissions-policy-default-enabled");
+  app.commandLine.appendSwitch("allow-insecure-localhost");
+  app.commandLine.appendSwitch("host-resolver-rules", "MAP localhost 127.0.0.1");
   if (config.ALLOW_INSECURE_CONNECTIONS) {
     app.commandLine.appendSwitch("ignore-certificate-errors");
   }

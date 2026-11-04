@@ -307,6 +307,41 @@ function openOrFocusAtendeWindow(url) {
 const CHROME_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
+/** O BCC escuta em loopback. `local-network` sozinho não cobre 127.0.0.1. */
+const PERMISSOES_REDE_LOCAL = new Set([
+  "local-network",
+  "local-network-access",
+  "loopback-network",
+]);
+
+function permissaoRedeLocal(permission) {
+  return PERMISSOES_REDE_LOCAL.has(permission);
+}
+
+/**
+ * A página do SMART é HTTPS pública. Sem esta política o Chromium nega
+ * o acesso a 127.0.0.1 e o NIMBA mostra "Não foi possível conectar com BCC".
+ * @param {Record<string, string[]>} headers
+ */
+function liberarPoliticaRedeLocal(headers) {
+  const features = ["loopback-network", "local-network", "local-network-access"];
+  const key = Object.keys(headers).find((k) => k.toLowerCase() === "permissions-policy");
+  if (!key) {
+    headers["Permissions-Policy"] = [features.map((feature) => `${feature}=*`).join(", ")];
+    return;
+  }
+  let value = String((headers[key] || []).join(", "));
+  for (const feature of features) {
+    const re = new RegExp(`(^|,)\\s*${feature}\\s*=\\s*(\\([^)]*\\)|\\*|\\w+)`, "i");
+    if (re.test(value)) {
+      value = value.replace(re, `$1 ${feature}=*`);
+    } else {
+      value = `${value}${value.trim() ? ", " : ""}${feature}=*`;
+    }
+  }
+  headers[key] = [value.replace(/\s+/g, " ").trim()];
+}
+
 function configurarSessaoPontoRenova() {
   const s = session.fromPartition(config.SESSION_PARTITION_PONTO_RENOVA);
   s.setUserAgent(CHROME_USER_AGENT);
@@ -322,12 +357,12 @@ function configurarSessaoPontoRenova() {
     }
   );
   s.setPermissionRequestHandler((_wc, permission, callback, details) => {
-    if (permission === "local-network") { callback(true); return; }
+    if (permissaoRedeLocal(permission)) { callback(true); return; }
     const url = details?.requestingUrl || "";
     callback(permission === "geolocation" && url.includes("pontomais.com.br"));
   });
   s.setPermissionCheckHandler((wc, permission) => {
-    if (permission === "local-network") return true;
+    if (permissaoRedeLocal(permission)) return true;
     return permission === "geolocation" && (wc?.getURL?.() || "").includes("pontomais.com.br");
   });
   sessionDownloads.registerSessionDownloadHandler(s, getMainWindowRef);
@@ -509,6 +544,7 @@ function criarJanela(iconPathParam) {
       contextIsolation: true,
       sandbox: true,
       webSecurity: false,
+      allowRunningInsecureContent: true,
     },
   });
 
@@ -531,6 +567,7 @@ function criarJanela(iconPathParam) {
   const LOCAL_NET_RE = /^https?:\/\/(localhost|127\.\d|10\.\d|192\.168\.\d|172\.(1[6-9]|2\d|3[0-1])\.)/i;
   capturaSession.webRequest.onHeadersReceived((details, callback) => {
     const headers = { ...details.responseHeaders };
+    liberarPoliticaRedeLocal(headers);
     if (LOCAL_NET_RE.test(details.url)) {
       headers["Access-Control-Allow-Private-Network"] = ["true"];
       headers["Access-Control-Allow-Origin"] = ["*"];
@@ -548,14 +585,14 @@ function criarJanela(iconPathParam) {
   capturaSession.setPermissionRequestHandler((_webContents, permission, callback, details) => {
     if (permission === "geolocation" && allowGeolocationFor(details?.requestingUrl)) {
       callback(true);
-    } else if (permission === "local-network") {
+    } else if (permissaoRedeLocal(permission)) {
       callback(true);
     } else {
       callback(false);
     }
   });
   capturaSession.setPermissionCheckHandler((webContents, permission, _checkingDetails) => {
-    if (permission === "local-network") return true;
+    if (permissaoRedeLocal(permission)) return true;
     if (permission === "geolocation") {
       const url = webContents?.getURL?.() || "";
       return allowGeolocationFor(url);
@@ -591,6 +628,7 @@ function criarJanela(iconPathParam) {
             contextIsolation: true,
             sandbox: true,
             webSecurity: false,
+            allowRunningInsecureContent: true,
             backgroundThrottling: false,
           },
         },

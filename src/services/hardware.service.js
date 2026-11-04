@@ -38,8 +38,8 @@ async function servicoEstaRodando(nome) {
  */
 async function processoEstaRodando(imagem) {
   try {
-    const { stdout } = await execAsync(`tasklist /FI "IMAGENAME eq ${imagem}"`);
-    return stdout.includes(imagem);
+    const { stdout } = await execAsync(`tasklist /FI "IMAGENAME eq ${imagem}" /FO CSV /NH`);
+    return stdout.toLowerCase().includes(String(imagem).toLowerCase());
   } catch {
     return false;
   }
@@ -149,8 +149,22 @@ async function configurarAmbienteSmart() {
   for (const svc of SERVICOS_VALID) {
     await run(`net stop "${svc}"`);
   }
-  if (!(await processoEstaRodando("BCC.exe"))) {
-    iniciarBCC();
+  if (await processoEstaRodando("BCC.exe")) {
+    logger.logInfo(
+      "BCC_SMART_ALREADY_RUNNING",
+      "BCC.exe já estava em execução; o SMART vai usar essa instância."
+    );
+    return;
+  }
+  logger.logInfo("BCC_SMART_START", "BCC.exe não encontrado; iniciando antes de abrir o SMART.");
+  iniciarBCC();
+  const abriu = await aguardarBCCAbrir();
+  await esperar(config.DELAYS.bccStartup);
+  if (!abriu) {
+    logger.logWarn(
+      "BCC_SMART_START_TIMEOUT",
+      "BCC.exe não apareceu na lista de processos antes de carregar o SMART."
+    );
   }
 }
 
