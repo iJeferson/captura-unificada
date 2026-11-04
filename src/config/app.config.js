@@ -40,8 +40,12 @@ const appConfig = {
   /** Largura da sidebar expandida (px) */
   SIDEBAR_WIDTH_EXPANDED: 240,
 
-  /** Largura da sidebar colapsada (px) */
-  SIDEBAR_WIDTH_COLLAPSED: 32,
+  /**
+   * Largura reservada na view embutida com a sidebar recolhida.
+   * 0: o conteúdo ocupa a janela inteira. O botão de expandir flutua
+   * numa janela própria, por cima do WebContentsView, sem faixa lateral.
+   */
+  SIDEBAR_WIDTH_COLLAPSED: 0,
 
   /** Dimensões padrão da janela principal */
   WINDOW: {
@@ -111,12 +115,32 @@ const appConfig = {
     "Valid - Servico de Hardware",
   ],
 
-  /** Delays para sincronização de processos (ms) - valores otimizados para resposta mais rápida */
+  /**
+   * Tempos de preparação de hardware (ms).
+   * Consulta de serviço ausente volta na hora; os tetos abaixo só valem
+   * quando o executável ou o serviço realmente existe e não responde.
+   */
   DELAYS: {
     hardwareSwitch: 500,
     capturaEnv: 400,
-    /** Tempo para o BCC inicializar antes de carregar a URL do SMART (CIN). */
+    /** Depois que o BCC.exe aparece: tempo para ele assumir e soltar o leitor. */
     bccStartup: 5000,
+    /** Teto para o processo BCC nascer, só se o exe existe. */
+    bccOpenTimeout: 10000,
+    /**
+     * Teto para o BCC.exe sair da lista depois do taskkill.
+     * Conta o tempo de parede: a consulta do tasklist entra nesse teto.
+     */
+    bccCloseTimeout: 8000,
+    /** sc query. Serviço inexistente responde bem antes disso. */
+    serviceQuery: 2000,
+    /**
+     * Teto de net start / net stop / taskkill quando o alvo existe e não responde.
+     * Serviço ausente nem chega aqui: `sc query` encerra a etapa na hora.
+     */
+    serviceCommand: 8000,
+    /** tasklist. */
+    processQuery: 3000,
   },
 
   /**
@@ -138,18 +162,14 @@ const appConfig = {
 
   /**
    * Verificação de conectividade (aviso offline).
-   * Defina checkMode e a URL ou host que será validado.
+   * A rede vale se qualquer sistema em URLS responder. Não usa ping:
+   * várias redes de governo bloqueiam ICMP para 8.8.8.8 e isso gerava alerta falso.
+   * Um sistema sem liberação não derruba os outros.
    *
    * Rede estável (ex.: escritório): intervalMs 5000, timeoutMs 5000, consecutiveNeededForOnline 3.
    * Rede instável (ex.: Wi‑Fi fraco, 4G): valores abaixo — menos piscar e mais tolerância a falhas pontuais.
    */
   CONNECTIVITY: {
-    /** "url" = requisição HTTP(S) ao checkUrl; "ping" = comando ping ao checkHost */
-    checkMode: "ping",
-    /** URL usada quando checkMode === "url" */
-    checkUrl: "https://www.google.com/generate_204",
-    /** Host usado quando checkMode === "ping" (IP ou domínio) */
-    checkHost: "8.8.8.8",
     /** Intervalo entre verificações (ms). */
     intervalMs: 5000,
     /** Timeout da verificação (ms). */

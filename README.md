@@ -10,14 +10,14 @@ Versão atual: veja `version` em `package.json` (ex.: **1.0.36**).
 
 - **Launcher unificado**: sidebar com todos os sistemas acima; conteúdo embutido na janela principal via `WebContentsView` (exceto Atende e Ponto Renova, em janelas próprias).
 - **Integração com hardware (Windows)**:
-  - **CapturaWeb**: sequência de preparação com ciclos BCC (Griaule) e reinício dos serviços Valid de hardware configurados em `app.config.js`.
-  - **SMART (CIN)**: para serviços Valid, garante BCC em execução antes de carregar a URL.
-  - **Doc Avulso (antigo)**: inicia os serviços Valid se estiverem parados.
+  - **CapturaWeb**: se o BCC estiver instalado, dois ciclos de abrir/fechar liberam o leitor; se não estiver, a URL abre na hora. O reinício dos serviços Valid existentes segue em segundo plano.
+  - **SMART (CIN)**: para o serviço Valid que está rodando e inicia o BCC se o executável estiver no disco, esperando o processo subir antes da URL.
+  - **Doc Avulso (antigo)**: encerra o BCC se estiver aberto e inicia o serviço Valid parado. Se a lista de serviços não puder ser lida, tenta iniciar mesmo assim.
   - **Validação**: encerra BCC antes de carregar a URL; o app externo `CapturaWeb.exe` (Valid) pode ser reiniciado pela UI (`reiniciar-validacao`).
 - **S4IPM** e **Ponto Valid**: carregamento direto da URL na view principal.
 - **Ponto Renova**: janela separada com sessão isolada (`persist:ponto-renova`); opção de abrir no Google Chrome instalado; limpeza de cache só dessa sessão.
 - **Atende**: janela separada; IP (ou URL) em `captura-unificada-atende.json` no diretório de dados do app; tema claro/escuro persistido no mesmo arquivo.
-- **Conectividade**: verificação periódica (URL ou ping, conforme config); banner/modal offline; tentativa de restaurar o sistema ativo após reconexão.
+- **Conectividade**: a rede vale se algum sistema configurado responder. Um endereço bloqueado no posto não marca o aplicativo como sem internet. Banner offline só quando nenhum sistema responde; ao voltar, tenta restaurar o sistema ativo.
 - **Cookies**: antes de carregar URLs sensíveis, o main process pode truncar cookies do domínio se o header ultrapassar limite (evita erro 400 por cookie grande).
 - **Downloads**: downloads da sessão principal e do Atende vão para a pasta Downloads do usuário; painel na UI com progresso, abrir pasta, abrir PDF em janela filha.
 - **Navegação**: possibilidade de navegar a view embutida por URL (barra/atalhos na UI, conforme implementado).
@@ -26,7 +26,7 @@ Versão atual: veja `version` em `package.json` (ex.: **1.0.36**).
 - **Informações do sistema**: hostname, IP, AnyDesk e versão do app na interface.
 - **Instância única**: segunda execução foca a janela existente.
 - **Tema claro/escuro**: persistido (inclui sincronização com config do Atende onde aplicável).
-- **Sidebar colapsável**: larguras e comportamento alinhados a `app.config.js`.
+- **Sidebar colapsável**: recolhida, o conteúdo ocupa a largura toda e o botão de expandir flutua sobre a página (sem faixa lateral). Larguras em `app.config.js`.
 
 ---
 

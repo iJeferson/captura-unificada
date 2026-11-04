@@ -62,10 +62,10 @@ captura-unificada/
 
 | Sistema | Preparação / observação |
 |---------|-------------------------|
-| **CapturaWeb** | Três ciclos: iniciar BCC → aguardar abertura → espera fixa → matar BCC → aguardar fechar; em seguida `reiniciarServicoHardware()` dispara em background; carrega URL. Antes disso, `trimCookiesIfNeeded` na URL. |
-| **SMART (CIN)** | Para cada serviço Valid listado em config; se BCC não estiver rodando, inicia BCC; depois carrega URL (`configurarAmbienteSmart`). |
+| **CapturaWeb** | `prepararAmbienteCaptura`: sem `BCC.exe` e sem processo, não espera. Com BCC instalado, dois ciclos (abrir, esperar init, encerrar). O `taskkill` tenta a imagem sem árvore antes do `/T`, porque um filho com acesso negado deixava o `BCC.exe` vivo. `reiniciarServicoHardware()` só nos serviços Valid encontrados, em background. `trimCookiesIfNeeded` antes da URL. |
+| **SMART (CIN)** | Para o serviço Valid que está rodando (ou cujo estado não deu para ler) e só então inicia o BCC, se o exe existir e o processo não estiver ativo. Espera o `BCC.exe` aparecer e o tempo de `bccStartup` antes de carregar a URL (`configurarAmbienteSmart`). |
 | **S4IPM** | Apenas carrega a URL (sem passo de hardware). |
-| **Doc Avulso (antigo)** | `iniciarServicoValid()` em todos os serviços Valid configurados; carrega URL. |
+| **Doc Avulso (antigo)** | Encerra o BCC se estiver em execução e sobe o serviço Valid que estiver parado. Se a lista de serviços não puder ser lida, tenta `net start` mesmo assim, em vez de assumir que já está rodando. |
 | **Validação** | `matarBCC()`; carrega URL. O fluxo web pressupõe o cliente **CapturaWeb.exe** quando necessário; reinício explícito via IPC `reiniciar-validacao` (taskkill + spawn do exe em `CAPTURAWEB_VALIDACAO_EXE`). |
 | **Ponto Valid** | Carrega URL direto. |
 | **Ponto Renova** | `openOrFocusPontoRenovaWindow()` — não usa o `WebContentsView` principal. Opcional: abrir URL no Chrome (`ponto-renova-abrir-navegador`). |
@@ -80,10 +80,10 @@ Trocas concorrentes são serializadas com `processandoTroca` no `window.manager`
 | Área | Detalhe |
 |------|---------|
 | **main.js** | `requestSingleInstanceLock`, `second-instance` → foco/restore; `userData`; switches (GPU, cache, desativação de parte de *Private Network Access*; opcional `ignore-certificate-errors` se `ALLOW_INSECURE_CONNECTIONS`); `preconnectUrls` após criar janela |
-| **window.manager** | Bounds do embed (sidebar + `contentEmbedTopInset`); título `Captura Unificada v{versão} — {sistema}`; `did-fail-load` / rede → offline + placeholder; restauração quando conectividade volta; `session.preconnect` para bases usadas; **User-Agent** estilo Chrome e headers em domínios Ponto/Renova; **webRequest** para CORS em rede privada (RFC 1918) e `content-type` em CSS; permissões **geolocation** (pontomais) e **local-network**; menu mínimo (F5/F12 na view embutida); export de `onContentReachUrl` para hook opcional pós-navegação |
+| **window.manager** | Bounds do embed (sidebar + `contentEmbedTopInset`). Sidebar recolhida usa largura 0 e um `WebContentsView` transparente com o botão de expandir por cima do site. Título `Captura Unificada v{versão} — {sistema}`; `did-fail-load` / rede → offline + placeholder; restauração quando conectividade volta; `session.preconnect` para bases usadas; **User-Agent** estilo Chrome e headers em domínios Ponto/Renova; **webRequest** para CORS em rede privada (RFC 1918) e `content-type` em CSS; permissões **geolocation** (pontomais) e **local-network**; menu mínimo (F5/F12 na view embutida); export de `onContentReachUrl` para hook opcional pós-navegação |
 | **ipc.handlers** | Abertura por sistema; Atende/Ponto Renova; cookies; `clear-cache` / `clear-ponto-renova-cache`; downloads snapshot / abrir pasta / PDF; `content-view-navigate-url`; `apply-update-now`; reiniciar validação, serviço hardware, BCC |
 | **session-downloads** | `will-download` → salvar em `app.getPath('downloads')`, eventos `download-*` para o launcher |
-| **connectivity** | Intervalos e limiares em `app.config.js` → `connectivity-change` no renderer |
+| **connectivity** | Sonda as origens de `URLS` (sem ping para 8.8.8.8). Offline só se nenhuma responder. Falha de um sistema → aviso daquele endereço, sem bloquear os outros. Intervalos em `app.config.js` → `connectivity-change` no renderer |
 
 ---
 
