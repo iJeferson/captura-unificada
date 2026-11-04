@@ -17,7 +17,7 @@ Versão atual: veja `version` em `package.json` (ex.: **1.0.36**).
 - **S4IPM** e **Ponto Valid**: carregamento direto da URL na view principal.
 - **Ponto Renova**: janela separada com sessão isolada (`persist:ponto-renova`); opção de abrir no Google Chrome instalado; limpeza de cache só dessa sessão.
 - **Atende**: janela separada; IP (ou URL) em `captura-unificada-atende.json` no diretório de dados do app; tema claro/escuro persistido no mesmo arquivo.
-- **Conectividade**: verificação periódica (URL ou ping, conforme config); banner/modal offline; tentativa de restaurar o sistema ativo após reconexão.
+- **Conectividade**: a rede vale se algum sistema configurado responder. Um endereço bloqueado no posto não marca o aplicativo como sem internet. Banner offline só quando nenhum sistema responde; ao voltar, tenta restaurar o sistema ativo.
 - **Cookies**: antes de carregar URLs sensíveis, o main process pode truncar cookies do domínio se o header ultrapassar limite (evita erro 400 por cookie grande).
 - **Downloads**: downloads da sessão principal e do Atende vão para a pasta Downloads do usuário; painel na UI com progresso, abrir pasta, abrir PDF em janela filha.
 - **Navegação**: possibilidade de navegar a view embutida por URL (barra/atalhos na UI, conforme implementado).

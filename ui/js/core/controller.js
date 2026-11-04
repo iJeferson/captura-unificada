@@ -56,8 +56,8 @@ const Controller = {
 
   /**
    * Registra listeners de conectividade e exibe aviso quando offline.
-   * O estado vem do Main Process (verificação real com request HTTP a cada 5s).
-   * O mesmo estado é usado para bloquear abertura de sistemas quando offline.
+   * O estado vem do Main Process: a rede vale se algum sistema configurado responder.
+   * O mesmo estado bloqueia a abertura só quando nenhum sistema está alcançável.
    */
   registrarListenersOffline() {
     const atualizar = (isOnline) => {
@@ -69,7 +69,7 @@ const Controller = {
     };
     window.api.onConnectivityChange(atualizar);
     window.addEventListener("online", () => window.api.requestConnectivityCheck());
-    atualizar(navigator.onLine);
+    atualizar(true);
     window.api.requestConnectivityCheck();
   },
 
@@ -242,6 +242,14 @@ const Controller = {
       View.setChromeDownloadsPopoverOpen(false);
       void window.api.markDownloadsPanelViewed();
       void this.atualizarBadgeDownloads();
+      void window.api.setContentEmbedTopInset(EMBED_CONTENT_TOP_PX);
+    });
+
+    window.api.onSistemaIndisponivel(() => {
+      Model.setCarregando(false);
+      View.mostrarLoading(false);
+      View.mostrarSistemaIndisponivel();
+      View.setChromeDownloadsPopoverOpen(false);
       void window.api.setContentEmbedTopInset(EMBED_CONTENT_TOP_PX);
     });
 

@@ -174,6 +174,69 @@ function ajustarView() {
   contentView.setBounds(bounds);
 }
 
+/**
+ * Um sistema não abriu. A rede do posto continua válida para os outros.
+ * @param {string} validatedURL
+ */
+function codigoPelaMensagem(msg) {
+  if (msg.includes("ERR_INTERNET_DISCONNECTED")) return -106;
+  if (msg.includes("ERR_PROXY_CONNECTION_FAILED")) return -130;
+  if (msg.includes("ERR_NAME_NOT_RESOLVED") || msg.includes("ERR_NAME_RESOLUTION_FAILED")) return -105;
+  if (msg.includes("ERR_CONNECTION_REFUSED")) return -102;
+  if (msg.includes("ERR_CONNECTION_TIMED_OUT") || msg.includes("ERR_TIMED_OUT")) return -118;
+  if (msg.includes("ERR_ADDRESS_UNREACHABLE")) return -109;
+  if (msg.includes("ERR_CONNECTION_RESET")) return -101;
+  if (msg.includes("ERR_CONNECTION_FAILED")) return -104;
+  if (msg.includes("ERR_BLOCKED_BY_ADMINISTRATOR")) return -22;
+  if (msg.includes("ERR_TUNNEL_CONNECTION_FAILED")) return -111;
+  if (msg.includes("ERR_FAILED")) return -2;
+  return null;
+}
+
+/**
+ * @param {number} errorCode
+ * @param {string} url
+ * @returns {boolean} true se a falha foi tratada
+ */
+function tratarFalhaDeAbertura(errorCode, url) {
+  if (!connectivityService.ehDestinoInalcancavel(errorCode)) return false;
+  if (connectivityService.ehQuedaGeral(errorCode)) {
+    connectivityService.confirmarRede().then((redeOk) => {
+      if (!redeOk) showOfflineFallbackUI();
+      else showSistemaIndisponivel(url);
+    });
+    return true;
+  }
+  showSistemaIndisponivel(url);
+  return true;
+}
+
+function showSistemaIndisponivel(validatedURL) {
+  try {
+    if (contentView) {
+      contentView.setVisible(false);
+      const b = getContentBounds();
+      if (b) contentView.setBounds({ x: b.x, y: b.y, width: 0, height: 0 });
+    }
+    resetProcessandoTroca();
+    enviarLoadFinished(null);
+
+    let host = "";
+    try {
+      host = new URL(validatedURL).host;
+    } catch (_) {}
+    logger.logWarn(
+      "SISTEMA_INDISPONIVEL",
+      `O endereço não respondeu. Os outros sistemas seguem disponíveis: ${host || "desconhecido"}`
+    );
+
+    const wc = mainWindow?.webContents;
+    if (wc && !wc.isDestroyed()) wc.send("content-sistema-indisponivel");
+  } catch (err) {
+    logger.logError(err);
+  }
+}
+
 function showOfflineFallbackUI() {
   try {
     if (currentSistema) sistemaAntesDaQueda = currentSistema;
@@ -636,25 +699,19 @@ function criarJanela(iconPathParam) {
   });
 
   /* Falha de carregamento do frame principal.
-   * -3 (ERR_ABORTED) é ignorado pois indica redirect — nova navegação segue automaticamente.
-   * Erros de rede: modo offline completo (esconde contentView, mostra placeholder).
-   * Outros erros (SSL, timeout HTTP, etc.): apenas desbloqueia a UI sem ativar modo offline. */
-  function onContentLoadFailed(_event, errorCode, errorDescription, validatedURL, isMainFrame) {
+   * -3 (ERR_ABORTED) é redirect. Um sistema bloqueado no posto não vira "sem internet":
+   * a queda geral só entra se a sonda dos outros sistemas também falhar. */
+  function onContentLoadFailed(_event, errorCode, _errorDescription, validatedURL, isMainFrame) {
     if (!isMainFrame) return;
     if (validatedURL === "about:blank" || (typeof validatedURL === "string" && !validatedURL.trim())) return;
     if (errorCode === -3) return;
 
-    const isNetErr = connectivityService.isNetworkError(errorCode);
+    if (tratarFalhaDeAbertura(errorCode, validatedURL)) return;
 
-    if (!isNetErr) {
-      resetProcessandoTroca();
-      if (mainWindow?.webContents && !mainWindow.webContents.isDestroyed()) {
-        mainWindow.webContents.send("load-finished", null);
-      }
-      return;
+    resetProcessandoTroca();
+    if (mainWindow?.webContents && !mainWindow.webContents.isDestroyed()) {
+      mainWindow.webContents.send("load-finished", null);
     }
-
-    showOfflineFallbackUI();
   }
   contentView.webContents.on("did-fail-provisional-load", onContentLoadFailed);
   contentView.webContents.on("did-fail-load", onContentLoadFailed);
@@ -887,17 +944,8 @@ module.exports = {
   loadContentViewUrl: (url) => {
     lastLoadedUrl = url;
     contentView?.webContents?.loadURL(url).catch((err) => {
-      const msg = String(err?.message || "");
-      const isNetErr =
-        msg.includes("ERR_INTERNET_DISCONNECTED") ||
-        msg.includes("ERR_NAME_NOT_RESOLVED") ||
-        msg.includes("ERR_CONNECTION_REFUSED") ||
-        msg.includes("ERR_CONNECTION_TIMED_OUT") ||
-        msg.includes("ERR_ADDRESS_UNREACHABLE");
-      if (isNetErr) {
-        showOfflineFallbackUI();
-        return;
-      }
+      const code = codigoPelaMensagem(String(err?.message || ""));
+      if (code != null && tratarFalhaDeAbertura(code, url)) return;
       logger.logError(err);
     });
   },

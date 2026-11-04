@@ -797,6 +797,31 @@ body.light-theme .update-prompt { background: rgba(0, 0, 0, 0.04); }
 .placeholder-container.is-offline .placeholder-when-offline { display: block; }
 .placeholder-when-offline.hidden { display: none !important; }
 
+.placeholder-when-sistema {
+  display: none;
+  max-width: 420px;
+  margin: 0 auto;
+  text-align: center;
+}
+.placeholder-when-sistema h2 {
+  font-size: clamp(var(--text-2xl), 4vw, var(--text-3xl));
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 0.5em;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+}
+.placeholder-when-sistema p {
+  font-size: var(--text-md);
+  color: var(--text-dim);
+  font-weight: 400;
+  line-height: 1.5;
+}
+.placeholder-container.is-sistema .placeholder-when-online { display: none; }
+.placeholder-container.is-sistema .placeholder-when-offline { display: none; }
+.placeholder-container.is-sistema .placeholder-when-sistema { display: block; }
+.placeholder-when-sistema.hidden { display: none !important; }
+
 /* Aviso de offline – barra no topo da área de conteúdo (mesma paleta do app) */
 /* Lista de PDFs na sidebar (mesmo padrão visual dos dropdowns de sistema) */
 .chrome-download-badge {
