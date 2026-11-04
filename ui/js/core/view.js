@@ -19,6 +19,7 @@ const elementos = {
   placeholder: () => document.getElementById(ELEMENT_IDS.PLACEHOLDER),
   placeholderContainer: () => document.getElementById(ELEMENT_IDS.PLACEHOLDER_CONTAINER),
   placeholderOfflineMsg: () => document.getElementById(ELEMENT_IDS.PLACEHOLDER_OFFLINE_MSG),
+  placeholderSistemaMsg: () => document.getElementById(ELEMENT_IDS.PLACEHOLDER_SISTEMA_MSG),
   offlineBanner: () => document.getElementById(ELEMENT_IDS.OFFLINE_BANNER),
   menuBtns: () => document.querySelectorAll(`.${CSS_CLASSES.MENU_BTN}`),
   menuNav: () => document.querySelector("nav.menu"),
@@ -95,6 +96,7 @@ const View = {
     this.elementos.menuBtns().forEach((b) => b.classList.remove(CSS_CLASSES.ACTIVE));
     btn?.classList.add(CSS_CLASSES.ACTIVE);
     this.elementos.placeholder()?.classList.add(CSS_CLASSES.HIDDEN);
+    this.ocultarAvisoDeSistema();
     this.elementos.placeholderOfflineMsg()?.classList.add(CSS_CLASSES.HIDDEN);
   },
 
@@ -115,7 +117,11 @@ const View = {
         banner.setAttribute("aria-hidden", "true");
       }
     }
-    if (container) container.classList.toggle("is-offline", !!mostrar);
+    if (container) {
+      container.classList.toggle("is-offline", !!mostrar);
+      if (mostrar) container.classList.remove("is-sistema");
+    }
+    if (mostrar) this.ocultarAvisoDeSistema();
     if (placeholderMsg) {
       if (mostrar) placeholderMsg.classList.remove(CSS_CLASSES.HIDDEN);
       else placeholderMsg.classList.add(CSS_CLASSES.HIDDEN);
@@ -142,7 +148,11 @@ const View = {
       placeholder.style.display = "flex";
       placeholder.style.visibility = "visible";
     }
-    if (container) container.classList.add("is-offline");
+    if (container) {
+      container.classList.add("is-offline");
+      container.classList.remove("is-sistema");
+    }
+    this.ocultarAvisoDeSistema();
     if (offlineMsg) offlineMsg.classList.remove(CSS_CLASSES.HIDDEN);
     if (banner) {
       banner.classList.remove(CSS_CLASSES.HIDDEN);
@@ -175,8 +185,52 @@ const View = {
       banner.classList.add(CSS_CLASSES.HIDDEN);
       banner.style.display = "";
     }
-    if (container) container.classList.remove("is-offline");
+    if (container) {
+      container.classList.remove("is-offline");
+      container.classList.remove("is-sistema");
+    }
     if (offlineMsg) offlineMsg.classList.add(CSS_CLASSES.HIDDEN);
+    this.ocultarAvisoDeSistema();
+  },
+
+  /**
+   * O endereço aberto não respondeu. A rede do posto continua válida.
+   */
+  mostrarSistemaIndisponivel() {
+    const placeholder = this.elementos.placeholder();
+    const loading = this.elementos.loading();
+    const banner = this.elementos.offlineBanner();
+    const container = this.elementos.placeholderContainer();
+    const offlineMsg = this.elementos.placeholderOfflineMsg();
+    const sistemaMsg = this.elementos.placeholderSistemaMsg();
+
+    if (loading) {
+      loading.classList.add(CSS_CLASSES.HIDDEN);
+      loading.style.display = "none";
+    }
+    if (placeholder) {
+      placeholder.classList.remove(CSS_CLASSES.HIDDEN);
+      placeholder.style.display = "flex";
+      placeholder.style.visibility = "visible";
+    }
+    if (banner) {
+      banner.classList.add(CSS_CLASSES.HIDDEN);
+      banner.style.display = "";
+    }
+    if (offlineMsg) offlineMsg.classList.add(CSS_CLASSES.HIDDEN);
+    if (container) {
+      container.classList.remove("is-offline");
+      container.classList.add("is-sistema");
+    }
+    if (sistemaMsg) sistemaMsg.classList.remove(CSS_CLASSES.HIDDEN);
+    this.elementos.menuBtns().forEach((b) => b.classList.remove(CSS_CLASSES.ACTIVE));
+  },
+
+  ocultarAvisoDeSistema() {
+    const container = this.elementos.placeholderContainer();
+    const sistemaMsg = this.elementos.placeholderSistemaMsg();
+    if (container) container.classList.remove("is-sistema");
+    if (sistemaMsg) sistemaMsg.classList.add(CSS_CLASSES.HIDDEN);
   },
 
   /**

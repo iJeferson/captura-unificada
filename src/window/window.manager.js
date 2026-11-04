@@ -39,6 +39,16 @@ let sistemaIniciado = false;
 let processandoTroca = false;
 let processandoTrocaTimer = null;
 let currentSidebarWidth = config.SIDEBAR_WIDTH_EXPANDED;
+/**
+ * Botão de expandir. O site embutido cobre o HTML da janela, então o botão
+ * vive numa WebContentsView irmã, por cima do conteúdo, sem reservar faixa.
+ */
+let sidebarToggleView = null;
+let sidebarToggleReady = false;
+let sidebarToggleWanted = false;
+let sidebarTheme = "dark";
+const SIDEBAR_TOGGLE_SIZE = 40;
+const SIDEBAR_TOGGLE_MARGIN = 12;
 let currentSistema = null;
 /** URL da última página carregada no contentView (para restauração após queda de rede). */
 let lastLoadedUrl = null;
@@ -162,6 +172,69 @@ function ajustarView() {
   const bounds = getContentBounds();
   if (!bounds || !contentView) return;
   contentView.setBounds(bounds);
+}
+
+/**
+ * Um sistema não abriu. A rede do posto continua válida para os outros.
+ * @param {string} validatedURL
+ */
+function codigoPelaMensagem(msg) {
+  if (msg.includes("ERR_INTERNET_DISCONNECTED")) return -106;
+  if (msg.includes("ERR_PROXY_CONNECTION_FAILED")) return -130;
+  if (msg.includes("ERR_NAME_NOT_RESOLVED") || msg.includes("ERR_NAME_RESOLUTION_FAILED")) return -105;
+  if (msg.includes("ERR_CONNECTION_REFUSED")) return -102;
+  if (msg.includes("ERR_CONNECTION_TIMED_OUT") || msg.includes("ERR_TIMED_OUT")) return -118;
+  if (msg.includes("ERR_ADDRESS_UNREACHABLE")) return -109;
+  if (msg.includes("ERR_CONNECTION_RESET")) return -101;
+  if (msg.includes("ERR_CONNECTION_FAILED")) return -104;
+  if (msg.includes("ERR_BLOCKED_BY_ADMINISTRATOR")) return -22;
+  if (msg.includes("ERR_TUNNEL_CONNECTION_FAILED")) return -111;
+  if (msg.includes("ERR_FAILED")) return -2;
+  return null;
+}
+
+/**
+ * @param {number} errorCode
+ * @param {string} url
+ * @returns {boolean} true se a falha foi tratada
+ */
+function tratarFalhaDeAbertura(errorCode, url) {
+  if (!connectivityService.ehDestinoInalcancavel(errorCode)) return false;
+  if (connectivityService.ehQuedaGeral(errorCode)) {
+    connectivityService.confirmarRede().then((redeOk) => {
+      if (!redeOk) showOfflineFallbackUI();
+      else showSistemaIndisponivel(url);
+    });
+    return true;
+  }
+  showSistemaIndisponivel(url);
+  return true;
+}
+
+function showSistemaIndisponivel(validatedURL) {
+  try {
+    if (contentView) {
+      contentView.setVisible(false);
+      const b = getContentBounds();
+      if (b) contentView.setBounds({ x: b.x, y: b.y, width: 0, height: 0 });
+    }
+    resetProcessandoTroca();
+    enviarLoadFinished(null);
+
+    let host = "";
+    try {
+      host = new URL(validatedURL).host;
+    } catch (_) {}
+    logger.logWarn(
+      "SISTEMA_INDISPONIVEL",
+      `O endereço não respondeu. Os outros sistemas seguem disponíveis: ${host || "desconhecido"}`
+    );
+
+    const wc = mainWindow?.webContents;
+    if (wc && !wc.isDestroyed()) wc.send("content-sistema-indisponivel");
+  } catch (err) {
+    logger.logError(err);
+  }
 }
 
 function showOfflineFallbackUI() {
@@ -511,6 +584,9 @@ function criarJanela(iconPathParam) {
   );
 
   mainWindow.on("closed", () => {
+    sidebarToggleView = null;
+    sidebarToggleReady = false;
+    sidebarToggleWanted = false;
     mainWindow = null;
     contentView = null;
     connectivityService.reset();
@@ -661,25 +737,19 @@ function criarJanela(iconPathParam) {
   });
 
   /* Falha de carregamento do frame principal.
-   * -3 (ERR_ABORTED) é ignorado pois indica redirect — nova navegação segue automaticamente.
-   * Erros de rede: modo offline completo (esconde contentView, mostra placeholder).
-   * Outros erros (SSL, timeout HTTP, etc.): apenas desbloqueia a UI sem ativar modo offline. */
-  function onContentLoadFailed(_event, errorCode, errorDescription, validatedURL, isMainFrame) {
+   * -3 (ERR_ABORTED) é redirect. Um sistema bloqueado no posto não vira "sem internet":
+   * a queda geral só entra se a sonda dos outros sistemas também falhar. */
+  function onContentLoadFailed(_event, errorCode, _errorDescription, validatedURL, isMainFrame) {
     if (!isMainFrame) return;
     if (validatedURL === "about:blank" || (typeof validatedURL === "string" && !validatedURL.trim())) return;
     if (errorCode === -3) return;
 
-    const isNetErr = connectivityService.isNetworkError(errorCode);
+    if (tratarFalhaDeAbertura(errorCode, validatedURL)) return;
 
-    if (!isNetErr) {
-      resetProcessandoTroca();
-      if (mainWindow?.webContents && !mainWindow.webContents.isDestroyed()) {
-        mainWindow.webContents.send("load-finished", null);
-      }
-      return;
+    resetProcessandoTroca();
+    if (mainWindow?.webContents && !mainWindow.webContents.isDestroyed()) {
+      mainWindow.webContents.send("load-finished", null);
     }
-
-    showOfflineFallbackUI();
   }
   contentView.webContents.on("did-fail-provisional-load", onContentLoadFailed);
   contentView.webContents.on("did-fail-load", onContentLoadFailed);
@@ -730,7 +800,13 @@ function criarJanela(iconPathParam) {
 
   mainWindow.contentView.addChildView(contentView);
   contentView.setVisible(false);
-  mainWindow.on("resize", ajustarView);
+  const relayout = () => {
+    ajustarView();
+    if (sidebarToggleWanted) positionSidebarToggleView();
+  };
+  mainWindow.on("resize", relayout);
+  mainWindow.on("maximize", relayout);
+  mainWindow.on("unmaximize", relayout);
 
   mainWindow.once("ready-to-show", () => {
     const b = bounds();
@@ -773,6 +849,86 @@ function preconnectUrls() {
 
 function getActiveWebContents() {
   return contentView?.webContents;
+}
+
+function hideSidebarToggle() {
+  if (!sidebarToggleView) return;
+  sidebarToggleView.setVisible(false);
+  sidebarToggleView.setBounds({ x: 0, y: 0, width: 0, height: 0 });
+}
+
+function positionSidebarToggleView() {
+  if (!sidebarToggleView || !mainWindow || mainWindow.isDestroyed()) return;
+  const { height } = mainWindow.getContentBounds();
+  const y = Math.round(Math.max(SIDEBAR_TOGGLE_MARGIN, (height - SIDEBAR_TOGGLE_SIZE) / 2));
+  sidebarToggleView.setBounds({
+    x: SIDEBAR_TOGGLE_MARGIN,
+    y,
+    width: SIDEBAR_TOGGLE_SIZE,
+    height: SIDEBAR_TOGGLE_SIZE,
+  });
+}
+
+function ensureSidebarToggleView() {
+  if (sidebarToggleView || !mainWindow || mainWindow.isDestroyed()) return sidebarToggleView;
+  const view = new WebContentsView({
+    webPreferences: {
+      preload: path.join(__dirname, "..", "..", "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  view.setBackgroundColor("#00000000");
+  view.webContents.on("did-finish-load", () => {
+    sidebarToggleReady = true;
+    if (sidebarToggleWanted) revealSidebarToggle();
+  });
+  view.webContents.on("did-fail-load", (_event, errorCode, errorDescription, _url, isMainFrame) => {
+    if (!isMainFrame || errorCode === -3) return;
+    logger.logWarn(
+      "SIDEBAR_TOGGLE_FAILED",
+      `Botão flutuante não carregou (${errorCode} ${errorDescription || ""}). Menu expandido de novo.`
+    );
+    sidebarToggleWanted = false;
+    hideSidebarToggle();
+    currentSidebarWidth = config.SIDEBAR_WIDTH_EXPANDED;
+    ajustarView();
+    const win = mainWindow;
+    if (win?.webContents && !win.webContents.isDestroyed()) win.webContents.send("sidebar-expand-request");
+  });
+  view.webContents.loadFile(path.join(__dirname, "..", "..", "ui", "sidebar-toggle.html"));
+  mainWindow.contentView.addChildView(view);
+  view.setVisible(false);
+  sidebarToggleView = view;
+  return view;
+}
+
+function revealSidebarToggle() {
+  if (!sidebarToggleWanted || !sidebarToggleReady || !mainWindow || mainWindow.isDestroyed()) return;
+  const view = sidebarToggleView;
+  if (!view) return;
+  mainWindow.contentView.addChildView(view);
+  positionSidebarToggleView();
+  if (!view.webContents.isDestroyed()) view.webContents.send("sidebar-toggle-theme", sidebarTheme);
+  view.setVisible(true);
+}
+
+/**
+ * Mostra ou esconde o botão flutuante de expandir.
+ * Com a sidebar recolhida a view embutida ocupa x=0; o botão fica por cima do site.
+ * @param {boolean} collapsed
+ * @param {"dark"|"light"} [theme]
+ */
+function syncSidebarToggleOverlay(collapsed, theme) {
+  sidebarToggleWanted = Boolean(collapsed);
+  if (theme === "light" || theme === "dark") sidebarTheme = theme;
+  if (!sidebarToggleWanted) {
+    hideSidebarToggle();
+    return;
+  }
+  ensureSidebarToggleView();
+  revealSidebarToggle();
 }
 
 module.exports = {
@@ -819,23 +975,15 @@ module.exports = {
     }
   },
   setCurrentSidebarWidth: (w) => (currentSidebarWidth = w),
+  syncSidebarToggleOverlay,
   setContentViewVisible: (v) => contentView && (contentView.setVisible(v)),
   reloadContentView: () => contentView?.webContents?.reload(),
   reloadActiveView: () => getActiveWebContents()?.reload(),
   loadContentViewUrl: (url) => {
     lastLoadedUrl = url;
     contentView?.webContents?.loadURL(url).catch((err) => {
-      const msg = String(err?.message || "");
-      const isNetErr =
-        msg.includes("ERR_INTERNET_DISCONNECTED") ||
-        msg.includes("ERR_NAME_NOT_RESOLVED") ||
-        msg.includes("ERR_CONNECTION_REFUSED") ||
-        msg.includes("ERR_CONNECTION_TIMED_OUT") ||
-        msg.includes("ERR_ADDRESS_UNREACHABLE");
-      if (isNetErr) {
-        showOfflineFallbackUI();
-        return;
-      }
+      const code = codigoPelaMensagem(String(err?.message || ""));
+      if (code != null && tratarFalhaDeAbertura(code, url)) return;
       logger.logError(err);
     });
   },
